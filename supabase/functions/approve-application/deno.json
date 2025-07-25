@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window", "deno.ns"],
+    "strict": false,
+    "types": ["https://deno.land/x/types/index.d.ts"]
+  },
+  "tasks": {
+    "start": "deno run --allow-all index.ts"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "resend": "https://esm.sh/resend@1.3.0",
+    "resend/": "https://esm.sh/resend@1.3.0/"
+  }
+}

@@ -1,0 +1,92 @@
+[PDF]
+
+Student Content Access Workflow
+
+1. Authentication & Authorization
+- User signs in via Supabase Auth (email/password, SSO, etc.).
+- On login, the app fetches the user’s profile and roles from the users table.
+- Role-based access: Only users with the student role can access student content routes.
+
+2. Enrollment-Based Content Access
+- Each student is enrolled in one or more subjects/courses, tracked in an enrollments table:
+  - enrollments: { id, user_id, subject_id, ... }
+- The dashboard fetches all subjects/courses the student is enrolled in.
+
+3. Dashboard Experience
+- Student Dashboard (/students/dashboard):
+  - Greets the student.
+  - Lists all enrolled subjects/courses as clickable cards/links.
+  - Optionally shows progress, announcements, or upcoming assignments.
+  - **Displays the student's timetable** (see below).
+
+4. Timetable Display
+- The dashboard fetches and displays the student's personalized timetable.
+- Timetable is stored in a `timetables` table (or similar), with fields like:
+  - { id, user_id, subject_id, day_of_week, start_time, end_time, meeting_link }
+- Timetable entries are shown in a modern, calendar-like or table format.
+
+5. Live Classes (Zoom/Google Meet Integration)
+- Each subject/course can have scheduled live classes.
+- Each timetable entry can include a `meeting_link` (Zoom, Google Meet, etc.).
+- Students can join live classes directly from the dashboard or subject page by clicking the link.
+- Admins/teachers can schedule, update, or cancel live classes.
+- Optionally, integrate with Zoom/Google Meet APIs for automatic meeting creation and attendance tracking.
+
+6. Subject/Course Page (Dynamic Routing)
+- Dynamic route: /students/subjects/[subjectId]
+- When a student clicks a subject:
+  - The app checks if the student is enrolled in that subject (server-side or client-side check).
+  - If enrolled, fetch and display subject content (lessons, resources, assignments, etc.).
+  - If not enrolled, show an access denied message or redirect to dashboard.
+  - **Show upcoming live classes and timetable for this subject.**
+
+7. Content Delivery & Access Control
+- Content is fetched from a subjects or courses table, and related tables for lessons, resources, etc.
+- Supabase Row Level Security (RLS) ensures:
+  - Students can only read content for subjects they are enrolled in.
+  - Teachers/admins can manage content for their subjects.
+- Client-side checks (for UX) are always backed by server-side RLS (for security).
+
+8. Optional: Progress Tracking & Personalization
+- Track student progress per subject/lesson in a progress table.
+- Show personalized recommendations, reminders, or next steps on the dashboard.
+
+9. Professional Features
+- Responsive UI: Works on all devices.
+- Loading states: Spinners, skeletons, or shimmer effects while fetching data.
+- Error handling: Friendly error messages for access denied, not found, etc.
+- Accessibility: ARIA labels, keyboard navigation, color contrast.
+- Audit logging: Optionally log access for compliance.
+
+Workflow Diagram (Mermaid code):
+
+flowchart TD
+    A[Student logs in] --> B[Fetch user profile & enrollments]
+    B --> C[Show dashboard with enrolled subjects & timetable]
+    C -->|Clicks subject| D{Is student enrolled?}
+    D -- Yes --> E[Fetch & show subject content]
+    E --> H[Show subject timetable & live class links]
+    H --> I[Join live class (Zoom/Meet)]
+    D -- No --> F[Show access denied or redirect]
+    E --> G[Track progress, allow resource access]
+
+Summary Table:
+
+| Step                | What Happens                                                                 | Security/UX Best Practice                |
+|---------------------|------------------------------------------------------------------------------|------------------------------------------|
+| 1. Login            | Auth via Supabase, fetch user/role                                           | Use Supabase Auth, RLS, JWT              |
+| 2. Enrollment Fetch | Get subjects from enrollments                                                | RLS: Only fetch what user is allowed     |
+| 3. Dashboard        | List clickable subjects, show timetable                                      | Modern UI, loading states                |
+| 4. Timetable        | Show personalized timetable, live class links                                | RLS, calendar UI, meeting link security  |
+| 5. Live Classes     | Join Zoom/Meet via secure links, attendance tracking                         | Secure links, optional API integration   |
+| 6. Subject Access   | Dynamic route, check enrollment, fetch content                               | RLS, client+server check, error handling |
+| 7. Content Display  | Show lessons/resources, track progress                                       | RLS, progress tracking                   |
+| 8. Personalization  | Show progress, recommendations                                               | Optional, for engagement                 |
+
+Key Modern Practices:
+- Single source of truth for auth and access (Supabase + RLS).
+- Dynamic routing for scalable subject/course pages.
+- Minimal client-side logic for security; always enforce on the backend.
+- Reusable UI components for dashboard, subject cards, timetable, etc.
+- Scalable database schema: easily add new subjects, lessons, or roles.
+- Secure integration with external APIs (Zoom, Google Meet) for live classes. 

@@ -1,0 +1,7 @@
+{
+  "importMap": "./import_map.json",
+  "tasks": {
+    "start": "supabase functions serve --env-file=../../.env.local"
+  },
+  "verifyJsw": false
+}

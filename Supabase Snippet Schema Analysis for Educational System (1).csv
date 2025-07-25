@@ -1,0 +1,131 @@
+table_name,column_name,data_type,is_nullable,column_default,constraint_name,constraint_type
+applications,about_student,text,YES,null,null,null
+applications,application_id,uuid,NO,uuid_generate_v4(),applications_pkey,PRIMARY KEY
+applications,class,text,YES,null,null,null
+applications,consent,boolean,YES,null,null,null
+applications,curriculum,text,YES,null,null,null
+applications,descriptive_program_code,text,YES,null,null,null
+applications,dob,date,YES,null,null,null
+applications,document_url,text,YES,null,null,null
+applications,first_name,text,YES,null,null,null
+applications,gender,text,YES,null,null,null
+applications,last_name,text,YES,null,null,null
+applications,nationality,text,YES,null,null,null
+applications,parent_contact,text,YES,null,null,null
+applications,parent_email,text,YES,null,null,null
+applications,parent_name,text,YES,null,null,null
+applications,program_id,uuid,YES,null,applications_program_id_fkey,FOREIGN KEY
+applications,registration_number,text,YES,null,null,null
+applications,status,text,NO,null,null,null
+applications,student_email,text,YES,null,null,null
+applications,submitted_at,timestamp with time zone,YES,now(),null,null
+applications,temporary_password,text,YES,null,null,null
+applications,updated_at,timestamp with time zone,YES,now(),null,null
+applications,user_id,uuid,YES,null,applications_user_id_fkey,FOREIGN KEY
+classes,class_id,uuid,NO,uuid_generate_v4(),classes_pkey,PRIMARY KEY
+classes,created_at,timestamp with time zone,YES,now(),null,null
+classes,description,text,YES,null,null,null
+classes,name,text,NO,null,null,null
+classes,program_id,uuid,YES,null,classes_program_id_fkey,FOREIGN KEY
+enrollments,academic_year,text,NO,null,enrollments_user_id_curriculum_class_academic_year_key,UNIQUE
+enrollments,class,text,NO,null,enrollments_user_id_curriculum_class_academic_year_key,UNIQUE
+enrollments,created_at,timestamp with time zone,YES,now(),null,null
+enrollments,curriculum,text,NO,null,enrollments_user_id_curriculum_class_academic_year_key,UNIQUE
+enrollments,enrollment_date,timestamp with time zone,YES,now(),null,null
+enrollments,id,uuid,NO,gen_random_uuid(),enrollments_pkey,PRIMARY KEY
+enrollments,progress,integer,YES,0,null,null
+enrollments,registration_number,text,NO,null,null,null
+enrollments,status,text,YES,'active'::text,null,null
+enrollments,updated_at,timestamp with time zone,YES,now(),null,null
+enrollments,user_id,uuid,NO,null,enrollments_user_id_fkey,FOREIGN KEY
+enrollments,user_id,uuid,NO,null,enrollments_user_id_curriculum_class_academic_year_key,UNIQUE
+programs,created_at,timestamp with time zone,YES,now(),null,null
+programs,description,text,YES,null,null,null
+programs,name,text,NO,null,programs_name_key,UNIQUE
+programs,program_id,uuid,NO,uuid_generate_v4(),programs_pkey,PRIMARY KEY
+subjects,code,text,YES,null,null,null
+subjects,created_at,timestamp with time zone,YES,now(),null,null
+subjects,description,text,YES,null,null,null
+subjects,level_id,uuid,YES,null,subjects_level_id_fkey,FOREIGN KEY
+subjects,name,text,NO,null,null,null
+subjects,paper_type,text,YES,null,null,null
+subjects,subject_id,uuid,NO,uuid_generate_v4(),subjects_pkey,PRIMARY KEY
+teacher_assignments,assigned_at,timestamp with time zone,YES,now(),null,null
+teacher_assignments,assignment_id,uuid,NO,uuid_generate_v4(),teacher_assignments_pkey,PRIMARY KEY
+teacher_assignments,class_id,uuid,YES,null,teacher_assignments_class_id_fkey,FOREIGN KEY
+teacher_assignments,subject_id,uuid,YES,null,teacher_assignments_subject_id_fkey,FOREIGN KEY
+teacher_assignments,teacher_id,uuid,YES,null,teacher_assignments_teacher_id_fkey,FOREIGN KEY
+teachers,bio,text,YES,null,null,null
+teachers,created_at,timestamp with time zone,YES,now(),null,null
+teachers,program_id,uuid,YES,null,fk_teachers_program,FOREIGN KEY
+teachers,teacher_id,uuid,NO,uuid_generate_v4(),teachers_pkey,PRIMARY KEY
+teachers,user_id,uuid,YES,null,teachers_user_id_fkey,FOREIGN KEY
+users,academic_year,text,YES,null,null,null
+users,address,text,YES,null,null,null
+users,aud,character varying,YES,null,null,null
+users,auth_user_id,uuid,YES,null,users_auth_user_id_fkey,FOREIGN KEY
+users,banned_until,timestamp with time zone,YES,null,null,null
+users,class,text,YES,null,null,null
+users,confirmation_sent_at,timestamp with time zone,YES,null,null,null
+users,confirmation_token,character varying,YES,null,null,null
+users,confirmed_at,timestamp with time zone,YES,null,null,null
+users,created_at,timestamp with time zone,YES,null,null,null
+users,created_at,timestamp with time zone,YES,now(),null,null
+users,curriculum,text,YES,null,null,null
+users,date_of_birth,date,YES,null,null,null
+users,deleted_at,timestamp with time zone,YES,null,null,null
+users,department,text,YES,null,null,null
+users,email,text,NO,null,users_email_key,UNIQUE
+users,email,character varying,YES,null,users_email_key,UNIQUE
+users,email_change,character varying,YES,null,null,null
+users,email_change_confirm_status,smallint,YES,0,null,null
+users,email_change_sent_at,timestamp with time zone,YES,null,null,null
+users,email_change_token_current,character varying,YES,''::character varying,null,null
+users,email_change_token_new,character varying,YES,null,null,null
+users,email_confirmed_at,timestamp with time zone,YES,null,null,null
+users,emergency_contact,text,YES,null,null,null
+users,emergency_phone,text,YES,null,null,null
+users,encrypted_password,character varying,YES,null,null,null
+users,enrollment_date,timestamp with time zone,YES,null,null,null
+users,first_name,text,YES,null,null,null
+users,full_name,text,YES,null,null,null
+users,gender,text,YES,null,null,null
+users,id,uuid,NO,gen_random_uuid(),users_pkey,PRIMARY KEY
+users,id,uuid,NO,gen_random_uuid(),users_pkey,PRIMARY KEY
+users,id,uuid,NO,gen_random_uuid(),users_pkey,PRIMARY KEY
+users,id,uuid,NO,gen_random_uuid(),users_pkey,PRIMARY KEY
+users,id,uuid,NO,null,users_pkey,PRIMARY KEY
+users,id,uuid,NO,null,users_pkey,PRIMARY KEY
+users,id,uuid,NO,null,users_pkey,PRIMARY KEY
+users,id,uuid,NO,null,users_pkey,PRIMARY KEY
+users,instance_id,uuid,YES,null,null,null
+users,invited_at,timestamp with time zone,YES,null,null,null
+users,is_anonymous,boolean,NO,false,null,null
+users,is_sso_user,boolean,NO,false,null,null
+users,is_super_admin,boolean,YES,null,null,null
+users,last_login,timestamp with time zone,YES,null,null,null
+users,last_name,text,YES,null,null,null
+users,last_sign_in_at,timestamp with time zone,YES,null,null,null
+users,medical_conditions,text,YES,null,null,null
+users,nationality,text,YES,null,null,null
+users,parent_email,text,YES,null,null,null
+users,password_changed,boolean,YES,false,null,null
+users,password_hash,text,YES,null,null,null
+users,phone,text,YES,null,users_phone_key,UNIQUE
+users,phone,text,YES,NULL::character varying,users_phone_key,UNIQUE
+users,phone_change,text,YES,''::character varying,null,null
+users,phone_change_sent_at,timestamp with time zone,YES,null,null,null
+users,phone_change_token,character varying,YES,''::character varying,null,null
+users,phone_confirmed_at,timestamp with time zone,YES,null,null,null
+users,raw_app_meta_data,jsonb,YES,null,null,null
+users,raw_user_meta_data,jsonb,YES,null,null,null
+users,reauthentication_sent_at,timestamp with time zone,YES,null,null,null
+users,reauthentication_token,character varying,YES,''::character varying,null,null
+users,recovery_sent_at,timestamp with time zone,YES,null,null,null
+users,recovery_token,character varying,YES,null,null,null
+users,registration_number,text,YES,null,users_registration_number_key,UNIQUE
+users,role,character varying,YES,null,null,null
+users,role,text,YES,'student'::text,null,null
+users,status,text,YES,'active'::text,null,null
+users,updated_at,timestamp with time zone,YES,null,null,null
+users,updated_at,timestamp with time zone,YES,now(),null,null

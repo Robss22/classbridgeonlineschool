@@ -1,0 +1,30 @@
+{
+  "version": "5",
+  "remote": {
+    "https://deno.land/std@0.203.0/async/delay.ts": "a6142eb44cdd856b645086af2b811b1fcce08ec06bb7d50969e6a872ee9b8659",
+    "https://deno.land/std@0.203.0/http/server.ts": "1b2403b3c544c0624ad23e8ca4e05877e65380d9e0d75d04957432d65c3d5f41"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@eslint/eslintrc@3",
+        "npm:@supabase/supabase-js@^2.50.0",
+        "npm:@tailwindcss/postcss@4",
+        "npm:@types/react@19.1.8",
+        "npm:bcryptjs@^3.0.2",
+        "npm:classnames@^2.5.1",
+        "npm:country-list@^2.3.0",
+        "npm:eslint-config-next@15.3.4",
+        "npm:eslint@9",
+        "npm:lucide-react@0.522",
+        "npm:next@15.3.4",
+        "npm:react-dom@19",
+        "npm:react-input-mask@^2.0.4",
+        "npm:react-phone-input-2@^2.15.1",
+        "npm:react@19",
+        "npm:resend@^4.5.2",
+        "npm:tailwindcss@4"
+      ]
+    }
+  }
+}

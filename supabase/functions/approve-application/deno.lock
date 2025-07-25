@@ -1,0 +1,259 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:@supabase/supabase-js@*": "2.50.3",
+    "npm:resend@*": "4.6.0"
+  },
+  "npm": {
+    "@react-email/render@1.1.2_react@19.1.0_react-dom@19.1.0__react@19.1.0": {
+      "integrity": "sha512-RnRehYN3v9gVlNMehHPHhyp2RQo7+pSkHDtXPvg3s0GbzM9SQMW4Qrf8GRNvtpLC4gsI+Wt0VatNRUFqjvevbw==",
+      "dependencies": [
+        "html-to-text",
+        "prettier",
+        "react",
+        "react-dom",
+        "react-promise-suspense"
+      ],
+      "tarball": "https://registry.npmmirror.com/@react-email/render/-/render-1.1.2.tgz"
+    },
+    "@selderee/plugin-htmlparser2@0.11.0": {
+      "integrity": "sha512-P33hHGdldxGabLFjPPpaTxVolMrzrcegejx+0GxjrIb9Zv48D8yAIA/QTDR2dFl7Uz7urX8aX6+5bCZslr+gWQ==",
+      "dependencies": [
+        "domhandler",
+        "selderee"
+      ],
+      "tarball": "https://registry.npmmirror.com/@selderee/plugin-htmlparser2/-/plugin-htmlparser2-0.11.0.tgz"
+    },
+    "@supabase/auth-js@2.70.0": {
+      "integrity": "sha512-BaAK/tOAZFJtzF1sE3gJ2FwTjLf4ky3PSvcvLGEgEmO4BSBkwWKu8l67rLLIBZPDnCyV7Owk2uPyKHa0kj5QGg==",
+      "dependencies": [
+        "@supabase/node-fetch"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/auth-js/-/auth-js-2.70.0.tgz"
+    },
+    "@supabase/functions-js@2.4.5": {
+      "integrity": "sha512-v5GSqb9zbosquTo6gBwIiq7W9eQ7rE5QazsK/ezNiQXdCbY+bH8D9qEaBIkhVvX4ZRW5rP03gEfw5yw9tiq4EQ==",
+      "dependencies": [
+        "@supabase/node-fetch"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/functions-js/-/functions-js-2.4.5.tgz"
+    },
+    "@supabase/node-fetch@2.6.15": {
+      "integrity": "sha512-1ibVeYUacxWYi9i0cf5efil6adJ9WRyZBLivgjs+AUpewx1F3xPi7gLgaASI2SmIQxPoCEjAsLAzKPgMJVgOUQ==",
+      "dependencies": [
+        "whatwg-url"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/node-fetch/-/node-fetch-2.6.15.tgz"
+    },
+    "@supabase/postgrest-js@1.19.4": {
+      "integrity": "sha512-O4soKqKtZIW3olqmbXXbKugUtByD2jPa8kL2m2c1oozAO11uCcGrRhkZL0kVxjBLrXHE0mdSkFsMj7jDSfyNpw==",
+      "dependencies": [
+        "@supabase/node-fetch"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/postgrest-js/-/postgrest-js-1.19.4.tgz"
+    },
+    "@supabase/realtime-js@2.11.15_ws@8.18.3": {
+      "integrity": "sha512-HQKRnwAqdVqJW/P9TjKVK+/ETpW4yQ8tyDPPtRMKOH4Uh3vQD74vmj353CYs8+YwVBKubeUOOEpI9CT8mT4obw==",
+      "dependencies": [
+        "@supabase/node-fetch",
+        "@types/phoenix",
+        "@types/ws",
+        "isows",
+        "ws"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/realtime-js/-/realtime-js-2.11.15.tgz"
+    },
+    "@supabase/storage-js@2.7.1": {
+      "integrity": "sha512-asYHcyDR1fKqrMpytAS1zjyEfvxuOIp1CIXX7ji4lHHcJKqyk+sLl/Vxgm4sN6u8zvuUtae9e4kDxQP2qrwWBA==",
+      "dependencies": [
+        "@supabase/node-fetch"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/storage-js/-/storage-js-2.7.1.tgz"
+    },
+    "@supabase/supabase-js@2.50.3": {
+      "integrity": "sha512-Ld42AbfSXKnbCE2ObRvrGC5wj9OrfTOzswQZg0OcGQGx+QqcWYN/IqsLqrt4gCFrD57URbNRfGESSWzchzKAuQ==",
+      "dependencies": [
+        "@supabase/auth-js",
+        "@supabase/functions-js",
+        "@supabase/node-fetch",
+        "@supabase/postgrest-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js"
+      ],
+      "tarball": "https://registry.npmmirror.com/@supabase/supabase-js/-/supabase-js-2.50.3.tgz"
+    },
+    "@types/node@22.15.15": {
+      "integrity": "sha512-R5muMcZob3/Jjchn5LcO8jdKwSCbzqmPB6ruBxMcf9kbxtniZHP327s6C37iOfuw8mbKK3cAQa7sEl7afLrQ8A==",
+      "dependencies": [
+        "undici-types"
+      ],
+      "tarball": "https://registry.npmmirror.com/@types/node/-/node-22.15.15.tgz"
+    },
+    "@types/phoenix@1.6.6": {
+      "integrity": "sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==",
+      "tarball": "https://registry.npmmirror.com/@types/phoenix/-/phoenix-1.6.6.tgz"
+    },
+    "@types/ws@8.18.1": {
+      "integrity": "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==",
+      "dependencies": [
+        "@types/node"
+      ],
+      "tarball": "https://registry.npmmirror.com/@types/ws/-/ws-8.18.1.tgz"
+    },
+    "deepmerge@4.3.1": {
+      "integrity": "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==",
+      "tarball": "https://registry.npmmirror.com/deepmerge/-/deepmerge-4.3.1.tgz"
+    },
+    "dom-serializer@2.0.0": {
+      "integrity": "sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==",
+      "dependencies": [
+        "domelementtype",
+        "domhandler",
+        "entities"
+      ],
+      "tarball": "https://registry.npmmirror.com/dom-serializer/-/dom-serializer-2.0.0.tgz"
+    },
+    "domelementtype@2.3.0": {
+      "integrity": "sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==",
+      "tarball": "https://registry.npmmirror.com/domelementtype/-/domelementtype-2.3.0.tgz"
+    },
+    "domhandler@5.0.3": {
+      "integrity": "sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==",
+      "dependencies": [
+        "domelementtype"
+      ],
+      "tarball": "https://registry.npmmirror.com/domhandler/-/domhandler-5.0.3.tgz"
+    },
+    "domutils@3.2.2": {
+      "integrity": "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==",
+      "dependencies": [
+        "dom-serializer",
+        "domelementtype",
+        "domhandler"
+      ],
+      "tarball": "https://registry.npmmirror.com/domutils/-/domutils-3.2.2.tgz"
+    },
+    "entities@4.5.0": {
+      "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==",
+      "tarball": "https://registry.npmmirror.com/entities/-/entities-4.5.0.tgz"
+    },
+    "fast-deep-equal@2.0.1": {
+      "integrity": "sha512-bCK/2Z4zLidyB4ReuIsvALH6w31YfAQDmXMqMx6FyfHqvBxtjC0eRumeSu4Bs3XtXwpyIywtSTrVT99BxY1f9w==",
+      "tarball": "https://registry.npmmirror.com/fast-deep-equal/-/fast-deep-equal-2.0.1.tgz"
+    },
+    "html-to-text@9.0.5": {
+      "integrity": "sha512-qY60FjREgVZL03vJU6IfMV4GDjGBIoOyvuFdpBDIX9yTlDw0TjxVBQp+P8NvpdIXNJvfWBTNul7fsAQJq2FNpg==",
+      "dependencies": [
+        "@selderee/plugin-htmlparser2",
+        "deepmerge",
+        "dom-serializer",
+        "htmlparser2",
+        "selderee"
+      ],
+      "tarball": "https://registry.npmmirror.com/html-to-text/-/html-to-text-9.0.5.tgz"
+    },
+    "htmlparser2@8.0.2": {
+      "integrity": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+      "dependencies": [
+        "domelementtype",
+        "domhandler",
+        "domutils",
+        "entities"
+      ],
+      "tarball": "https://registry.npmmirror.com/htmlparser2/-/htmlparser2-8.0.2.tgz"
+    },
+    "isows@1.0.7_ws@8.18.3": {
+      "integrity": "sha512-I1fSfDCZL5P0v33sVqeTDSpcstAg/N+wF5HS033mogOVIp4B+oHC7oOCsA3axAbBSGTJ8QubbNmnIRN/h8U7hg==",
+      "dependencies": [
+        "ws"
+      ],
+      "tarball": "https://registry.npmmirror.com/isows/-/isows-1.0.7.tgz"
+    },
+    "leac@0.6.0": {
+      "integrity": "sha512-y+SqErxb8h7nE/fiEX07jsbuhrpO9lL8eca7/Y1nuWV2moNlXhyd59iDGcRf6moVyDMbmTNzL40SUyrFU/yDpg==",
+      "tarball": "https://registry.npmmirror.com/leac/-/leac-0.6.0.tgz"
+    },
+    "parseley@0.12.1": {
+      "integrity": "sha512-e6qHKe3a9HWr0oMRVDTRhKce+bRO8VGQR3NyVwcjwrbhMmFCX9KszEV35+rn4AdilFAq9VPxP/Fe1wC9Qjd2lw==",
+      "dependencies": [
+        "leac",
+        "peberminta"
+      ],
+      "tarball": "https://registry.npmmirror.com/parseley/-/parseley-0.12.1.tgz"
+    },
+    "peberminta@0.9.0": {
+      "integrity": "sha512-XIxfHpEuSJbITd1H3EeQwpcZbTLHc+VVr8ANI9t5sit565tsI4/xK3KWTUFE2e6QiangUkh3B0jihzmGnNrRsQ==",
+      "tarball": "https://registry.npmmirror.com/peberminta/-/peberminta-0.9.0.tgz"
+    },
+    "prettier@3.6.2": {
+      "integrity": "sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==",
+      "bin": true,
+      "tarball": "https://registry.npmmirror.com/prettier/-/prettier-3.6.2.tgz"
+    },
+    "react-dom@19.1.0_react@19.1.0": {
+      "integrity": "sha512-Xs1hdnE+DyKgeHJeJznQmYMIBG3TKIHJJT95Q58nHLSrElKlGQqDTR2HQ9fx5CN/Gk6Vh/kupBTDLU11/nDk/g==",
+      "dependencies": [
+        "react",
+        "scheduler"
+      ],
+      "tarball": "https://registry.npmmirror.com/react-dom/-/react-dom-19.1.0.tgz"
+    },
+    "react-promise-suspense@0.3.4": {
+      "integrity": "sha512-I42jl7L3Ze6kZaq+7zXWSunBa3b1on5yfvUW6Eo/3fFOj6dZ5Bqmcd264nJbTK/gn1HjjILAjSwnZbV4RpSaNQ==",
+      "dependencies": [
+        "fast-deep-equal"
+      ],
+      "tarball": "https://registry.npmmirror.com/react-promise-suspense/-/react-promise-suspense-0.3.4.tgz"
+    },
+    "react@19.1.0": {
+      "integrity": "sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==",
+      "tarball": "https://registry.npmmirror.com/react/-/react-19.1.0.tgz"
+    },
+    "resend@4.6.0": {
+      "integrity": "sha512-D5T2I82FvEUYFlrHzaDvVtr5ADHdhuoLaXgLFGABKyNtQgPWIuz0Vp2L2Evx779qjK37aF4kcw1yXJDHhA2JnQ==",
+      "dependencies": [
+        "@react-email/render"
+      ],
+      "tarball": "https://registry.npmmirror.com/resend/-/resend-4.6.0.tgz"
+    },
+    "scheduler@0.26.0": {
+      "integrity": "sha512-NlHwttCI/l5gCPR3D1nNXtWABUmBwvZpEQiD4IXSbIDq8BzLIK/7Ir5gTFSGZDUu37K5cMNp0hFtzO38sC7gWA==",
+      "tarball": "https://registry.npmmirror.com/scheduler/-/scheduler-0.26.0.tgz"
+    },
+    "selderee@0.11.0": {
+      "integrity": "sha512-5TF+l7p4+OsnP8BCCvSyZiSPc4x4//p5uPwK8TCnVPJYRmU2aYKMpOXvw8zM5a5JvuuCGN1jmsMwuU2W02ukfA==",
+      "dependencies": [
+        "parseley"
+      ],
+      "tarball": "https://registry.npmmirror.com/selderee/-/selderee-0.11.0.tgz"
+    },
+    "tr46@0.0.3": {
+      "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
+      "tarball": "https://registry.npmmirror.com/tr46/-/tr46-0.0.3.tgz"
+    },
+    "undici-types@6.21.0": {
+      "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==",
+      "tarball": "https://registry.npmmirror.com/undici-types/-/undici-types-6.21.0.tgz"
+    },
+    "webidl-conversions@3.0.1": {
+      "integrity": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==",
+      "tarball": "https://registry.npmmirror.com/webidl-conversions/-/webidl-conversions-3.0.1.tgz"
+    },
+    "whatwg-url@5.0.0": {
+      "integrity": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
+      "dependencies": [
+        "tr46",
+        "webidl-conversions"
+      ],
+      "tarball": "https://registry.npmmirror.com/whatwg-url/-/whatwg-url-5.0.0.tgz"
+    },
+    "ws@8.18.3": {
+      "integrity": "sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==",
+      "tarball": "https://registry.npmmirror.com/ws/-/ws-8.18.3.tgz"
+    }
+  },
+  "remote": {
+    "https://deno.land/std@0.203.0/async/delay.ts": "a6142eb44cdd856b645086af2b811b1fcce08ec06bb7d50969e6a872ee9b8659",
+    "https://deno.land/std@0.203.0/http/server.ts": "1b2403b3c544c0624ad23e8ca4e05877e65380d9e0d75d04957432d65c3d5f41"
+  }
+}

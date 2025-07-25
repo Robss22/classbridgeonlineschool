@@ -1,0 +1,7 @@
+
+{
+  "deno.enable": true,
+  "deno.unstable": ["kv", "cron"],
+  "deno.lint": true,
+  "deno.importMap": "./import_map.json"
+}
