@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { TeacherProvider } from '@/contexts/TeacherContext';
 import { supabase } from '@/lib/supabaseClient';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -12,17 +13,18 @@ const navItems = [
   { name: 'My Classes', href: '/teachers/classes' },
   { name: 'My Subjects', href: '/teachers/subjects' },
   { name: 'Resources', href: '/teachers/resources' },
-  { name: 'Assessments', href: '/assessments' },
+  { name: 'My Assessments', href: '/assessments' },
   { name: 'Messages', href: '/teachers/messages' },
   { name: 'Students', href: '/teachers/students' },
   { name: 'Profile', href: '/teachers/profile' },
 ];
 
-export default function TeachersLayout({ children }: { children: React.ReactNode }) {
+function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { user } = useAuth();
+  
   return (
-    <AuthProvider>
-      <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
         <aside className="w-64 bg-white shadow-lg p-6 flex flex-col gap-4 relative">
           <div className="text-2xl font-bold mb-8">Teacher Portal</div>
           <nav className="flex flex-col gap-2">
@@ -49,7 +51,9 @@ export default function TeachersLayout({ children }: { children: React.ReactNode
         </aside>
         <main className="flex-1 flex flex-col">
           <header className="h-16 bg-white shadow flex items-center px-8 justify-between">
-            <div className="font-semibold text-lg">Welcome, Teacher</div>
+            <div className="font-semibold text-lg">
+              Welcome, {user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher'}
+            </div>
             {/* Placeholder for notifications, profile, logout */}
             <div className="flex items-center gap-4">
               <div className="w-8 h-8 bg-gray-200 rounded-full" />
@@ -67,6 +71,15 @@ export default function TeachersLayout({ children }: { children: React.ReactNode
           <section className="flex-1 p-8">{children}</section>
         </main>
       </div>
+    );
+  }
+
+export default function TeachersLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <TeacherProvider>
+        <TeachersLayoutContent>{children}</TeachersLayoutContent>
+      </TeacherProvider>
     </AuthProvider>
   );
 } 

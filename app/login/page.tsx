@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +12,12 @@ const Login: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  // Automatically reset loading and welcome state on route change
+  useEffect(() => {
+    setLoading(false);
+    setShowWelcome(false);
+  }, [pathname]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +98,9 @@ const Login: React.FC = () => {
       
       setFullName(displayName);
       setShowWelcome(true);
+      // Set loading to false after navigation or after timeout
+      // Use a flag to prevent double setLoading
+      let navigated = false;
 
       // Step 4: Navigate based on role and password status
       console.log('Step 4: Determining navigation...', { 
@@ -100,35 +109,52 @@ const Login: React.FC = () => {
       });
 
       const navigationDelay = 2000;
-      
       setTimeout(() => {
         console.log('Navigating...');
         try {
           if (!profile.password_changed && profile.role === 'student') {
             console.log('Redirecting to change password');
             router.push('/change-password');
+            console.log('router.push(/change-password) called');
           } else {
             switch (profile.role) {
               case 'admin':
                 console.log('Redirecting to admin dashboard');
                 router.push('/admin/dashboard');
+                console.log('router.push(/admin/dashboard) called');
                 break;
               case 'teacher':
+              case 'class_tutor':
                 console.log('Redirecting to teacher dashboard');
                 router.push('/teachers/dashboard');
+                console.log('router.push(/teachers/dashboard) called');
                 break;
-              default:
+              case 'student':
                 console.log('Redirecting to student dashboard');
                 router.push('/students/dashboard');
+                console.log('router.push(/students/dashboard) called');
+                break;
+              default:
+                console.log('Unknown role, redirecting to student dashboard');
+                router.push('/students/dashboard');
+                console.log('router.push(/students/dashboard) called');
                 break;
             }
           }
+          navigated = true;
         } catch (navError) {
           console.error('Navigation error:', navError);
           setError('Navigation failed. Please try again.');
           setLoading(false);
           setShowWelcome(false);
         }
+        // Fallback: if navigation does not happen, reset loading after 3 seconds
+        setTimeout(() => {
+          if (!navigated) {
+            setLoading(false);
+            setShowWelcome(false);
+          }
+        }, 3000);
       }, navigationDelay);
 
     } catch (err) {
@@ -136,8 +162,7 @@ const Login: React.FC = () => {
       setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setLoading(false);
     } finally {
-      // Only set loading to false if we're not showing welcome message
-      // (because if welcome is showing, we're in the process of navigating)
+      // Always reset loading after navigation or error
       if (!showWelcome) {
         setLoading(false);
       }

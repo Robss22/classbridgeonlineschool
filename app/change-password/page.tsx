@@ -67,7 +67,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 function ChangePasswordPageInner() {
   const { user, isAuthenticated, loadingAuth, changePassword } = useAuth();
   const router = useRouter();
-
   const [formData, setFormData] = useState<FormData>({
     currentPassword: '',
     newPassword: '',
@@ -117,6 +116,13 @@ function ChangePasswordPageInner() {
       }
     }
   }, [isAuthenticated, loadingAuth, passwordChanged, router]);
+
+  if (loadingAuth) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to change your password.</div>;
+  }
 
   const validatePassword = (password: string) => {
     const rules: PasswordStrengthRules = {

@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useAuth } from '@/contexts/AuthContext'; // Assuming this path is correct for your project setup
+import { useAuth } from '@/contexts/AuthContext';
+import { useTeacher } from '@/contexts/TeacherContext';
 import Link from "next/link";
 import { BookOpen, Users, Calendar, Megaphone, UploadCloud, MessageCircle, FolderKanban } from "lucide-react";
 
 // Define interfaces for data fetched from Supabase
 interface TeacherAssignmentRaw {
   subject_id: string;
-  class_id: string;
+  level_id: string;
   // Supabase returns these as arrays when using `alias (column_name)` syntax
   subjects: { name: string }[] | null;
-  classes: { name: string }[] | null;
+  levels: { name: string }[] | null;
 }
 
 interface Message {
@@ -79,12 +80,11 @@ function DashboardCard({ title, href, desc }: { title: string; href: string; des
 
 // TeacherDashboardPage component
 export default function TeacherDashboardPage() {
-  const { user, loading: authLoading } = useAuth(); // Get user and authLoading from AuthContext
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const { subjects, levels, programs, loading: teacherLoading, error: teacherError } = useTeacher();
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
   const [announcements, setAnnouncements] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true); // Local loading state for this component's data fetch
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
   // Use a hydrated state to ensure client-side rendering for auth-dependent logic
@@ -99,35 +99,22 @@ export default function TeacherDashboardPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    // Always call the hook, logic inside
-    if (authLoading) {
+    
+    if (authLoading || teacherLoading) {
       setLoading(true);
       return;
     }
+    
     if (!user) {
       setLoading(false);
-      setSubjects([]);
-      setClasses([]);
       setTodayLessons([]);
       setAnnouncements([]);
-      console.log('TeacherDashboard: No authenticated user, stopping loading and clearing data.');
       return;
     }
-    setLoading(true);
-    async function fetchAllDashboardData() {
-      try {
-        // Fetch teacher_assignments with joins
-        const { data: assignments, error: assignmentsError } = await supabase
-          .from("teacher_assignments")
-          .select(`
-            subject_id,
-            class_id,
-            subjects:subject_id (name),
-            classes:class_id (name)
-          `)
-          .eq("teacher_id", user.id);
 
-        // Fetch announcements in parallel
+    async function fetchDashboardData() {
+      try {
+        // Fetch announcements
         const { data: annData, error: annError } = await supabase
           .from("messages")
           .select("*")
@@ -135,42 +122,17 @@ export default function TeacherDashboardPage() {
           .order("created_at", { ascending: false })
           .limit(3);
 
-        if (assignmentsError) {
-          setError("Supabase Error fetching teacher assignments: " + assignmentsError.message);
-          return;
-        }
         if (annError) {
           setError("Supabase Error fetching announcements: " + annError.message);
           return;
         }
 
-        // Process assignments data to extract unique subjects and classes
-        const uniqueSubjects: Set<string> = new Set();
-        const uniqueClasses: Set<string> = new Set();
-        const lessonsForToday: Lesson[] = [];
+        // Create lessons from teacher assignments
+        const lessonsForToday: Lesson[] = subjects.map(subject => ({
+          subject,
+          class: levels.join(", "),
+        }));
 
-        (assignments || []).forEach((assignment: TeacherAssignmentRaw) => {
-          const subjectName = Array.isArray(assignment.subjects) && assignment.subjects.length > 0
-            ? assignment.subjects[0]?.name
-            : undefined;
-          const className = Array.isArray(assignment.classes) && assignment.classes.length > 0
-            ? assignment.classes[0]?.name
-            : undefined;
-
-          if (subjectName) {
-            uniqueSubjects.add(subjectName);
-          }
-          if (className) {
-            uniqueClasses.add(className);
-          }
-          lessonsForToday.push({
-            subject: subjectName,
-            class: className,
-          });
-        });
-
-        setSubjects(Array.from(uniqueSubjects));
-        setClasses(Array.from(uniqueClasses));
         setTodayLessons(lessonsForToday);
         setAnnouncements(Array.isArray(annData) ? annData : []);
 
@@ -180,12 +142,24 @@ export default function TeacherDashboardPage() {
         setLoading(false);
       }
     }
-    fetchAllDashboardData();
-  }, [user, authLoading, hydrated]);
+    
+    fetchDashboardData();
+  }, [user, authLoading, teacherLoading, hydrated, subjects, levels, programs]);
 
-  if (!hydrated) return null;
+  // Early returns moved to the end to maintain consistent hook order
+  if (!hydrated) {
+    return null;
+  }
+  
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your dashboard.</div>;
+  }
 
-  if (loading) {
+  if (loading || teacherLoading) {
     return <DashboardSkeleton />;
   }
 
@@ -201,14 +175,7 @@ export default function TeacherDashboardPage() {
     );
   }
 
-  // If auth is complete but no user (e.g., not logged in), show a message
-  if (!user) {
-    return (
-      <div className="max-w-5xl mx-auto p-6 text-center text-gray-500">
-        Please log in to view the teacher dashboard.
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -218,9 +185,12 @@ export default function TeacherDashboardPage() {
       {/* Welcome Card */}
       <div className="bg-white rounded-xl shadow p-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <div className="text-lg font-semibold mb-1">Welcome, Teacher!</div>
-          <div className="text-gray-600 text-sm">Subjects: <span className="font-medium">{subjects.length ? subjects.join(", ") : "-"}</span></div>
-          <div className="text-gray-600 text-sm">Classes: <span className="font-medium">{classes.length ? classes.join(", ") : "-"}</span></div>
+          <div className="text-lg font-semibold mb-1">
+            Welcome, {user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Teacher'}!
+          </div>
+          <div className="text-gray-600 text-sm">Assigned Programs: <span className="font-medium">{programs.length ? programs.join(", ") : "None assigned"}</span></div>
+          <div className="text-gray-600 text-sm">Assigned Subjects: <span className="font-medium">{subjects.length ? subjects.join(", ") : "None assigned"}</span></div>
+          <div className="text-gray-600 text-sm">Assigned Levels: <span className="font-medium">{levels.length ? levels.join(", ") : "None assigned"}</span></div>
         </div>
         <div className="flex gap-2 mt-2 md:mt-0">
           <Link href="/assessments">
@@ -235,18 +205,10 @@ export default function TeacherDashboardPage() {
       </div>
       {/* Dashboard Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
-        <Link href="/assessments">
-          <DashboardCard title="Assessments" href="/assessments" desc="Create and manage assessments for your classes and programs." />
-        </Link>
-        <Link href="/teachers/resources">
-          <DashboardCard title="Resources" href="/teachers/resources" desc="Upload and manage teaching resources." />
-        </Link>
-        <Link href="/teachers/classes">
-          <DashboardCard title="Classes" href="/teachers/classes" desc="View and manage your assigned classes." />
-        </Link>
-        <Link href="/teachers/messages">
-          <DashboardCard title="Messages" href="/teachers/messages" desc="Send and receive messages and announcements." />
-        </Link>
+        <DashboardCard title="Assessments" href="/assessments" desc="Create and manage assessments for your classes and programs." />
+        <DashboardCard title="Resources" href="/teachers/resources" desc="Upload and manage teaching resources." />
+        <DashboardCard title="Classes" href="/teachers/classes" desc="View and manage your assigned classes." />
+        <DashboardCard title="Messages" href="/teachers/messages" desc="Send and receive messages and announcements." />
       </div>
       {/* Today's Classes/Lessons */}
       <div className="bg-white rounded-xl shadow p-5 mb-6">

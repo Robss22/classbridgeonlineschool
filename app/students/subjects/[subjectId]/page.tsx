@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function SubjectPage() {
   const { subjectId } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [subject, setSubject] = useState(null);
   const [timetable, setTimetable] = useState([]);
   const [liveClasses, setLiveClasses] = useState([]);
@@ -48,6 +48,13 @@ export default function SubjectPage() {
     };
     fetchData();
   }, [user, subjectId]);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view this subject.</div>;
+  }
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-600">{error}</div>;

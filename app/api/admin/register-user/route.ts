@@ -193,7 +193,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // === 6. Success response ===
+    // === 6. Create teacher record if role is 'teacher' ===
+    if (validated.role === 'teacher') {
+      const { error: teacherError } = await supabaseAdmin
+        .from('teachers')
+        .insert({
+          user_id: authData.user.id,
+          program_id: null, // Will be assigned later
+          bio: null,
+          created_at: new Date().toISOString(),
+        });
+
+      if (teacherError) {
+        console.error('Teacher record creation error:', teacherError);
+        // Note: We don't rollback here as the user is already created
+        // The teacher record can be created later through the UI
+        console.warn('Teacher record creation failed, but user was created successfully');
+      } else {
+        console.log('Teacher record created successfully for user:', authData.user.id);
+      }
+    }
+
+    // === 7. Success response ===
     return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
 
   } catch (error: any) {

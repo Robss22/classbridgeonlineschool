@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTeacher } from '@/contexts/TeacherContext';
 import Link from "next/link";
 import { BookOpen, Users, Calendar, Megaphone, UploadCloud, MessageCircle, FolderKanban } from "lucide-react";
+import FileDownload from '@/components/FileDownload';
+import TeacherAssessmentForm from '@/components/TeacherAssessmentForm';
 
 // Reusable Dropdown menu for actions
 function ActionsDropdown({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
@@ -104,7 +107,7 @@ interface Assessment {
   programs?: { name: string } | null;
   levels?: { name: string } | null;
   subjects?: { name: string } | null;
-  creator?: { full_name: string | null; email: string | null } | null;
+  creator?: { full_name: string | null; email: string | null; role: string | null } | null;
   paper_id: string | null;
 }
 
@@ -115,15 +118,40 @@ interface AssessmentFormProps {
   onSave: () => void;
   creatorId: string | undefined;
   userRole: string | undefined;
-  teacherPrograms: string[];
 }
 
 // Form for Adding/Editing an Assessment
-function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, teacherPrograms }: AssessmentFormProps) {
+function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }: AssessmentFormProps) {
+  // Safely use teacher context - for admin users, this will be empty
+  const teacherContext = (() => {
+    try {
+      return useTeacher();
+    } catch (error) {
+      // If TeacherProvider is not available, return default values
+      return { 
+        assignments: [], 
+        subjects: [],
+        levels: [],
+        programs: [],
+        loading: false, 
+        error: null, 
+        refreshAssignments: async () => {} 
+      };
+    }
+  })();
+  
+  const { assignments: teacherAssignments } = teacherContext;
   const [title, setTitle] = useState(assessmentItem?.title || '');
   const [description, setDescription] = useState(assessmentItem?.description || '');
   const [type, setType] = useState(assessmentItem?.type || 'assignment');
   const [programId, setProgramId] = useState(assessmentItem?.program_id || '');
+  
+  // Debug programId changes (only when it actually changes)
+  useEffect(() => {
+    if (programId) {
+      console.log('🔍 [AssessmentForm] ProgramId changed:', programId);
+    }
+  }, [programId]);
   const [levelId, setLevelId] = useState(assessmentItem?.level_id || '');
   const [subjectId, setSubjectId] = useState(assessmentItem?.subject_id || '');
   const [dueDate, setDueDate] = useState(
@@ -151,19 +179,36 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
           .from('programs')
           .select('program_id, name');
         if (programsError) throw programsError;
-        setAllPrograms(programsData || []);
+        console.log('🔍 [AssessmentForm] Programs fetched:', programsData?.length, 'programs');
+        // Remove duplicates based on program_id
+        const uniquePrograms = programsData ? 
+          programsData.filter((program, index, self) => 
+            index === self.findIndex(p => p.program_id === program.program_id)
+          ) : [];
+        setAllPrograms(uniquePrograms);
 
         const { data: levelsData, error: levelsError } = await supabase
           .from('levels')
           .select('level_id, name, program_id');
         if (levelsError) throw levelsError;
-        setAllLevels(levelsData || []);
+        console.log('🔍 [AssessmentForm] Levels fetched:', levelsData?.length, 'levels');
+        // Remove duplicates based on level_id
+        const uniqueLevels = levelsData ? 
+          levelsData.filter((level, index, self) => 
+            index === self.findIndex(l => l.level_id === level.level_id)
+          ) : [];
+        setAllLevels(uniqueLevels);
 
         const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
           .select('subject_id, name');
         if (subjectsError) throw subjectsError;
-        setAllSubjects(subjectsData || []);
+        // Remove duplicates based on subject_id
+        const uniqueSubjects = subjectsData ? 
+          subjectsData.filter((subject, index, self) => 
+            index === self.findIndex(s => s.subject_id === subject.subject_id)
+          ) : [];
+        setAllSubjects(uniqueSubjects);
       } catch (err: any) {
         console.error('Error fetching form dependencies:', err);
         setError('Failed to load form options.');
@@ -195,12 +240,46 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
   }, [levelId, programId]);
 
   // Filter programs/levels/subjects based on teacher's assignments
-  const availablePrograms = userRole === 'admin' ? allPrograms : allPrograms.filter(p => teacherPrograms.includes(p.program_id));
-  const availableLevels = userRole === 'admin' 
-    ? allLevels.filter(l => l.program_id === programId) 
-    : allLevels.filter(l => l.program_id === programId && teacherPrograms.includes(l.program_id));
-  // Only show subjects offered for the selected level
-  const availableSubjects = offeredSubjects.map(o => ({ id: o.subject_id, name: Array.isArray(o.subjects) ? o.subjects[0].name : o.subjects.name }));
+  const teacherSubjectIds = teacherAssignments.map(assignment => assignment.subject_id);
+  const teacherLevelIds = teacherAssignments.map(assignment => assignment.level_id);
+
+  // Filter available options based on teacher's assignments
+  const teacherPrograms = allPrograms; // For now, show all programs to teachers
+  const availablePrograms = userRole === 'admin' ? allPrograms : teacherPrograms;
+  const availableLevels = userRole === 'admin' ? allLevels : allLevels.filter(level => teacherLevelIds.includes(level.level_id));
+  const availableSubjects = userRole === 'admin' ? allSubjects : allSubjects.filter(subject => teacherSubjectIds.includes(subject.subject_id));
+  
+  // Filter levels by selected program for dropdown
+  const dropdownLevels = availableLevels.filter(level => level.program_id === programId);
+  
+  // Filter subjects for dropdown - use offered subjects but filter by teacher assignments
+  const dropdownSubjects = userRole === 'admin' 
+    ? offeredSubjects.map(o => ({ id: o.subject_id, name: Array.isArray(o.subjects) ? o.subjects[0].name : o.subjects.name }))
+    : offeredSubjects
+        .filter(o => teacherSubjectIds.includes(o.subject_id))
+        .map(o => ({ id: o.subject_id, name: Array.isArray(o.subjects) ? o.subjects[0].name : o.subjects.name }));
+  
+  // Debug logging (only when data changes)
+  useEffect(() => {
+    console.log('🔍 [AssessmentForm] Debug info:', {
+      userRole,
+      teacherProgramsLength: teacherPrograms.length,
+      allProgramsCount: allPrograms.length,
+      availableProgramsCount: availablePrograms.length,
+      availablePrograms: availablePrograms.map(p => ({ id: p.program_id, name: p.name }))
+    });
+  }, [userRole, teacherPrograms, allPrograms, availablePrograms]);
+  
+  // Debug logging for levels (only when data changes)
+  useEffect(() => {
+    console.log('🔍 [AssessmentForm] Levels debug:', {
+      programId,
+      allLevelsCount: allLevels.length,
+      availableLevelsCount: availableLevels.length,
+      dropdownLevelsCount: dropdownLevels.length,
+      dropdownLevels: dropdownLevels.map(l => ({ id: l.level_id, name: l.name, programId: l.program_id }))
+    });
+  }, [programId, allLevels, availableLevels, dropdownLevels]);
 
   // Fetch available papers when subjectId changes
   useEffect(() => {
@@ -248,6 +327,17 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
       creator_id: creatorId,
       paper_id: paperId || null,
     };
+    
+    console.log('🔍 [AssessmentForm] Saving assessment:', {
+      ...dataToSave,
+      fileUrl: fileUrl,
+      hasFileUrl: !!fileUrl
+    });
+    
+    // Warn user if no file was uploaded but they might have intended to
+    if (!fileUrl && !assessmentItem?.file_url) {
+      console.warn('⚠️ [AssessmentForm] No file URL - assessment will be saved without attachment');
+    }
 
     try {
       if (assessmentItem) {
@@ -286,16 +376,28 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `assessment_${Date.now()}.${fileExt}`;
+      
+      console.log('🔍 [AssessmentForm] Uploading file:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type
+      });
+      
       const { data, error } = await supabase.storage
         .from('assessments')
         .upload(fileName, file, { upsert: true });
       if (error) throw error;
       // Get public URL
       const { data: publicData } = supabase.storage.from('assessments').getPublicUrl(fileName);
+      console.log('🔍 [AssessmentForm] File uploaded successfully:', {
+        fileName,
+        publicUrl: publicData.publicUrl
+      });
       setFileUrl(publicData.publicUrl);
       setFileUploadProgress(100);
     } catch (err: any) {
-      setFileUploadError(err.message || 'Upload failed');
+      console.error('🔍 [AssessmentForm] File upload error:', err);
+      setFileUploadError(`Upload failed: ${err.message || 'Unknown error'}`);
       setFileUploadProgress(null);
     }
   }
@@ -356,8 +458,8 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
                 required
               >
                 <option value="">Select Program</option>
-                {availablePrograms.map(p => (
-                  <option key={p.program_id} value={p.program_id}>{p.name}</option>
+                {availablePrograms.map((p, index) => (
+                  <option key={`${p.program_id}-${index}`} value={p.program_id}>{p.name}</option>
                 ))}
               </select>
             </div>
@@ -371,8 +473,8 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
                 disabled={!programId}
               >
                 <option value="">Select Level</option>
-                {availableLevels.map(l => (
-                  <option key={l.level_id} value={l.level_id}>{l.name}</option>
+                {dropdownLevels.map((l, index) => (
+                  <option key={`${l.level_id}-${index}`} value={l.level_id}>{l.name}</option>
                 ))}
               </select>
             </div>
@@ -389,8 +491,8 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
                 disabled={!levelId}
               >
                 <option value="">Select Subject</option>
-                {availableSubjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                {dropdownSubjects.map((s, index) => (
+                  <option key={`${s.id}-${index}`} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -414,8 +516,8 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
               disabled={!subjectId || availablePapers.length === 0}
             >
               <option value="">Select Paper</option>
-              {availablePapers.map(p => (
-                <option key={p.paper_id} value={p.paper_id}>{p.paper_code} {p.paper_name ? `- ${p.paper_name}` : ''}</option>
+              {availablePapers.map((p, index) => (
+                <option key={`${p.paper_id}-${index}`} value={p.paper_id}>{p.paper_code} {p.paper_name ? `- ${p.paper_name}` : ''}</option>
               ))}
             </select>
           </div>
@@ -464,8 +566,27 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole, 
 }
 
 // Main Assessments Page Component
+// Custom hook to safely use TeacherContext
+function useTeacherSafely() {
+  try {
+    return useTeacher();
+  } catch (error) {
+    // If TeacherProvider is not available, return default values
+    return { 
+      assignments: [], 
+      subjects: [],
+      levels: [],
+      programs: [],
+      loading: false, 
+      error: null, 
+      refreshAssignments: async () => {} 
+    };
+  }
+}
+
 export default function AssessmentsPage() {
   const { user, loading: authLoading } = useAuth();
+  const { assignments: teacherAssignments, loading: teacherLoading } = useTeacherSafely();
   console.log('DEBUG user:', user, 'authLoading:', authLoading);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -476,37 +597,25 @@ export default function AssessmentsPage() {
   const [assessmentToDelete, setAssessmentToDelete] = useState<Assessment | null>(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [teacherAssignedPrograms, setTeacherAssignedPrograms] = useState<string[]>([]);
+  // Always call hooks in the same order, never conditionally
 
   const assessmentTypes = ['assignment', 'quiz', 'exam', 'activity'];
 
-  // Fetch teacher's assigned programs on component mount if user is a teacher
-  useEffect(() => {
-    async function fetchTeacherAssignments() {
-      if (user && user.role === 'teacher') {
-        try {
-          const { data, error } = await supabase
-            .from('teachers')
-            .select('program_id')
-            .eq('user_id', user.id);
-          
-          if (error) throw error;
-          setTeacherAssignedPrograms(data.map(t => t.program_id));
-        } catch (err: any) {
-          console.error('Error fetching teacher assignments:', err);
-          setError('Failed to load teacher assignments.');
-        }
-      }
-    }
-    if (!authLoading) {
-      fetchTeacherAssignments();
-    }
-  }, [user, authLoading]);
+  // Memoize teacherSubjectIds and teacherLevelIds to prevent unnecessary re-renders
+  const teacherSubjectIds = useMemo(() => teacherAssignments.map(assignment => assignment.subject_id), [teacherAssignments]);
+  const teacherLevelIds = useMemo(() => teacherAssignments.map(assignment => assignment.level_id), [teacherAssignments]);
 
+  // Fetch assessments
   const fetchAssessments = useCallback(async () => {
     setLoading(true);
     setError(null);
+    // Debug: Log user and filter arrays
+    console.log('🔍 [AssessmentsPage] user:', user);
+    console.log('🔍 [AssessmentsPage] teacherAssignments:', teacherAssignments);
+    console.log('🔍 [AssessmentsPage] teacherSubjectIds:', teacherSubjectIds);
+    console.log('🔍 [AssessmentsPage] teacherLevelIds:', teacherLevelIds);
     try {
+      // Fix: Changed 'from' to 'supabase.from' to correctly call the Supabase client method.
       let query = supabase
         .from('assessments')
         .select(`
@@ -515,18 +624,23 @@ export default function AssessmentsPage() {
           programs(name),
           levels(name),
           subjects(name),
-          creator:users(full_name, email)
+          creator:users(full_name, email, role)
         `);
 
-      // Filter for teachers: only show assessments for their assigned programs
-      if (user && user.role === 'teacher' && teacherAssignedPrograms.length > 0) {
-        query = query.in('program_id', teacherAssignedPrograms);
-      } else if (user && user.role === 'teacher' && teacherAssignedPrograms.length === 0) {
-        // If teacher has no assigned programs, show nothing
-        setAssessments([]);
-        setLoading(false);
-        return;
+      // Filter for teachers: only show their own assessments for their assigned subjects and levels
+      if (user && (user.role === 'teacher' || user.role === 'class_tutor')) {
+        if (teacherSubjectIds.length > 0 && teacherLevelIds.length > 0) {
+          // Show only assessments created by this teacher for their assigned subjects and levels
+          query = query
+            .eq('creator_id', user.id)
+            .in('subject_id', teacherSubjectIds)
+            .in('level_id', teacherLevelIds);
+        } else {
+          // If teacher has no assigned subjects/levels, show all their assessments
+          query = query.eq('creator_id', user.id);
+        }
       }
+      // For admins: show all assessments (no additional filtering needed)
 
       // Apply search and filter by type
       if (search) {
@@ -537,8 +651,19 @@ export default function AssessmentsPage() {
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
-      
       if (error) throw error;
+      
+      console.log('🔍 [AssessmentsPage] Fetched assessments:', {
+        count: data?.length || 0,
+        assessments: data?.map(a => ({ 
+          id: a.id, 
+          title: a.title, 
+          creator_id: a.creator_id, 
+          creator_role: (a.creator as any)?.role,
+          creator_name: (a.creator as any)?.full_name,
+          program_id: a.program_id 
+        }))
+      });
 
       // Transform the fetched data to match the Assessment interface
       const transformedData: Assessment[] = (data as any[] || []).map(item => ({
@@ -567,7 +692,7 @@ export default function AssessmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, teacherAssignedPrograms, search, filterType]);
+  }, [user, search, filterType, teacherSubjectIds, teacherLevelIds]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -583,23 +708,62 @@ export default function AssessmentsPage() {
       fetchAssessments();
     } catch (err: any) {
       console.error('Error deleting assessment:', err);
-      alert('Failed to delete assessment: ' + err.message);
+      // Fix: Replaced alert() with console.error for better user experience in an iframe.
+      // You might want to implement a toast notification or a small message box here.
+      setError('Failed to delete assessment: ' + err.message);
     } finally {
       setShowDeleteConfirm(false);
       setAssessmentToDelete(null);
     }
   };
 
+  // Collapsible state for each group - moved before any early returns
+  const [showAdmins, setShowAdmins] = useState(false);
+  const [showTeachers, setShowTeachers] = useState(false);
+
   if (authLoading) {
     return <div className="text-center py-8 text-gray-500">Loading user data...</div>;
   }
 
   // Determine if the current user can create/edit assessments
-  const canCreateEdit = user && (user.role === 'admin' || user.role === 'teacher');
+  const canCreateEdit = user && (user.role === 'admin' || user.role === 'teacher' || user.role === 'class_tutor');
+
+  // For teachers: show only their assessments in a simple list
+  // For admins: group assessments by creator role
+  const isTeacher = user && (user.role === 'teacher' || user.role === 'class_tutor');
+  const isAdmin = user && user.role === 'admin';
+
+  // Group assessments by creator role (only for admin view)
+  const groupedAssessments = {
+    admin: assessments.filter(a => {
+      // Group admin-created assessments
+      return (a.creator as any)?.role === 'admin' || (a.creator_id && user && user.role === 'admin' && a.creator_id === user.id);
+    }),
+    teacher: assessments.filter(a => {
+      // Group teacher-created assessments
+      return (a.creator as any)?.role === 'teacher' || (a.creator as any)?.role === 'class_tutor';
+    }),
+  };
+
+  // Debug grouped assessments
+  console.log('🔍 [AssessmentsPage] Grouped assessments:', {
+    totalAssessments: assessments.length,
+    adminAssessments: groupedAssessments.admin.length,
+    teacherAssessments: groupedAssessments.teacher.length,
+    assessments: assessments.map(a => ({
+      id: a.id,
+      title: a.title,
+      creator_id: a.creator_id,
+      creator_role: (a.creator as any)?.role,
+      creator_name: (a.creator as any)?.full_name
+    }))
+  });
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Manage Assessments</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800">
+        {isTeacher ? 'My Assessments' : 'Manage Assessments'}
+      </h1>
 
       <div className="flex flex-wrap gap-3 items-center mb-6 p-4 bg-gray-50 rounded-lg shadow-sm">
         <input
@@ -624,7 +788,7 @@ export default function AssessmentsPage() {
             onClick={() => setShowCreateForm(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 font-semibold shadow-md transition duration-200 ease-in-out flex-shrink-0"
           >
-            + Create New
+            + {isTeacher ? 'Create Assessment' : 'Create New'}
           </button>
         )}
       </div>
@@ -634,80 +798,203 @@ export default function AssessmentsPage() {
       ) : error ? (
         <p className="text-red-500 text-center py-8">{error}</p>
       ) : assessments.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">No assessments found.</p>
+        <p className="text-gray-500 text-center py-8">
+          {isTeacher ? 'No assessments found. Create your first assessment!' : 'No assessments found.'}
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-xl shadow border border-gray-100 bg-white">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Program</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Level</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Creator</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
-              {assessments.map(assessment => (
-                <tr key={assessment.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{assessment.title}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.type.charAt(0).toUpperCase() + assessment.type.slice(1)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.programs?.name || 'N/A'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.levels?.name || 'N/A'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.subjects?.name || 'N/A'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {assessment.due_date ? new Date(assessment.due_date).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {assessment.creator?.full_name || assessment.creator?.email || 'Unknown'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                    {canCreateEdit && (user.role === 'admin' || assessment.creator_id === user.id) && (
-                      <ActionsDropdown
-                        onEdit={() => setEditingAssessment(assessment)}
-                        onDelete={() => {setAssessmentToDelete(assessment); setShowDeleteConfirm(true);}}
-                      />
-                    )}
-                    {assessment.file_url && (
-                      <a 
-                        href={assessment.file_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline ml-2 text-xs"
-                      >
-                        View File
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {isTeacher ? (
+            // Teacher View: Simple list of their own assessments
+            <div>
+              <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
+                <h3 className="text-lg font-semibold text-blue-900">My Assessments</h3>
+                <p className="text-sm text-blue-700">Manage assessments for your assigned programs</p>
+              </div>
+              <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Program</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Level</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">File</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {assessments.map(assessment => (
+                    <tr key={assessment.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{assessment.title}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.type.charAt(0).toUpperCase() + assessment.type.slice(1)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.programs?.name || 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.levels?.name || 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.subjects?.name || 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.due_date ? new Date(assessment.due_date).toLocaleDateString() : 'N/A'}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                        <FileDownload 
+                          fileUrl={assessment.file_url} 
+                          fileName={`${assessment.title}-assessment`}
+                        />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                        <ActionsDropdown
+                          onEdit={() => setEditingAssessment(assessment)}
+                          onDelete={() => {setAssessmentToDelete(assessment); setShowDeleteConfirm(true);}}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            // Admin View: Grouped by creator role
+            <>
+              {/* Admins Section */}
+              <div className="border-b">
+                <button
+                  className="flex items-center gap-2 px-4 py-2 w-full text-left font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100"
+                  onClick={() => setShowAdmins(v => !v)}
+                >
+                  <span>{showAdmins ? '▼' : '▶'} Admins ({groupedAssessments.admin.length})</span>
+                </button>
+                {showAdmins && groupedAssessments.admin.length > 0 && (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Program</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Level</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Creator</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">File</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {groupedAssessments.admin.map(assessment => (
+                        <tr key={assessment.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{assessment.title}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.type.charAt(0).toUpperCase() + assessment.type.slice(1)}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.programs?.name || 'N/A'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.levels?.name || 'N/A'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.subjects?.name || 'N/A'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.due_date ? new Date(assessment.due_date).toLocaleDateString() : 'N/A'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.creator?.full_name || assessment.creator?.email || 'Unknown'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            <FileDownload 
+                              fileUrl={assessment.file_url} 
+                              fileName={`${assessment.title}-assessment`}
+                            />
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            <ActionsDropdown
+                              onEdit={() => setEditingAssessment(assessment)}
+                              onDelete={() => {setAssessmentToDelete(assessment); setShowDeleteConfirm(true);}}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              {/* Teachers Section */}
+              <div className="border-b">
+                <button
+                  className="flex items-center gap-2 px-4 py-2 w-full text-left font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100"
+                  onClick={() => setShowTeachers(v => !v)}
+                >
+                  <span>{showTeachers ? '▼' : '▶'} Teachers ({groupedAssessments.teacher.length})</span>
+                </button>
+                {showTeachers && (
+                  groupedAssessments.teacher.length > 0 ? (
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Title</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Program</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Level</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Due Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Creator</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">File</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {groupedAssessments.teacher.map(assessment => (
+                          <tr key={assessment.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{assessment.title}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.type.charAt(0).toUpperCase() + assessment.type.slice(1)}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.programs?.name || 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.levels?.name || 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.subjects?.name || 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.due_date ? new Date(assessment.due_date).toLocaleDateString() : 'N/A'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{assessment.creator?.full_name || assessment.creator?.email || 'Unknown'}</td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              <FileDownload 
+                                fileUrl={assessment.file_url} 
+                                fileName={`${assessment.title}-assessment`}
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                              <ActionsDropdown
+                                onEdit={() => setEditingAssessment(assessment)}
+                                onDelete={() => {setAssessmentToDelete(assessment); setShowDeleteConfirm(true);}}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500">No teacher assessments found.</div>
+                  )
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
       {showCreateForm && (
-        <AssessmentForm
-          onClose={() => setShowCreateForm(false)}
-          onSave={() => { setShowCreateForm(false); fetchAssessments(); }}
-          creatorId={user?.id}
-          userRole={user?.role}
-          teacherPrograms={teacherAssignedPrograms}
-        />
+        user?.role === 'teacher' || user?.role === 'class_tutor' ? (
+          <TeacherAssessmentForm
+            onClose={() => setShowCreateForm(false)}
+            onSave={() => { setShowCreateForm(false); fetchAssessments(); }}
+          />
+        ) : (
+          <AssessmentForm
+            onClose={() => setShowCreateForm(false)}
+            onSave={() => { setShowCreateForm(false); fetchAssessments(); }}
+            creatorId={user?.id}
+            userRole={user?.role}
+          />
+        )
       )}
 
       {editingAssessment && (
-        <AssessmentForm
-          assessmentItem={editingAssessment}
-          onClose={() => setEditingAssessment(null)}
-          onSave={() => { setEditingAssessment(null); fetchAssessments(); }}
-          creatorId={user?.id}
-          userRole={user?.role}
-          teacherPrograms={teacherAssignedPrograms}
-        />
+        user?.role === 'teacher' || user?.role === 'class_tutor' ? (
+          <TeacherAssessmentForm
+            assessmentItem={editingAssessment}
+            onClose={() => setEditingAssessment(null)}
+            onSave={() => { setEditingAssessment(null); fetchAssessments(); }}
+          />
+        ) : (
+          <AssessmentForm
+            assessmentItem={editingAssessment}
+            onClose={() => setEditingAssessment(null)}
+            onSave={() => { setEditingAssessment(null); fetchAssessments(); }}
+            creatorId={user?.id}
+            userRole={user?.role}
+          />
+        )
       )}
 
       <DeleteConfirmModal

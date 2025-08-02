@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function AdminRegisterPage() {
@@ -14,20 +15,18 @@ export default function AdminRegisterPage() {
   const [message, setMessage] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
+  const router = useRouter();
 
   const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-
     try {
       // Get current user's session for authentication
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         throw new Error('You must be logged in to register users');
       }
-
       // Call API route
       const response = await fetch('/api/admin/register-user', {
         method: 'POST',
@@ -46,15 +45,11 @@ export default function AdminRegisterPage() {
           department,
         }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
-
       setMessage(`User created successfully with role: ${role}`);
-      
       // Reset form
       setFirstname('');
       setLastname('');
@@ -64,7 +59,6 @@ export default function AdminRegisterPage() {
       setRole('student');
       setPhone('');
       setDepartment('');
-
     } catch (error: any) {
       setMessage(`Error: ${error.message}`);
     } finally {
@@ -76,7 +70,6 @@ export default function AdminRegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form onSubmit={handleRegister} className="bg-white p-6 rounded shadow-md w-full max-w-md">
         <h1 className="text-xl font-bold mb-4">Register New User</h1>
-
         <input
           type="text"
           placeholder="First Name"
@@ -85,7 +78,6 @@ export default function AdminRegisterPage() {
           onChange={(e) => setFirstname(e.target.value)}
           required
         />
-
         <input
           type="text"
           placeholder="Last Name"
@@ -94,7 +86,6 @@ export default function AdminRegisterPage() {
           onChange={(e) => setLastname(e.target.value)}
           required
         />
-
         <select
           className="w-full p-2 border rounded mb-4"
           value={gender}
@@ -103,7 +94,6 @@ export default function AdminRegisterPage() {
           <option value="Female">Female</option>
           <option value="Male">Male</option>
         </select>
-
         <input
           type="email"
           placeholder="Email"
@@ -112,7 +102,6 @@ export default function AdminRegisterPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-
         <input
           type="password"
           placeholder="Password (min 6 characters)"
@@ -122,7 +111,6 @@ export default function AdminRegisterPage() {
           required
           minLength={6}
         />
-
         <select
           className="w-full p-2 border rounded mb-4"
           value={role}
@@ -132,7 +120,6 @@ export default function AdminRegisterPage() {
           <option value="teacher">Teacher</option>
           <option value="admin">Admin</option>
         </select>
-
         <input
           type="text"
           placeholder="Phone"
@@ -149,7 +136,6 @@ export default function AdminRegisterPage() {
           onChange={(e) => setDepartment(e.target.value)}
           required
         />
-
         {message && (
           <div className={`p-3 rounded mb-4 ${
             message.includes('Error') 
@@ -159,13 +145,19 @@ export default function AdminRegisterPage() {
             {message}
           </div>
         )}
-
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 mb-2"
         >
           {loading ? 'Creating...' : 'Register User'}
+        </button>
+        <button
+          type="button"
+          className="w-full bg-gray-400 text-white p-2 rounded hover:bg-gray-500"
+          onClick={() => router.push('/admin/dashboard')}
+        >
+          Cancel
         </button>
       </form>
     </div>

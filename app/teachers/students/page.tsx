@@ -4,14 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from "@/lib/supabaseClient";
 import { Users, Search } from "lucide-react";
 
-// Type definition for assignments with joined classes
+// Type definition for assignments with joined levels
 interface Assignment {
-  class_id: string;
-  classes: { name: string }[];
+  level_id: string;
+  levels: { name: string }[];
 }
 
 export default function TeacherStudentsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [students, setStudents] = useState([]);
@@ -20,20 +20,19 @@ export default function TeacherStudentsPage() {
   useEffect(() => {
     if (!user) return;
     async function fetchClasses() {
-      // Get all class_ids assigned to this teacher
       const { data: assignments } = await supabase
         .from("teacher_assignments")
-        .select("class_id, classes:class_id (name)")
+        .select("level_id, levels:level_id (name)")
         .eq("teacher_id", user.id);
       const uniqueClasses = Array.from(
         new Map(
           (assignments as Assignment[] || [])
-            .filter(a => a.class_id && a.classes?.[0]?.name)
-            .map(a => [a.class_id, { class_id: a.class_id, name: a.classes[0].name }])
+            .filter(a => a.level_id && a.levels?.[0]?.name)
+            .map(a => [a.level_id, { level_id: a.level_id, name: a.levels[0].name }])
         ).values()
       );
       setClasses(uniqueClasses);
-      if (uniqueClasses.length && !selectedClass) setSelectedClass(uniqueClasses[0].class_id);
+      if (uniqueClasses.length && !selectedClass) setSelectedClass(uniqueClasses[0].level_id);
     }
     fetchClasses();
     // eslint-disable-next-line
@@ -43,7 +42,6 @@ export default function TeacherStudentsPage() {
     if (!selectedClass) return;
     setLoading(true);
     async function fetchStudents() {
-      // Get all enrollments for this class, join users
       const { data: enrollments } = await supabase
         .from("enrollments")
         .select("user_id, registration_number, users: user_id (full_name, email, phone)")
@@ -54,6 +52,13 @@ export default function TeacherStudentsPage() {
     }
     fetchStudents();
   }, [selectedClass]);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your students.</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -68,7 +73,7 @@ export default function TeacherStudentsPage() {
           className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           {classes.map(cls => (
-            <option key={cls.class_id} value={cls.class_id}>{cls.name}</option>
+            <option key={cls.level_id} value={cls.level_id}>{cls.name}</option>
           ))}
         </select>
       </div>
@@ -108,4 +113,4 @@ export default function TeacherStudentsPage() {
       </div>
     </div>
   );
-} 
+}

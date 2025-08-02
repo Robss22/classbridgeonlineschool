@@ -60,17 +60,17 @@ export default function ApplyPage() {
       console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs.length);
       setCurricula(programs); // Store as array of objects
 
-      console.log('fetchProgramsAndClasses: Fetching classes from Supabase...');
-      let { data: classes, error: classesError } = await supabase
-        .from('classes')
+      console.log('fetchProgramsAndClasses: Fetching levels from Supabase...');
+      let { data: levels, error: levelsError } = await supabase
+        .from('levels')
         .select('name, program_id')
         .order('name');
 
-      if (classesError) {
-        console.error('fetchProgramsAndClasses: Error fetching classes:', classesError);
-        return; // Exit if classes cannot be fetched
+      if (levelsError) {
+        console.error('fetchProgramsAndClasses: Error fetching levels:', levelsError);
+        return; // Exit if levels cannot be fetched
       }
-      console.log('fetchProgramsAndClasses: Classes fetched successfully. Count:', classes.length);
+      console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels.length);
 
       const programIdToName = {};
       programs.forEach((p) => {
@@ -78,10 +78,10 @@ export default function ApplyPage() {
       });
 
       const grouped = {};
-      classes.forEach((cls) => {
-        const programName = programIdToName[cls.program_id] || 'Unknown Program';
+      levels.forEach((level) => {
+        const programName = programIdToName[level.program_id] || 'Unknown Program';
         if (!grouped[programName]) grouped[programName] = [];
-        grouped[programName].push(cls.name);
+        grouped[programName].push(level.name);
       });
 
       setClassesByCurriculum(grouped);

@@ -20,13 +20,13 @@ export default function MessagesPage() {
 
   useEffect(() => {
     // TODO: Replace with real fetch based on studentInfo.class/program
-    async function fetchMessages() {
-      setLoading(true);
-      // Example: fetch all messages for now
-      const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
-      setMessages(data || []);
-      setLoading(false);
-    }
+      async function fetchMessages() {
+    setLoading(true);
+    // Example: fetch all messages for now
+    const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
+    setMessages(data || []);
+    setLoading(false);
+  }
     fetchMessages();
   }, [studentInfo.class, studentInfo.program]);
 

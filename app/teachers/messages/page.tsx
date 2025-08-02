@@ -28,7 +28,7 @@ export default function TeacherMessagesPage() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [inbox, setInbox] = useState([]);
   const [sent, setSent] = useState([]);
   const [loadingInbox, setLoadingInbox] = useState(false);
@@ -48,8 +48,9 @@ export default function TeacherMessagesPage() {
     setLoading(true);
     setFetchError("");
     supabase
-      .from("announcements")
-      .select("*")
+      .from("messages")
+      .select("*, sender:sender_id (full_name, email)")
+      .eq("message_type", "announcement")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setFetchError(error.message);
@@ -120,6 +121,13 @@ export default function TeacherMessagesPage() {
       });
   }, [expandedMsg, inbox, sent]);
 
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your messages.</div>;
+  }
+
   // Handle reply
   const handleReply = async (e) => {
     e.preventDefault();
@@ -173,12 +181,16 @@ export default function TeacherMessagesPage() {
     setSuccess("");
     try {
       if (!form.title || !form.message) throw new Error("Title and message are required");
-      const { error } = await supabase.from("announcements").insert({
-        title: form.title,
-        message: form.message,
-        recipient: form.recipient,
-        file_url: form.fileUrl,
+      const { error } = await supabase.from("messages").insert({
+        subject: form.title,
+        body: form.message,
+        sender_id: user.id,
+        recipient_id: user.id, // Use teacher's own ID for announcements
+        message_type: "announcement",
+        sender_type: "Teacher", // Capitalized to match constraint - valid values are "Admin", "Teacher", "Default"
+        recipient_type: "teacher", // This will be used to identify announcements
         created_at: new Date().toISOString(),
+        // Note: file_url would need to be handled separately if needed
       });
       if (error) throw error;
       setSuccess("Announcement sent!");
@@ -240,17 +252,15 @@ export default function TeacherMessagesPage() {
                 <li key={a.id} className="py-4">
                   <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpanded(expanded === a.id ? null : a.id)}>
                     <div>
-                      <div className="font-semibold text-blue-900">{a.title}</div>
-                      <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()} &bull; {a.recipient === "all" ? "All Students" : "My Class"}</div>
+                      <div className="font-semibold text-blue-900">{a.subject}</div>
+                      <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()} &bull; Announcement</div>
                     </div>
                     <button className="text-blue-600 text-xs underline">{expanded === a.id ? "Hide" : "View"}</button>
                   </div>
                   {expanded === a.id && (
                     <div className="mt-3 bg-blue-50 rounded-lg p-4">
-                      <div className="mb-2 text-gray-800 whitespace-pre-line">{a.message}</div>
-                      {a.file_url && (
-                        <FileDownload fileUrl={a.file_url} label="Download Attachment" />
-                      )}
+                      <div className="mb-2 text-gray-800 whitespace-pre-line">{a.body}</div>
+                      {/* Note: file_url handling would need to be implemented if needed */}
                     </div>
                   )}
                 </li>

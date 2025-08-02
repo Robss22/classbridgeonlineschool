@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BookOpen, Users, FilePlus2, ClipboardList } from "lucide-react";
 
 export default function TeacherSubjectsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -14,16 +14,37 @@ export default function TeacherSubjectsPage() {
     if (!user) return;
     setLoading(true);
     async function fetchAssignments() {
-      // Fetch teacher_assignments joined with subjects and classes
+      // First, get the teacher_id from the teachers table
+      const { data: teacherRecord, error: teacherRecordError } = await supabase
+        .from('teachers')
+        .select('teacher_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (teacherRecordError) {
+        console.error('Error fetching teacher record:', teacherRecordError);
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch teacher_assignments joined with subjects and levels using teacher_id
       const { data, error } = await supabase
         .from("teacher_assignments")
-        .select(`assignment_id, subject_id, class_id, subjects:subject_id (name), classes:class_id (name)`)
-        .eq("teacher_id", user.id);
+        .select(`assignment_id, subject_id, level_id, subjects:subject_id (name), levels:level_id (name)`)
+        .eq("teacher_id", teacherRecord.teacher_id);
       setAssignments(data || []);
       setLoading(false);
     }
     fetchAssignments();
   }, [user]);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your subjects.</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -40,7 +61,7 @@ export default function TeacherSubjectsPage() {
             <thead>
               <tr className="bg-blue-50">
                 <th className="p-3 text-left font-semibold">Subject</th>
-                <th className="p-3 text-left font-semibold">Class</th>
+                <th className="p-3 text-left font-semibold">Level</th>
                 <th className="p-3 text-left font-semibold">Actions</th>
               </tr>
             </thead>
@@ -53,7 +74,7 @@ export default function TeacherSubjectsPage() {
                   </td>
                   <td className="p-3 flex items-center gap-2">
                     <Users className="w-5 h-5 text-green-700" />
-                    <span>{a.classes?.name || '-'}</span>
+                    <span>{a.levels?.name || '-'}</span>
                   </td>
                   <td className="p-3 flex gap-2">
                     <Link
@@ -71,7 +92,7 @@ export default function TeacherSubjectsPage() {
                       <ClipboardList className="w-4 h-4" /> Assignments
                     </Link>
                     <Link
-                      href={{ pathname: "/teachers/students", query: { subject: a.subject_id, class: a.class_id } }}
+                      href={{ pathname: "/teachers/students", query: { subject: a.subject_id, level: a.level_id } }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-900 transition-colors"
                       title="View Students"
                     >

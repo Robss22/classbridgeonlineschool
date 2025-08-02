@@ -10,7 +10,8 @@ export default function AppLayoutWrapper({ children }) {
   const isDashboardArea =
     pathname.startsWith('/students') ||
     pathname.startsWith('/teachers') ||
-    pathname.startsWith('/admin');
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/assessments');
   if (isDashboardArea) {
     return <AuthProvider>{children}</AuthProvider>;
   }

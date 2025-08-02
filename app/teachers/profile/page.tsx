@@ -6,7 +6,7 @@ import { BookOpen, Users, UploadCloud } from "lucide-react";
 import Image from 'next/image';
 
 export default function TeacherProfilePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -29,16 +29,32 @@ export default function TeacherProfilePage() {
         .single();
       setProfile(userData);
       setAvatarUrl(userData?.avatar_url || "");
-      // Fetch assignments
+      
+      // First, get the teacher_id from the teachers table
+      const { data: teacherRecord, error: teacherRecordError } = await supabase
+        .from('teachers')
+        .select('teacher_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (teacherRecordError) {
+        console.error('Error fetching teacher record:', teacherRecordError);
+        setAssignments([]);
+        setClasses([]);
+        setSubjects([]);
+        return;
+      }
+
+      // Fetch assignments using teacher_id
       const { data: assignData } = await supabase
         .from("teacher_assignments")
-        .select("subject_id, class_id, subjects:subject_id (name), classes:class_id (name)")
-        .eq("teacher_id", user.id);
+        .select("subject_id, level_id, subjects:subject_id (name), levels:level_id (name)")
+        .eq("teacher_id", teacherRecord.teacher_id);
       setAssignments(assignData || []);
       setClasses([
         ...new Set(
           assignData
-            ?.flatMap(a => Array.isArray(a.classes) ? a.classes.map(c => c.name) : [])
+            ?.flatMap(a => Array.isArray(a.levels) ? a.levels.map(l => l.name) : [])
             .filter(Boolean)
         ),
       ]);
@@ -52,6 +68,13 @@ export default function TeacherProfilePage() {
     }
     fetchProfile();
   }, [user]);
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+  }
+  if (!user) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your profile.</div>;
+  }
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -85,8 +108,22 @@ export default function TeacherProfilePage() {
     setPasswordMsg("");
     try {
       if (!password || password.length < 6) throw new Error("Password must be at least 6 characters.");
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      
+      // Step 1: Update password in Supabase Auth
+      const { error: authError } = await supabase.auth.updateUser({ password });
+      if (authError) throw authError;
+      
+      // Step 2: Update password_changed flag in users table
+      const { error: dbError } = await supabase
+        .from('users')
+        .update({ password_changed: true })
+        .eq('auth_user_id', user.id);
+      
+      if (dbError) {
+        console.error('Failed to update password_changed flag:', dbError);
+        // Don't throw here as the password was already updated in Auth
+      }
+      
       setPasswordMsg("Password updated successfully.");
       setPassword("");
     } catch (err) {

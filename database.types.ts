@@ -107,38 +107,7 @@ export type Database = {
           },
         ]
       }
-      classes: {
-        Row: {
-          class_id: string
-          created_at: string | null
-          description: string | null
-          name: string
-          program_id: string | null
-        }
-        Insert: {
-          class_id?: string
-          created_at?: string | null
-          description?: string | null
-          name: string
-          program_id?: string | null
-        }
-        Update: {
-          class_id?: string
-          created_at?: string | null
-          description?: string | null
-          name?: string
-          program_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "classes_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["program_id"]
-          },
-        ]
-      }
+     
       enrollments: {
         Row: {
           academic_year: string
@@ -259,7 +228,7 @@ export type Database = {
       }
       resources: {
         Row: {
-          class_id: string | null
+          level_id: string | null
           created_at: string | null
           description: string | null
           program_id: string | null
@@ -269,7 +238,7 @@ export type Database = {
           url: string
         }
         Insert: {
-          class_id?: string | null
+          level_id?: string | null
           created_at?: string | null
           description?: string | null
           program_id?: string | null
@@ -279,7 +248,7 @@ export type Database = {
           url: string
         }
         Update: {
-          class_id?: string | null
+          level_id?: string | null
           created_at?: string | null
           description?: string | null
           program_id?: string | null
@@ -290,11 +259,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "resources_class_id_fkey"
-            columns: ["class_id"]
+            foreignKeyName: "resources_level_id_fkey"
+            columns: ["level_id"]
             isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["class_id"]
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
           },
           {
             foreignKeyName: "resources_program_id_fkey"
@@ -347,31 +316,44 @@ export type Database = {
         Row: {
           assigned_at: string | null
           assignment_id: string
-          class_id: string | null
+          level_id: string | null
+          program_id: string | null
+          academic_year: string | null
           subject_id: string | null
           teacher_id: string | null
         }
         Insert: {
           assigned_at?: string | null
           assignment_id?: string
-          class_id?: string | null
+          level_id?: string | null
+          program_id?: string | null
+          academic_year?: string | null
           subject_id?: string | null
           teacher_id?: string | null
         }
         Update: {
           assigned_at?: string | null
           assignment_id?: string
-          class_id?: string | null
+          level_id?: string | null
+          program_id?: string | null
+          academic_year?: string | null
           subject_id?: string | null
           teacher_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "teacher_assignments_class_id_fkey"
-            columns: ["class_id"]
+            foreignKeyName: "teacher_assignments_level_id_fkey"
+            columns: ["level_id"]
             isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["class_id"]
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
+          },
+          {
+            foreignKeyName: "teacher_assignments_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["program_id"]
           },
           {
             foreignKeyName: "teacher_assignments_subject_id_fkey"
@@ -431,6 +413,82 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          id: string
+          message_id: string
+          subject: string
+          body: string
+          sender_id: string
+          recipient_id: string
+          recipient_type: string
+          parent_id: string | null
+          created_at: string
+          updated_at: string
+          read: boolean
+          archived: boolean
+          message_type: string
+          sender_type: string
+          priority: string
+        }
+        Insert: {
+          id?: string
+          message_id?: string
+          subject: string
+          body: string
+          sender_id: string
+          recipient_id: string
+          recipient_type: string
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+          read?: boolean
+          archived?: boolean
+          message_type?: string
+          sender_type?: string
+          priority?: string
+        }
+        Update: {
+          id?: string
+          message_id?: string
+          subject?: string
+          body?: string
+          sender_id?: string
+          recipient_id?: string
+          recipient_type?: string
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+          read?: boolean
+          archived?: boolean
+          message_type?: string
+          sender_type?: string
+          priority?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_messages_sender_id"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_messages_recipient_id"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_messages_parent_id"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]

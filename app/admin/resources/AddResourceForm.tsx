@@ -36,11 +36,30 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
     p => p.program_id === selectedProgram && (p.name?.toLowerCase().includes('uneb') || p.name?.toLowerCase().includes('cambridge'))
   );
 
-  useEffect(() => { setHydrated(true); }, []);
+  console.log('🔍 [AddResourceForm] Program academic check:', { 
+    selectedProgram, 
+    programs: programs.map(p => ({ id: p.program_id, name: p.name })),
+    currentProgramIsAcademic: currentProgramIsAcademic ? { id: currentProgramIsAcademic.program_id, name: currentProgramIsAcademic.name } : null
+  });
+
+  useEffect(() => { 
+    setHydrated(true); 
+    console.log('🔄 [AddResourceForm] Component hydrated');
+  }, []);
+
+  useEffect(() => {
+    console.log('🔄 [AddResourceForm] Resource prop changed:', resource);
+  }, [resource]);
+
   useEffect(() => {
     if (!hydrated) return;
+    console.log('🔍 [AddResourceForm] Fetching programs...');
     supabase.from('programs').select('program_id, name').then(({ data, error }) => {
-      if (error) { console.error('Supabase error fetching programs:', error); }
+      if (error) { 
+        console.error('❌ [AddResourceForm] Supabase error fetching programs:', error); 
+      } else {
+        console.log('✅ [AddResourceForm] Programs fetched:', data);
+      }
       setPrograms(data || []);
       if (resource?.program_id) {
         setSelectedProgram(resource.program_id);
@@ -50,20 +69,29 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
 
   useEffect(() => {
     if (!hydrated) return;
+    console.log('🔍 [AddResourceForm] Checking program selection:', { selectedProgram, programs: programs.length });
     if (!selectedProgram) {
+      console.log('⚠️ [AddResourceForm] No program selected, clearing dependent data');
       setLevels([]); setSelectedLevel('');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
       return;
     }
+    console.log('🔍 [AddResourceForm] Current program is academic:', currentProgramIsAcademic);
     if (currentProgramIsAcademic) {
+      console.log('🔍 [AddResourceForm] Fetching levels for academic program:', selectedProgram);
       supabase.from('levels').select('level_id, name').eq('program_id', selectedProgram).then(({ data, error }) => {
-        if (error) { console.error('Supabase error fetching levels:', error); }
+        if (error) { 
+          console.error('❌ [AddResourceForm] Supabase error fetching levels:', error); 
+        } else {
+          console.log('✅ [AddResourceForm] Levels fetched:', data);
+        }
         setLevels(data || []);
         if (resource?.level_id) {
           setSelectedLevel(resource.level_id);
         }
       });
     } else {
+      console.log('⚠️ [AddResourceForm] Non-academic program, clearing level-dependent data');
       setLevels([]); setSelectedLevel('');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
     }
@@ -71,36 +99,52 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
 
   useEffect(() => {
     if (!hydrated) return;
+    console.log('🔍 [AddResourceForm] Checking level and program for subject offerings:', { selectedLevel, selectedProgram, currentProgramIsAcademic });
     if (!selectedLevel || !currentProgramIsAcademic || !selectedProgram) {
+      console.log('⚠️ [AddResourceForm] Missing requirements for subject offerings, clearing data');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
       return;
     }
+    console.log('🔍 [AddResourceForm] Fetching subject offerings for level:', selectedLevel, 'program:', selectedProgram);
     supabase
       .from('subject_offerings')
       .select('subject_offering_id, subject_id, is_compulsory')
       .eq('level_id', selectedLevel)
       .eq('program_id', selectedProgram)
       .then(async ({ data: offerings, error }) => {
-        if (error) { console.error('Supabase error fetching subject_offerings:', error); }
+        if (error) { 
+          console.error('❌ [AddResourceForm] Supabase error fetching subject_offerings:', error); 
+        } else {
+          console.log('✅ [AddResourceForm] Subject offerings fetched:', offerings);
+        }
         if (!offerings || offerings.length === 0) {
+          console.log('⚠️ [AddResourceForm] No subject offerings found');
           setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
           return;
         }
         setSubjectOfferings(offerings);
         const subjectIds = offerings.map(so => so.subject_id).filter(Boolean);
+        console.log('🔍 [AddResourceForm] Subject IDs extracted:', subjectIds);
         if (!subjectIds.length) {
+          console.log('⚠️ [AddResourceForm] No valid subject IDs found');
           setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
           return;
         }
+        console.log('🔍 [AddResourceForm] Fetching subjects for IDs:', subjectIds);
         const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
           .select('subject_id, name')
           .in('subject_id', subjectIds);
-        if (subjectsError) { console.error('Supabase error fetching subjects:', subjectsError); }
+        if (subjectsError) { 
+          console.error('❌ [AddResourceForm] Supabase error fetching subjects:', subjectsError); 
+        } else {
+          console.log('✅ [AddResourceForm] Subjects fetched:', subjectsData);
+        }
         const mappedSubjects = (offerings || []).map(offering => {
           const subj = (subjectsData || []).find(s => s.subject_id === offering.subject_id);
           return subj ? { subject_offering_id: offering.subject_offering_id, subject_id: offering.subject_id, name: subj.name } : null;
         }).filter(Boolean);
+        console.log('✅ [AddResourceForm] Mapped subjects for dropdown:', mappedSubjects);
         setSubjectsForDropdown(mappedSubjects);
         if (resource && resource.subject_id && resource.level_id === selectedLevel && resource.program_id === selectedProgram) {
           const initialOffering = mappedSubjects.find(s => s.subject_id === resource.subject_id);
@@ -115,23 +159,32 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
 
   useEffect(() => {
     if (!hydrated) return;
+    console.log('🔍 [AddResourceForm] Checking subject offering for papers:', { selectedSubjectOfferingId, subjectOfferings: subjectOfferings.length });
     if (!selectedSubjectOfferingId) {
+      console.log('⚠️ [AddResourceForm] No subject offering selected, clearing papers');
       setPapersForDropdown([]);
       setSelectedPaper('');
       return;
     }
     const selectedOffering = subjectOfferings.find(so => so.subject_offering_id === selectedSubjectOfferingId);
+    console.log('🔍 [AddResourceForm] Selected offering:', selectedOffering);
     if (!selectedOffering || !selectedOffering.subject_id) {
+      console.log('⚠️ [AddResourceForm] Invalid selected offering, clearing papers');
       setPapersForDropdown([]);
       setSelectedPaper('');
       return;
     }
+    console.log('🔍 [AddResourceForm] Fetching papers for subject:', selectedOffering.subject_id);
     supabase
       .from('subject_papers')
       .select('paper_id, paper_code, paper_name')
       .eq('subject_id', selectedOffering.subject_id)
       .then(({ data: papersData, error: papersError }) => {
-        if (papersError) { console.error('Supabase error fetching papers:', papersError); }
+        if (papersError) { 
+          console.error('❌ [AddResourceForm] Supabase error fetching papers:', papersError); 
+        } else {
+          console.log('✅ [AddResourceForm] Papers fetched:', papersData);
+        }
         setPapersForDropdown(papersData || []);
         if (resource && resource.paper_id && (papersData || []).some(p => p.paper_id === resource.paper_id)) {
           setSelectedPaper(resource.paper_id);
