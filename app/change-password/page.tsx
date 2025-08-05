@@ -250,6 +250,15 @@ function ChangePasswordPageInner() {
               For security reasons, you must change your password before continuing
             </p>
           </div>
+          
+          {/* Password Visibility Hint */}
+          <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-700 flex items-center">
+              <Eye className="h-4 w-4 mr-2" />
+              Tip: Click the eye icon next to each password field to show/hide what you're typing
+            </p>
+          </div>
+
           <div className="space-y-6">
             {/* Current Password */}
             <div>
@@ -263,17 +272,22 @@ function ChangePasswordPageInner() {
                   type={showPasswords.current ? 'text' : 'password'}
                   value={formData.currentPassword}
                   onChange={(e) => handleInputChange('currentPassword', e.target.value)}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                     errors.currentPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your current password"
+                  placeholder="Type your current password here..."
                 />
                 <button
                   type="button"
                   onClick={() => togglePasswordVisibility('current')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                  title={showPasswords.current ? 'Hide password' : 'Show password'}
                 >
-                  {showPasswords.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPasswords.current ? (
+                    <EyeOff size={20} className="text-gray-500 hover:text-gray-700" />
+                  ) : (
+                    <Eye size={20} className="text-gray-500 hover:text-gray-700" />
+                  )}
                 </button>
               </div>
               {errors.currentPassword && (
@@ -295,17 +309,22 @@ function ChangePasswordPageInner() {
                   type={showPasswords.new ? 'text' : 'password'}
                   value={formData.newPassword}
                   onChange={(e) => handleInputChange('newPassword', e.target.value)}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                     errors.newPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your new password"
+                  placeholder="Type your new password here..."
                 />
                 <button
                   type="button"
                   onClick={() => togglePasswordVisibility('new')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                  title={showPasswords.new ? 'Hide password' : 'Show password'}
                 >
-                  {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPasswords.new ? (
+                    <EyeOff size={20} className="text-gray-500 hover:text-gray-700" />
+                  ) : (
+                    <Eye size={20} className="text-gray-500 hover:text-gray-700" />
+                  )}
                 </button>
               </div>
               {/* Password Strength Indicator */}
@@ -361,17 +380,22 @@ function ChangePasswordPageInner() {
                   type={showPasswords.confirm ? 'text' : 'password'}
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                     errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Confirm your new password"
+                  placeholder="Type your new password again..."
                 />
                 <button
                   type="button"
                   onClick={() => togglePasswordVisibility('confirm')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                  title={showPasswords.confirm ? 'Hide password' : 'Show password'}
                 >
-                  {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPasswords.confirm ? (
+                    <EyeOff size={20} className="text-gray-500 hover:text-gray-700" />
+                  ) : (
+                    <Eye size={20} className="text-gray-500 hover:text-gray-700" />
+                  )}
                 </button>
               </div>
               {errors.confirmPassword && (
