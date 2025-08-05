@@ -187,6 +187,7 @@ function ChangePasswordPageInner() {
     console.log('handleSubmit called');
     console.log('Form data:', formData);
     console.log('Errors:', errors);
+    console.log('User object:', user);
     
     if (!validateForm()) {
       console.log('Validation failed');
@@ -202,17 +203,35 @@ function ChangePasswordPageInner() {
       
       console.log('Submitting password change', formData);
       console.log('changePassword function:', changePassword);
+      console.log('User email:', user?.email);
       
       if (!changePassword) {
         console.error('changePassword function is not available');
         setSubmitError('Change password function not available');
+        setIsLoading(false);
         return;
       }
       
-      const result = await changePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
+      if (!user?.email) {
+        console.error('User email not available');
+        setSubmitError('User information not available. Please try logging in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout - the password change process took too long. Please try again.')), 15000); // 15 second timeout
       });
+      
+      console.log('Starting password change with timeout...');
+      const result = await Promise.race([
+        changePassword({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword
+        }),
+        timeoutPromise
+      ]);
       
       console.log('changePassword result', result);
       
