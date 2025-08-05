@@ -119,34 +119,28 @@ const Login: React.FC = () => {
       setTimeout(() => {
         console.log('Navigating...');
         try {
-          if (!profile.password_changed && profile.role === 'student') {
-            console.log('Redirecting to change password');
-            router.replace('/change-password');
-            console.log('router.replace(/change-password) called');
-          } else {
-            switch (profile.role) {
-              case 'admin':
-                console.log('Redirecting to admin dashboard');
-                router.replace('/admin/dashboard');
-                console.log('router.replace(/admin/dashboard) called');
-                break;
-              case 'teacher':
-              case 'class_tutor':
-                console.log('Redirecting to teacher dashboard');
-                router.replace('/teachers/dashboard');
-                console.log('router.replace(/teachers/dashboard) called');
-                break;
-              case 'student':
-                console.log('Redirecting to student dashboard');
-                router.replace('/students/dashboard');
-                console.log('router.replace(/students/dashboard) called');
-                break;
-              default:
-                console.log('Unknown role, redirecting to student dashboard');
-                router.replace('/students/dashboard');
-                console.log('router.replace(/students/dashboard) called');
-                break;
-            }
+          switch (profile.role) {
+            case 'admin':
+              console.log('Redirecting to admin dashboard');
+              router.replace('/admin/dashboard');
+              console.log('router.replace(/admin/dashboard) called');
+              break;
+            case 'teacher':
+            case 'class_tutor':
+              console.log('Redirecting to teacher dashboard');
+              router.replace('/teachers/dashboard');
+              console.log('router.replace(/teachers/dashboard) called');
+              break;
+            case 'student':
+              console.log('Redirecting to student dashboard');
+              router.replace('/students/dashboard');
+              console.log('router.replace(/students/dashboard) called');
+              break;
+            default:
+              console.log('Unknown role, redirecting to student dashboard');
+              router.replace('/students/dashboard');
+              console.log('router.replace(/students/dashboard) called');
+              break;
           }
           navigated = true;
         } catch (navError) {
