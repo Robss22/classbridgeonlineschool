@@ -255,7 +255,7 @@ function ChangePasswordPageInner() {
           <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-700 flex items-center">
               <Eye className="h-4 w-4 mr-2" />
-              Tip: Click the eye icon next to each password field to show/hide what you're typing
+              Tip: Click the eye icon next to each password field to show/hide what you&apos;re typing
             </p>
           </div>
 

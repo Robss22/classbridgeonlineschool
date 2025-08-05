@@ -123,7 +123,7 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:block w-64 bg-white shadow-lg p-6 flex flex-col gap-4 relative">
+      <aside className="hidden lg:flex w-64 bg-white shadow-lg p-6 flex-col gap-4 relative">
         <div className="text-2xl font-bold mb-8">Teacher Portal</div>
         <nav className="flex flex-col gap-2">
           {navItems.map((item) => (

@@ -124,7 +124,7 @@ export default function StudentSidebar({ className = "" }) {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className={`hidden lg:block w-64 bg-white shadow-md p-4 flex flex-col min-h-screen relative ${className}`}>
+      <aside className={`hidden lg:flex w-64 bg-white shadow-md p-4 flex-col min-h-screen relative ${className}`}>
         {/* Removed logo and CLASSBRIDGE word */}
         <nav className="flex-1 space-y-2">
           {links.map(({ name, href, icon: Icon }) => (
