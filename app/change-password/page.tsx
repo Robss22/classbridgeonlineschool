@@ -167,8 +167,8 @@ function ChangePasswordPageInner() {
       newErrors.newPassword = 'New password is required';
     } else {
       const { score } = validatePassword(formData.newPassword);
-      if (score < 5) {
-        newErrors.newPassword = 'Password does not meet security requirements';
+      if (score < 3) {
+        newErrors.newPassword = 'Password does not meet security requirements (at least 3 criteria)';
       }
     }
     if (!formData.confirmPassword) {
@@ -184,23 +184,50 @@ function ChangePasswordPageInner() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-    setIsLoading(true);
-    setSubmitError('');
-    setSubmitSuccess(false);
-    console.log('Submitting password change', formData);
-    const result = await changePassword({
-      currentPassword: formData.currentPassword,
-      newPassword: formData.newPassword
-    });
-    console.log('changePassword result', result);
-    if (result.success) {
-      setSubmitSuccess(true);
-      setTimeout(() => router.push('/students/dashboard'), 2000);
-    } else {
-      setSubmitError(result.error || 'Failed to change password');
+    console.log('handleSubmit called');
+    console.log('Form data:', formData);
+    console.log('Errors:', errors);
+    
+    if (!validateForm()) {
+      console.log('Validation failed');
+      return;
     }
-    setIsLoading(false);
+    
+    console.log('Validation passed, starting submission');
+    
+    try {
+      setIsLoading(true);
+      setSubmitError('');
+      setSubmitSuccess(false);
+      
+      console.log('Submitting password change', formData);
+      console.log('changePassword function:', changePassword);
+      
+      if (!changePassword) {
+        console.error('changePassword function is not available');
+        setSubmitError('Change password function not available');
+        return;
+      }
+      
+      const result = await changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+      
+      console.log('changePassword result', result);
+      
+      if (result && result.success) {
+        setSubmitSuccess(true);
+        setTimeout(() => router.push('/students/dashboard'), 2000);
+      } else {
+        setSubmitError(result?.error || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Error in handleSubmit:', error);
+      setSubmitError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getPasswordStrengthColor = (score: number) => {

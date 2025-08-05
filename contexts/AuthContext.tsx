@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Change password function that updates both Supabase Auth and database
   const changePassword = async ({ currentPassword, newPassword }) => {
@@ -103,6 +104,13 @@ export const AuthProvider = ({ children }) => {
   }
 
   useEffect(() => {
+    // Mark as hydrated after first render
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return; // Don't run auth logic until hydrated
+
     const getSession = async () => {
       try {
         const { data } = await supabase.auth.getSession();
@@ -142,7 +150,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isHydrated]);
 
   if (authError) {
     return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{authError}</div>;
@@ -154,7 +162,8 @@ export const AuthProvider = ({ children }) => {
       loading, 
       changePassword,
       isAuthenticated: !!user,
-      loadingAuth: loading
+      loadingAuth: loading,
+      isHydrated
     }}>
       {children}
     </AuthContext.Provider>

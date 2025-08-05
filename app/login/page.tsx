@@ -11,8 +11,15 @@ const Login: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [showWelcome, setShowWelcome] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Handle hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   // Automatically reset loading and welcome state on route change
   useEffect(() => {
     setLoading(false);
@@ -114,30 +121,30 @@ const Login: React.FC = () => {
         try {
           if (!profile.password_changed && profile.role === 'student') {
             console.log('Redirecting to change password');
-            router.push('/change-password');
-            console.log('router.push(/change-password) called');
+            router.replace('/change-password');
+            console.log('router.replace(/change-password) called');
           } else {
             switch (profile.role) {
               case 'admin':
                 console.log('Redirecting to admin dashboard');
-                router.push('/admin/dashboard');
-                console.log('router.push(/admin/dashboard) called');
+                router.replace('/admin/dashboard');
+                console.log('router.replace(/admin/dashboard) called');
                 break;
               case 'teacher':
               case 'class_tutor':
                 console.log('Redirecting to teacher dashboard');
-                router.push('/teachers/dashboard');
-                console.log('router.push(/teachers/dashboard) called');
+                router.replace('/teachers/dashboard');
+                console.log('router.replace(/teachers/dashboard) called');
                 break;
               case 'student':
                 console.log('Redirecting to student dashboard');
-                router.push('/students/dashboard');
-                console.log('router.push(/students/dashboard) called');
+                router.replace('/students/dashboard');
+                console.log('router.replace(/students/dashboard) called');
                 break;
               default:
                 console.log('Unknown role, redirecting to student dashboard');
-                router.push('/students/dashboard');
-                console.log('router.push(/students/dashboard) called');
+                router.replace('/students/dashboard');
+                console.log('router.replace(/students/dashboard) called');
                 break;
             }
           }
@@ -176,6 +183,36 @@ const Login: React.FC = () => {
     setError('');
     setFullName('');
   };
+
+  // Show loading state until client is hydrated
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
+        <div style={{
+          backgroundColor: 'white',
+          padding: '40px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+          maxWidth: '400px',
+          width: '100%',
+          boxSizing: 'border-box',
+          textAlign: 'center'
+        }}>
+          <div style={{ 
+            display: 'inline-block',
+            border: '2px solid #f3f3f3',
+            borderTop: '2px solid #0070f3',
+            borderRadius: '50%',
+            width: '30px',
+            height: '30px',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }} />
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
