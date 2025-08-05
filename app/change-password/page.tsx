@@ -190,66 +190,86 @@ function ChangePasswordPageInner() {
     console.log('User object:', user);
     
     if (!validateForm()) {
-      console.log('Validation failed');
+      console.log('❌ [handleSubmit] Form validation failed');
       return;
     }
-    
-    console.log('Validation passed, starting submission');
-    
+
     try {
+      console.log('🚀 [handleSubmit] Setting loading state');
       setIsLoading(true);
       setSubmitError('');
       setSubmitSuccess(false);
       
-      console.log('Submitting password change', formData);
-      console.log('changePassword function:', changePassword);
-      console.log('User email:', user?.email);
+      console.log('🚀 [handleSubmit] Form data:', { currentPassword: '***', newPassword: '***', confirmPassword: '***' });
+      console.log('🚀 [handleSubmit] changePassword function available:', !!changePassword);
+      console.log('🚀 [handleSubmit] User object:', user);
+      console.log('🚀 [handleSubmit] User email:', user?.email);
       
       if (!changePassword) {
-        console.error('changePassword function is not available');
+        console.error('❌ [handleSubmit] changePassword function is not available');
         setSubmitError('Change password function not available');
         setIsLoading(false);
         return;
       }
       
       if (!user?.email) {
-        console.error('User email not available');
+        console.error('❌ [handleSubmit] User email not available');
         setSubmitError('User information not available. Please try logging in again.');
         setIsLoading(false);
         return;
       }
       
-      console.log('Starting password change...');
-      const result = await changePassword({
+      console.log('🚀 [handleSubmit] About to call changePassword function');
+      
+      // Add a timeout wrapper to prevent infinite hanging
+      const changePasswordPromise = changePassword({
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword
       });
       
-      console.log('changePassword result', result);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          console.error('⏰ [handleSubmit] Timeout reached - 30 seconds');
+          reject(new Error('Password change operation timed out after 30 seconds'));
+        }, 30000);
+      });
+      
+      console.log('🚀 [handleSubmit] Waiting for changePassword result...');
+      const result = await Promise.race([changePasswordPromise, timeoutPromise]);
+      
+      console.log('✅ [handleSubmit] changePassword completed with result:', result);
       
       if (result && result.success) {
+        console.log('✅ [handleSubmit] Password change successful');
         setSubmitSuccess(true);
         
         // Show warning if there was a database update issue
         if (result.warning) {
+          console.log('⚠️ [handleSubmit] Warning message:', result.warning);
           setSubmitError(result.warning);
         }
         
         // Redirect after a short delay
+        console.log('🚀 [handleSubmit] Setting redirect timer');
         setTimeout(() => {
-          router.push('/students/dashboard');
+          console.log('🚀 [handleSubmit] Redirecting to login');
+          router.push('/login');
         }, 2000);
       } else {
+        console.error('❌ [handleSubmit] Password change failed:', result?.error);
         setSubmitError(result?.error || 'Failed to change password');
       }
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      if (error.message?.includes('timeout') || error.message?.includes('Request timeout')) {
-        setSubmitError('The request took too long. Please check your internet connection and try again.');
+      console.error('❌ [handleSubmit] Exception caught:', error);
+      console.error('❌ [handleSubmit] Error stack:', error.stack);
+      
+      if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+        setSubmitError('The password change operation timed out. Please check your internet connection and try again.');
       } else {
-        setSubmitError('An unexpected error occurred. Please try again.');
+        setSubmitError('An unexpected error occurred: ' + error.message);
       }
     } finally {
+      console.log('🏁 [handleSubmit] Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -477,7 +497,7 @@ function ChangePasswordPageInner() {
             {submitSuccess && (
               <p className="text-green-600 text-center text-sm mt-4 flex items-center justify-center">
                 <CheckCircle size={16} className="inline mr-1" />
-                Password updated successfully! Redirecting...
+                Password updated successfully! Redirecting to login...
               </p>
             )}
             {submitError && (

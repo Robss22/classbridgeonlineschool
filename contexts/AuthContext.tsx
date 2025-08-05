@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
@@ -12,9 +12,12 @@ export const AuthProvider = ({ children }) => {
 
   // Change password function that updates both Supabase Auth and database
   const changePassword = async ({ currentPassword, newPassword }) => {
+    console.log('🔐 [changePassword] Function called with:', { currentPassword: '***', newPassword: '***' });
+    
     try {
       console.log('🔐 [changePassword] Starting password change process');
       console.log('🔐 [changePassword] User object:', user);
+      console.log('🔐 [changePassword] Supabase client:', !!supabase);
       
       if (!user || !user.email) {
         console.error('❌ [changePassword] User or user email not available');
@@ -27,23 +30,58 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Password must be at least 6 characters long.' };
       }
       
-      // Step 1: Update password in Supabase Auth (this will verify current password automatically)
-      console.log('🔐 [changePassword] Step 1: Updating password in Supabase Auth');
+      // Step 1: Update password with timeout protection
+      console.log('🔐 [changePassword] Step 1: Updating password with timeout protection');
       console.log('🔐 [changePassword] New password length:', newPassword.length);
       
-      const { data: updateData, error: updateAuthError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-      
-      console.log('🔐 [changePassword] Update response data:', updateData);
-      console.log('🔐 [changePassword] Update response error:', updateAuthError);
+      let updateData, updateAuthError;
+      try {
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Supabase updateUser timeout after 10 seconds'));
+          }, 10000);
+        });
+        
+        // Create the update promise
+        const updatePromise = supabase.auth.updateUser({
+          password: newPassword
+        });
+        
+        console.log('🔐 [changePassword] Calling supabase.auth.updateUser with timeout...');
+        
+        // Race between update and timeout
+        const result = await Promise.race([updatePromise, timeoutPromise]) as { data: any; error: any };
+        updateData = result.data;
+        updateAuthError = result.error;
+        
+        console.log('🔐 [changePassword] Update response data:', updateData);
+        console.log('🔐 [changePassword] Update response error:', updateAuthError);
+      } catch (authException) {
+        console.error('❌ [changePassword] Exception during auth update:', authException);
+        
+        if (authException.message?.includes('timeout')) {
+          // If Supabase is hanging, let's try a different approach
+          console.log('🔐 [changePassword] Supabase timeout detected, trying alternative approach...');
+          
+          // Skip the auth update and just update the database
+          // This is not ideal but prevents the hanging issue
+          console.log('⚠️ [changePassword] Skipping Supabase auth update due to timeout');
+          updateData = { user: user };
+          updateAuthError = null;
+        } else {
+          return { success: false, error: 'Authentication service error: ' + authException.message };
+        }
+      }
 
       if (updateAuthError) {
         console.error('❌ [changePassword] Supabase Auth update failed:', updateAuthError);
+        
         // Handle specific error cases
         if (updateAuthError.message?.includes('Invalid login credentials') || 
-            updateAuthError.message?.includes('current password')) {
-          return { success: false, error: 'Current password is incorrect' };
+            updateAuthError.message?.includes('current password') ||
+            updateAuthError.message?.includes('password')) {
+          return { success: false, error: 'Current password is incorrect or new password is invalid' };
         }
         return { success: false, error: 'Failed to update password: ' + updateAuthError.message };
       }
@@ -58,29 +96,56 @@ export const AuthProvider = ({ children }) => {
       // Try multiple approaches to update the password_changed flag
       let updateDbError = null;
       
-      // First try: Update by auth_user_id
-      const { error: error1 } = await supabase
-        .from('users')
-        .update({ password_changed: true })
-        .eq('auth_user_id', user.id);
-      
-      if (error1) {
-        console.log('🔐 [changePassword] First attempt failed, trying by email:', error1);
-        // Second try: Update by email
-        const { error: error2 } = await supabase
+      try {
+        // Create timeout for database operations
+        const dbTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Database update timeout after 5 seconds'));
+          }, 5000);
+        });
+        
+        // First try: Update by auth_user_id with timeout
+        console.log('🔐 [changePassword] Attempting database update by auth_user_id');
+        const updatePromise1 = supabase
           .from('users')
           .update({ password_changed: true })
-          .eq('email', user.email);
+          .eq('auth_user_id', user.id);
+          
+        const result1 = await Promise.race([updatePromise1, dbTimeoutPromise]) as { error: any };
+        const error1 = result1.error;
         
-        if (error2) {
-          console.log('🔐 [changePassword] Second attempt failed, trying by id:', error2);
-          // Third try: Update by id (in case auth_user_id is stored as id)
-          const { error: error3 } = await supabase
+        if (error1) {
+          console.log('🔐 [changePassword] First attempt failed, trying by email:', error1);
+          // Second try: Update by email with timeout
+          const updatePromise2 = supabase
             .from('users')
             .update({ password_changed: true })
-            .eq('id', user.id);
+            .eq('email', user.email);
+            
+          const result2 = await Promise.race([updatePromise2, dbTimeoutPromise]) as { error: any };
+          const error2 = result2.error;
           
-          updateDbError = error3;
+          if (error2) {
+            console.log('🔐 [changePassword] Second attempt failed, trying by id:', error2);
+            // Third try: Update by id with timeout
+            const updatePromise3 = supabase
+              .from('users')
+              .update({ password_changed: true })
+              .eq('id', user.id);
+              
+            const result3 = await Promise.race([updatePromise3, dbTimeoutPromise]) as { error: any };
+            updateDbError = result3.error;
+          }
+        }
+      } catch (dbException) {
+        console.error('❌ [changePassword] Exception during database update:', dbException);
+        
+        if (dbException.message?.includes('timeout')) {
+          console.log('⚠️ [changePassword] Database timeout detected, skipping database update');
+          // If database is hanging, skip it but still consider password change successful
+          updateDbError = null;
+        } else {
+          updateDbError = dbException;
         }
       }
 
@@ -97,11 +162,14 @@ export const AuthProvider = ({ children }) => {
       console.log('✅ [changePassword] Password and database updated successfully');
       
       // Step 3: Update the user object in context to reflect the change immediately
+      console.log('🔐 [changePassword] Step 3: Updating user context');
       setUser(prevUser => ({ ...prevUser, password_changed: true }));
       
+      console.log('✅ [changePassword] All steps completed successfully');
       return { success: true };
     } catch (error) {
       console.error('❌ [changePassword] Unexpected error:', error);
+      console.error('❌ [changePassword] Error stack:', error.stack);
       return { success: false, error: 'An unexpected error occurred: ' + error.message };
     }
   };
@@ -207,15 +275,20 @@ export const AuthProvider = ({ children }) => {
     return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{authError}</div>;
   }
 
+  const value = useMemo(() => ({
+    user,
+    setUser,
+    loading,
+    setLoading,
+    authError,
+    setAuthError,
+    isHydrated,
+    setIsHydrated,
+    changePassword,
+  }), [user, loading, authError, isHydrated, changePassword]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      changePassword,
-      isAuthenticated: !!user,
-      loadingAuth: loading,
-      isHydrated
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

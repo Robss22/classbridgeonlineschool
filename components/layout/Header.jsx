@@ -59,7 +59,8 @@ export default function Header() {
               alt="Classbridge Logo"
               width={120}
               height={40}
-              className="object-contain h-auto"
+              className="object-contain"
+              style={{ height: "auto" }}
               priority
             />
           </Link>

@@ -45,15 +45,17 @@ function Announcements() {
 
 export default function StudentDashboard() {
   return (
-    <div className="p-2 sm:p-4 md:p-6 bg-gray-50 min-h-screen">
-      {/* WelcomeCard removed, now in header */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <TodaySchedule />
-        <TeachersAssigned />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <LatestResources />
-        <Announcements />
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
+        {/* WelcomeCard removed, now in header */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+          <TodaySchedule />
+          <TeachersAssigned />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <LatestResources />
+          <Announcements />
+        </div>
       </div>
     </div>
   );
