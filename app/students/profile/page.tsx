@@ -20,7 +20,10 @@ export default function ProfilePage() {
   // TODO: Add real upload logic
 
   return (
-    <div className="flex flex-col md:flex-row gap-8 p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
+        <div className="flex flex-col md:flex-row gap-8">
+
       {/* Sidebar/Profile Card */}
       <div className="md:w-1/3 w-full bg-white rounded-2xl shadow-md p-6 flex flex-col items-center gap-4">
         <Avatar name={studentInfo.name} photoUrl={profilePic} />

@@ -16,15 +16,12 @@ export default function StudentAuthGuard({ children }) {
       if (!isAuthenticated) {
         console.log('[StudentAuthGuard] Redirecting to /login');
         router.push('/login');
-      } else if (user && !user.password_changed && pathname !== '/students/change-password') {
-        console.log('[StudentAuthGuard] Redirecting to /students/change-password');
-        router.push('/students/change-password');
-      }
+
     }
   }, [isAuthenticated, user, loadingAuth, router, pathname]);
 
   // Optionally show a loading spinner while checking auth
-  if (loadingAuth || !isAuthenticated || (user && !user.password_changed && pathname !== '/students/change-password')) {
+  if (loadingAuth || !isAuthenticated) {
     console.log('[StudentAuthGuard] Showing spinner', { loadingAuth, isAuthenticated, user, pathname });
     return (
       <div className="min-h-screen flex items-center justify-center">

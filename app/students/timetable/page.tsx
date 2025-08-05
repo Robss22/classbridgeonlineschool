@@ -75,7 +75,8 @@ export default function TimetablePage() {
   const currentHour = new Date().getHours();
 
   return (
-    <div className="p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
       <h1 className="text-2xl font-bold mb-2">Weekly Timetable</h1>
       <div className="text-gray-600 mb-6 font-medium">{getWeekRangeLabel()}</div>
       <div className="overflow-x-auto">

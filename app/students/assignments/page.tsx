@@ -21,23 +21,30 @@ function getStatus(assignment) {
 }
 
 export default function AssignmentsPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
+        {/* --- Assignment Content Below --- */}
+        {/* ORIGINAL CONTENT START */}
   const { studentInfo } = useStudent();
   const [assignments, setAssignments] = useState([]);
   const [tab, setTab] = useState('All');
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState(null);
-  const [uploadError, setUploadError] = useState('');
-  const fileInputRefs = useRef({});
-  const [subjectsMap, setSubjectsMap] = useState({});
-  const [paperCodesMap, setPaperCodesMap] = useState({});
 
-  useEffect(() => {
-    async function fetchAssessments() {
-      setLoading(true);
-      try {
-        // 1. Fetch compulsory subject IDs for student's program/level
-        const { data: compulsory, error: compulsoryError } = await supabase
-          .from('subject_offerings')
+        useEffect(() => {
+          async function fetchAssessments() {
+            setLoading(true);
+            try {
+              // 1. Fetch compulsory subject IDs for student's program/level
+              const { data: compulsory, error: compulsoryError } = await supabase
+                .from('subject_offerings')
+                .select('subject_id')
+                .eq('program_id', studentInfo.program_id)
+                .eq('level_id', studentInfo.level_id)
+                .eq('is_compulsory', true);
+              if (compulsoryError) throw compulsoryError;
+              const compulsorySubjectIds = (compulsory || []).map(s => s.subject_id);
           .select('subject_id')
           .eq('program_id', studentInfo.program_id)
           .eq('level_id', studentInfo.level_id)

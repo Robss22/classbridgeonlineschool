@@ -22,6 +22,11 @@ interface SubjectOffering {
 }
 
 export default function MySubjectsPage() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
+        {/* --- Subjects Content Below --- */}
+        {/* ORIGINAL CONTENT START */}
   const { studentInfo } = useStudent();
   const [compulsory, setCompulsory] = useState<any[]>([]);
   const [optionals, setOptionals] = useState<any[]>([]);
