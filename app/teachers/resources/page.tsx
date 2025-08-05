@@ -1,9 +1,10 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
-import TeacherResourceForm from '@/components/TeacherResourceForm';
-import { useAuth } from '@/contexts/AuthContext';
+
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import TeacherResourceForm from "@/components/TeacherResourceForm";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { BookOpen, FileText, Video, Link2, Edit, Trash2, UploadCloud, Plus, X } from "lucide-react";
+import { BookOpen, FileText, Video, Link2, Edit, Trash2, Plus } from "lucide-react";
 
 const fileTypeIcons = {
   pdf: FileText,
@@ -19,12 +20,6 @@ const fileTypeTags = {
   default: "#File",
 };
 
-const resourceTypes = [
-  { value: "pdf", label: "PDF" },
-  { value: "video", label: "Video" },
-  { value: "link", label: "Link" },
-];
-
 export default function TeacherResourcesPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -34,26 +29,24 @@ export default function TeacherResourcesPage() {
   const [editingResource, setEditingResource] = useState(null);
   const fileInputRef = useRef(null);
 
-  const fetchResources = async () => {
+  const fetchResources = useCallback(async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      // Get teacher_id from teachers table
       const { data: teacherRecord, error: teacherError } = await supabase
-        .from('teachers')
-        .select('teacher_id')
-        .eq('user_id', user.id)
+        .from("teachers")
+        .select("teacher_id")
+        .eq("user_id", user.id)
         .single();
 
       if (teacherError) {
-        console.error('Error fetching teacher record:', teacherError);
+        console.error("Error fetching teacher record:", teacherError);
         setResources([]);
         setLoading(false);
         return;
       }
 
-      // Fetch teacher's assigned subjects and levels
       const { data: teacherAssignments } = await supabase
         .from("teacher_assignments")
         .select("subject_id, level_id")
@@ -62,39 +55,46 @@ export default function TeacherResourcesPage() {
       const subjectIds = teacherAssignments?.map((a) => a.subject_id).filter(Boolean);
       const levelIds = teacherAssignments?.map((a) => a.level_id).filter(Boolean);
 
-      // Fetch resources uploaded by this teacher for their assigned subjects and levels
       let query = supabase
         .from("resources")
         .select("*, subjects:subject_id(name), levels:level_id(name)")
         .eq("uploaded_by", user.id);
 
-      // Filter by teacher's assigned subjects and levels
-      if (subjectIds && subjectIds.length > 0) {
+      if (subjectIds.length > 0) {
         query = query.in("subject_id", subjectIds);
       }
-      if (levelIds && levelIds.length > 0) {
+      if (levelIds.length > 0) {
         query = query.in("level_id", levelIds);
       }
 
       const { data: resourcesData } = await query.order("created_at", { ascending: false });
       setResources(resourcesData || []);
     } catch (error) {
-      console.error('Error fetching resources:', error);
+      console.error("Error fetching resources:", error);
       setResources([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchResources();
-  }, [user]);
+  }, [fetchResources]);
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">
+        Loading...
+      </div>
+    );
   }
+
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your resources.</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">
+        Please log in to view your resources.
+      </div>
+    );
   }
 
   const handleDelete = async (resource_id) => {
@@ -103,8 +103,8 @@ export default function TeacherResourcesPage() {
       await supabase.from("resources").delete().eq("resource_id", resource_id);
       setResources((prev) => prev.filter((r) => r.resource_id !== resource_id));
     } catch (error) {
-      console.error('Error deleting resource:', error);
-      alert('Failed to delete resource');
+      console.error("Error deleting resource:", error);
+      alert("Failed to delete resource");
     }
   };
 
@@ -119,7 +119,7 @@ export default function TeacherResourcesPage() {
   };
 
   const handleFormSuccess = () => {
-    fetchResources(); // Refresh the resources list
+    fetchResources();
   };
 
   const filteredResources = resources.filter((r) => {
@@ -130,16 +130,16 @@ export default function TeacherResourcesPage() {
     );
   });
 
-  // Get unique subjects and levels for filters
-  const uniqueSubjects = [...new Set(resources.map(r => r.subject_id))];
-  const uniqueLevels = [...new Set(resources.map(r => r.level_id))];
+  const uniqueSubjects = [...new Set(resources.map((r) => r.subject_id))];
+  const uniqueLevels = [...new Set(resources.map((r) => r.level_id))];
 
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <BookOpen className="w-6 h-6 text-blue-700" /> My Resources
+        <BookOpen className="w-6 h-6 text-blue-700" />
+        My Resources
       </h1>
-      
+
       <div className="mb-6 flex justify-end">
         <button
           onClick={() => setShowForm(true)}
@@ -151,7 +151,7 @@ export default function TeacherResourcesPage() {
       </div>
 
       {showForm && (
-        <TeacherResourceForm 
+        <TeacherResourceForm
           onClose={handleFormClose}
           resource={editingResource}
           onSuccess={handleFormSuccess}
@@ -168,15 +168,15 @@ export default function TeacherResourcesPage() {
         >
           <option value="">All Subjects</option>
           {uniqueSubjects.map((subjectId) => {
-            const resource = resources.find(r => r.subject_id === subjectId);
+            const res = resources.find((r) => r.subject_id === subjectId);
             return (
               <option key={subjectId} value={subjectId}>
-                {resource?.subjects?.name || subjectId}
+                {res?.subjects?.name || subjectId}
               </option>
             );
           })}
         </select>
-        
+
         <label className="font-medium">Level:</label>
         <select
           value={filters.class}
@@ -185,15 +185,15 @@ export default function TeacherResourcesPage() {
         >
           <option value="">All Levels</option>
           {uniqueLevels.map((levelId) => {
-            const resource = resources.find(r => r.level_id === levelId);
+            const res = resources.find((r) => r.level_id === levelId);
             return (
               <option key={levelId} value={levelId}>
-                {resource?.levels?.name || levelId}
+                {res?.levels?.name || levelId}
               </option>
             );
           })}
         </select>
-        
+
         <label className="font-medium">Date:</label>
         <input
           type="date"
@@ -203,7 +203,7 @@ export default function TeacherResourcesPage() {
         />
       </div>
 
-      {/* Resources Table */}
+      {/* Resource Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white rounded-xl shadow-md">
           <thead>
@@ -224,7 +224,9 @@ export default function TeacherResourcesPage() {
             ) : filteredResources.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-4 text-center text-gray-500">
-                  {resources.length === 0 ? "No resources found. Create your first resource!" : "No resources match the current filters."}
+                  {resources.length === 0
+                    ? "No resources found. Create your first resource!"
+                    : "No resources match the current filters."}
                 </td>
               </tr>
             ) : (
@@ -238,20 +240,23 @@ export default function TeacherResourcesPage() {
                   : "default";
                 const Icon = fileTypeIcons[type] || fileTypeIcons.default;
                 const tag = fileTypeTags[type] || fileTypeTags.default;
-                const subject = resource.subjects;
-                const level = resource.levels;
+
                 return (
                   <tr key={resource.resource_id} className="hover:bg-blue-50 transition-colors">
                     <td className="p-3 flex items-center gap-2">
                       <Icon className="w-5 h-5 text-blue-700" />
                       <span className="font-medium">{resource.title || resource.url}</span>
                     </td>
-                    <td className="p-3">{subject?.name || "-"}</td>
-                    <td className="p-3">{level?.name || "-"}</td>
+                    <td className="p-3">{resource.subjects?.name || "-"}</td>
+                    <td className="p-3">{resource.levels?.name || "-"}</td>
                     <td className="p-3">
-                      <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-semibold">{tag}</span>
+                      <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-semibold">
+                        {tag}
+                      </span>
                     </td>
-                    <td className="p-3 text-sm text-gray-500">{resource.created_at ? new Date(resource.created_at).toLocaleDateString() : "-"}</td>
+                    <td className="p-3 text-sm text-gray-500">
+                      {resource.created_at ? new Date(resource.created_at).toLocaleDateString() : "-"}
+                    </td>
                     <td className="p-3 flex gap-2">
                       <a
                         href={resource.url}
@@ -285,4 +290,4 @@ export default function TeacherResourcesPage() {
       </div>
     </div>
   );
-} 
+}

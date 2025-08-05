@@ -156,7 +156,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
               <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
                 <h3 className="text-lg font-semibold mb-4">No Assignments</h3>
                 <p className="text-gray-600 mb-4">
-                  You don't have any subject or level assignments yet. Please contact an administrator to get assigned to subjects and levels.
+                  You don&apos;t have any subject or level assignments yet. Please contact an administrator to get assigned to subjects and levels.
                 </p>
                 <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded">Close</button>
               </div>

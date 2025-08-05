@@ -123,24 +123,16 @@ interface AssessmentFormProps {
 // Form for Adding/Editing an Assessment
 function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }: AssessmentFormProps) {
   // Safely use teacher context - for admin users, this will be empty
-  const teacherContext = (() => {
-    try {
-      return useTeacher();
-    } catch (error) {
-      // If TeacherProvider is not available, return default values
-      return { 
-        assignments: [], 
-        subjects: [],
-        levels: [],
-        programs: [],
-        loading: false, 
-        error: null, 
-        refreshAssignments: async () => {} 
-      };
-    }
-  })();
+  let teacherAssignments: any[] = [];
   
-  const { assignments: teacherAssignments } = teacherContext;
+  try {
+    const teacherContext = useTeacher();
+    teacherAssignments = teacherContext.assignments || [];
+  } catch (error) {
+    // If TeacherProvider is not available, use empty assignments
+    teacherAssignments = [];
+  }
+  
   const [title, setTitle] = useState(assessmentItem?.title || '');
   const [description, setDescription] = useState(assessmentItem?.description || '');
   const [type, setType] = useState(assessmentItem?.type || 'assignment');
@@ -692,7 +684,7 @@ export default function AssessmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, search, filterType, teacherSubjectIds, teacherLevelIds]);
+  }, [user, search, filterType, teacherSubjectIds, teacherLevelIds, teacherAssignments]);
 
   useEffect(() => {
     if (!authLoading) {

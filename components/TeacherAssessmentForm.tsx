@@ -26,7 +26,6 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
   const [fileUrl, setFileUrl] = useState(assessmentItem?.file_url || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [fileUploadProgress, setFileUploadProgress] = useState<number | null>(null);
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [availablePapers, setAvailablePapers] = useState<any[]>([]);
   const [paperId, setPaperId] = useState(assessmentItem?.paper_id || '');
@@ -109,7 +108,6 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setFileUploadProgress(0);
     setFileUploadError(null);
 
     try {
@@ -119,12 +117,7 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
 
       const { error: uploadError } = await supabase.storage
         .from('assessments')
-        .upload(filePath, file, {
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded / progress.total) * 100);
-            setFileUploadProgress(percent);
-          },
-        });
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
@@ -133,11 +126,9 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
         .getPublicUrl(filePath);
 
       setFileUrl(publicUrl);
-      setFileUploadProgress(null);
     } catch (err: any) {
       console.error('File upload failed:', err);
       setFileUploadError(`Upload failed: ${err.message || 'Unknown error'}`);
-      setFileUploadProgress(null);
     }
   };
 
@@ -171,7 +162,7 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
               <div className="bg-white p-6 rounded-lg shadow-lg max-w-md">
                 <h3 className="text-lg font-semibold mb-4">No Assignments</h3>
                 <p className="text-gray-600 mb-4">
-                  You don't have any subject or level assignments yet. Please contact an administrator to get assigned to subjects and levels.
+                  You don&apos;t have any subject or level assignments yet. Please contact an administrator to get assigned to subjects and levels.
                 </p>
                 <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded">Close</button>
               </div>
@@ -344,9 +335,6 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
                     onChange={handleFileChange}
                     className="w-full border border-gray-300 rounded-md shadow-sm p-2"
                   />
-                  {fileUploadProgress !== null && (
-                    <div className="text-xs text-gray-500 mt-1">Upload progress: {fileUploadProgress}%</div>
-                  )}
                   {fileUploadError && (
                     <div className="text-xs text-red-500 mt-1">{fileUploadError}</div>
                   )}
