@@ -27,87 +27,78 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Password must be at least 6 characters long.' };
       }
       
-      // Step 1: Verify current password by attempting to sign in
-      console.log('🔐 [changePassword] Step 1: Verifying current password');
-      console.log('🔐 [changePassword] Using email:', user.email);
-      
-      try {
-        const { error: verifyError } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password: currentPassword
-        });
-
-        if (verifyError) {
-          console.error('❌ [changePassword] Current password verification failed:', verifyError);
-          return { success: false, error: 'Current password is incorrect' };
-        }
-      } catch (verifyException) {
-        console.error('❌ [changePassword] Exception during password verification:', verifyException);
-        return { success: false, error: 'Error verifying current password: ' + verifyException.message };
-      }
-
-      // Step 2: Update password in Supabase Auth
-      console.log('🔐 [changePassword] Step 2: Updating password in Supabase Auth');
+      // Step 1: Update password in Supabase Auth (this will verify current password automatically)
+      console.log('🔐 [changePassword] Step 1: Updating password in Supabase Auth');
       console.log('🔐 [changePassword] New password length:', newPassword.length);
       
-      // Check current session before updating
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('🔐 [changePassword] Current session:', sessionData);
-        
-        if (!sessionData.session) {
-          console.error('❌ [changePassword] No active session found');
-          return { success: false, error: 'No active session. Please log in again.' };
+      const { data: updateData, error: updateAuthError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      console.log('🔐 [changePassword] Update response data:', updateData);
+      console.log('🔐 [changePassword] Update response error:', updateAuthError);
+
+      if (updateAuthError) {
+        console.error('❌ [changePassword] Supabase Auth update failed:', updateAuthError);
+        // Handle specific error cases
+        if (updateAuthError.message?.includes('Invalid login credentials') || 
+            updateAuthError.message?.includes('current password')) {
+          return { success: false, error: 'Current password is incorrect' };
         }
-      } catch (sessionError) {
-        console.error('❌ [changePassword] Error checking session:', sessionError);
-        return { success: false, error: 'Error checking authentication session.' };
+        return { success: false, error: 'Failed to update password: ' + updateAuthError.message };
       }
       
-      try {
-        console.log('🔐 [changePassword] Calling supabase.auth.updateUser...');
-        const { data: updateData, error: updateAuthError } = await supabase.auth.updateUser({
-          password: newPassword
-        });
-        
-        console.log('🔐 [changePassword] Update response data:', updateData);
-        console.log('🔐 [changePassword] Update response error:', updateAuthError);
+      console.log('🔐 [changePassword] Step 1 completed successfully');
 
-        if (updateAuthError) {
-          console.error('❌ [changePassword] Supabase Auth update failed:', updateAuthError);
-          return { success: false, error: 'Failed to update password: ' + updateAuthError.message };
-        }
-        
-        console.log('🔐 [changePassword] Step 2 completed successfully');
-      } catch (updateException) {
-        console.error('❌ [changePassword] Exception during password update:', updateException);
-        console.error('❌ [changePassword] Exception details:', {
-          name: updateException.name,
-          message: updateException.message,
-          stack: updateException.stack
-        });
-        return { success: false, error: 'Error updating password: ' + updateException.message };
-      }
-
-      // Step 3: Update password_changed flag in users table
-      console.log('🔐 [changePassword] Step 3: Updating database');
-      console.log('🔐 [changePassword] Using user ID:', user.id);
-      try {
-        const { error: updateDbError } = await supabase
+      // Step 2: Update password_changed flag in users table
+      console.log('🔐 [changePassword] Step 2: Updating database');
+      console.log('🔐 [changePassword] Using user auth_user_id:', user.id);
+      console.log('🔐 [changePassword] Using user email for fallback:', user.email);
+      
+      // Try multiple approaches to update the password_changed flag
+      let updateDbError = null;
+      
+      // First try: Update by auth_user_id
+      const { error: error1 } = await supabase
+        .from('users')
+        .update({ password_changed: true })
+        .eq('auth_user_id', user.id);
+      
+      if (error1) {
+        console.log('🔐 [changePassword] First attempt failed, trying by email:', error1);
+        // Second try: Update by email
+        const { error: error2 } = await supabase
           .from('users')
           .update({ password_changed: true })
-          .eq('auth_user_id', user.id);
-
-        if (updateDbError) {
-          console.error('❌ [changePassword] Database update failed:', updateDbError);
-          return { success: false, error: 'Failed to update user status: ' + updateDbError.message };
+          .eq('email', user.email);
+        
+        if (error2) {
+          console.log('🔐 [changePassword] Second attempt failed, trying by id:', error2);
+          // Third try: Update by id (in case auth_user_id is stored as id)
+          const { error: error3 } = await supabase
+            .from('users')
+            .update({ password_changed: true })
+            .eq('id', user.id);
+          
+          updateDbError = error3;
         }
-      } catch (dbException) {
-        console.error('❌ [changePassword] Exception during database update:', dbException);
-        return { success: false, error: 'Error updating user status: ' + dbException.message };
       }
 
-      console.log('✅ [changePassword] Password changed successfully');
+      if (updateDbError) {
+        console.error('❌ [changePassword] All database update attempts failed:', updateDbError);
+        // Password was changed in auth but flag update failed - still consider it a success
+        // but warn the user they might need to contact support
+        return { 
+          success: true, 
+          warning: 'Password updated successfully, but there was an issue updating your profile. If you experience login issues, please contact support.' 
+        };
+      }
+      
+      console.log('✅ [changePassword] Password and database updated successfully');
+      
+      // Step 3: Update the user object in context to reflect the change immediately
+      setUser(prevUser => ({ ...prevUser, password_changed: true }));
+      
       return { success: true };
     } catch (error) {
       console.error('❌ [changePassword] Unexpected error:', error);

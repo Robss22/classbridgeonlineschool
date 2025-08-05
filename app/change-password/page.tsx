@@ -219,31 +219,36 @@ function ChangePasswordPageInner() {
         return;
       }
       
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout - the password change process took too long. Please try again.')), 15000); // 15 second timeout
+      console.log('Starting password change...');
+      const result = await changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
       });
-      
-      console.log('Starting password change with timeout...');
-      const result = await Promise.race([
-        changePassword({
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword
-        }),
-        timeoutPromise
-      ]);
       
       console.log('changePassword result', result);
       
       if (result && result.success) {
         setSubmitSuccess(true);
-        setTimeout(() => router.push('/students/dashboard'), 2000);
+        
+        // Show warning if there was a database update issue
+        if (result.warning) {
+          setSubmitError(result.warning);
+        }
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          router.push('/students/dashboard');
+        }, 2000);
       } else {
         setSubmitError(result?.error || 'Failed to change password');
       }
     } catch (error) {
       console.error('Error in handleSubmit:', error);
-      setSubmitError('An unexpected error occurred. Please try again.');
+      if (error.message?.includes('timeout') || error.message?.includes('Request timeout')) {
+        setSubmitError('The request took too long. Please check your internet connection and try again.');
+      } else {
+        setSubmitError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
