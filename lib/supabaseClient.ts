@@ -22,6 +22,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Debug logging for development
+if (typeof window !== 'undefined') {
+  console.log('Supabase client initialization:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlPrefix: supabaseUrl?.substring(0, 20) + '...'
+  });
+}
+
 // Create and export the Supabase client instance
 // This client uses the anonymous key and is safe for client-side operations.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

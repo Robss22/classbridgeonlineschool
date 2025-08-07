@@ -1,9 +1,10 @@
-"use client";
+'use client';
+
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
-import { Calendar, Video, BookOpen, Bell, Play } from 'lucide-react';
+import { Calendar, Clock, Users, Video, BookOpen, Bell, Play } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TimetableEntry {
   timetable_id: string;
@@ -13,11 +14,11 @@ interface TimetableEntry {
   subject_name: string;
   level_name: string;
   program_name: string;
-  teacher_name: string;
   meeting_link: string;
   meeting_platform: string;
   room_name: string;
   is_active: boolean;
+  student_count: number;
 }
 
 interface LiveClass {
@@ -34,12 +35,11 @@ interface LiveClass {
   level_name: string;
 }
 
-export default function StudentTimetablePage() {
+export default function TeacherTimetablePage() {
   const { user } = useAuth();
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState('');
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -61,33 +61,45 @@ export default function StudentTimetablePage() {
         throw new Error('User not authenticated');
       }
 
-      // Fetch student's timetable
+      // Get teacher_id from user
+      const { data: teacherData, error: teacherError } = await supabase
+        .from('teachers')
+        .select('teacher_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (teacherError || !teacherData) {
+        throw new Error('Teacher profile not found');
+      }
+
+      // Fetch teacher's timetables
       const { data: timetableData, error: timetableError } = await supabase
-        .from('student_timetable_view')
+        .from('teacher_timetable_view')
         .select('*')
-        .eq('student_id', user.id)
-        .order('day_of_week', { ascending: true })
-        .order('start_time', { ascending: true });
+        .eq('teacher_id', teacherData.teacher_id)
+        .order('day_of_week, start_time');
 
       if (timetableError) throw timetableError;
 
-      // Fetch live classes for student's subjects
+      // Fetch teacher's live classes
       const { data: liveClassData, error: liveClassError } = await supabase
-        .from('live_classes_view')
-        .select('*')
-        .in('subject_id', timetableData?.map(t => t.subject_id) || [])
+        .from('live_classes')
+        .select(`
+          *,
+          subjects:subject_id (name),
+          levels:level_id (name)
+        `)
+        .eq('teacher_id', teacherData.teacher_id)
         .gte('scheduled_date', new Date().toISOString().split('T')[0])
-        .order('scheduled_date', { ascending: true })
-        .order('start_time', { ascending: true });
+        .order('scheduled_date, start_time');
 
       if (liveClassError) throw liveClassError;
 
       setTimetable(timetableData || []);
       setLiveClasses(liveClassData || []);
-      
 
     } catch (error) {
-      const appError = errorHandler.handleSupabaseError(error, 'fetch_student_timetable', user?.id || '');
+      const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_timetable', user?.id || '');
       setError(appError.message);
     } finally {
       setLoading(false);
@@ -105,8 +117,6 @@ export default function StudentTimetablePage() {
     const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 7));
     return `${startOfWeek.toLocaleDateString()} - ${endOfWeek.toLocaleDateString()}`;
   };
-
-
 
   const getSubjectColor = (subject: string) => {
     const colors = {
@@ -286,7 +296,8 @@ export default function StudentTimetablePage() {
                               <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${getSubjectColor(entry.subject_name)}`}>
                                 {entry.subject_name}
                               </span>
-                              <div className="text-xs text-gray-600">{entry.teacher_name}</div>
+                              <div className="text-xs text-gray-600">{entry.level_name}</div>
+                              <div className="text-xs text-gray-500">{entry.student_count} students</div>
                               {entry.meeting_link && (
                                 <a
                                   href={entry.meeting_link}
@@ -350,7 +361,7 @@ export default function StudentTimetablePage() {
                         <span className="font-medium">{entry.subject_name}</span>
                       </div>
                       <div className="text-sm text-gray-600">
-                        with {entry.teacher_name}
+                        {entry.level_name} ({entry.student_count} students)
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">

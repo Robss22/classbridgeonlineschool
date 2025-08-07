@@ -32,14 +32,28 @@ const Login: React.FC = () => {
     setLoading(true);
     
     console.log('Login attempt started:', { email });
+    console.log('Supabase client check:', { 
+      hasClient: !!supabase, 
+      hasAuth: !!supabase?.auth,
+      envUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...',
+      hasEnvKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    });
 
     try {
       // Step 1: Authenticate with Supabase
       console.log('Step 1: Authenticating...');
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      
+      // Add timeout to prevent hanging
+      const authPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Authentication timeout after 10 seconds')), 10000);
+      });
+      
+      const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
       
       console.log('Auth response:', { user: authData?.user, authError });
 
@@ -59,11 +73,18 @@ const Login: React.FC = () => {
 
       // Step 2: Fetch user profile
       console.log('Step 2: Fetching user profile for ID:', authData.user.id);
-      let { data: profile, error: profileError } = await supabase
+      
+      const profilePromise = supabase
         .from('users')
         .select('full_name, first_name, last_name, role, password_changed, auth_user_id')
         .eq('auth_user_id', authData.user.id)
         .single();
+      
+      const profileTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000);
+      });
+      
+      let { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeoutPromise]);
       
       console.log('Profile fetch result:', { profile, profileError });
 
@@ -105,68 +126,54 @@ const Login: React.FC = () => {
       
       setFullName(displayName);
       setShowWelcome(true);
-      // Set loading to false after navigation or after timeout
-      // Use a flag to prevent double setLoading
-      let navigated = false;
 
-      // Step 4: Navigate based on role and password status
+      // Step 4: Navigate based on role
       console.log('Step 4: Determining navigation...', { 
         role: profile.role, 
         passwordChanged: profile.password_changed 
       });
 
-      const navigationDelay = 2000;
-      setTimeout(() => {
-        console.log('Navigating...');
-        try {
-          switch (profile.role) {
-            case 'admin':
-              console.log('Redirecting to admin dashboard');
-              router.replace('/admin/dashboard');
-              console.log('router.replace(/admin/dashboard) called');
-              break;
-            case 'teacher':
-            case 'class_tutor':
-              console.log('Redirecting to teacher dashboard');
-              router.replace('/teachers/dashboard');
-              console.log('router.replace(/teachers/dashboard) called');
-              break;
-            case 'student':
-              console.log('Redirecting to student dashboard');
-              router.replace('/students/dashboard');
-              console.log('router.replace(/students/dashboard) called');
-              break;
-            default:
-              console.log('Unknown role, redirecting to student dashboard');
-              router.replace('/students/dashboard');
-              console.log('router.replace(/students/dashboard) called');
-              break;
-          }
-          navigated = true;
-        } catch (navError) {
-          console.error('Navigation error:', navError);
-          setError('Navigation failed. Please try again.');
-          setLoading(false);
-          setShowWelcome(false);
+      // Immediate navigation without delay
+      console.log('Navigating immediately...');
+      try {
+        switch (profile.role) {
+          case 'admin':
+            console.log('Redirecting to admin dashboard');
+            router.replace('/admin/dashboard');
+            break;
+          case 'teacher':
+          case 'class_tutor':
+            console.log('Redirecting to teacher dashboard');
+            router.replace('/teachers/dashboard');
+            break;
+          case 'student':
+            console.log('Redirecting to student dashboard');
+            router.replace('/students/dashboard');
+            break;
+          default:
+            console.log('Unknown role, redirecting to student dashboard');
+            router.replace('/students/dashboard');
+            break;
         }
-        // Fallback: if navigation does not happen, reset loading after 3 seconds
-        setTimeout(() => {
-          if (!navigated) {
-            setLoading(false);
-            setShowWelcome(false);
-          }
-        }, 3000);
-      }, navigationDelay);
+      } catch (navError) {
+        console.error('Navigation error:', navError);
+        setError('Navigation failed. Please try again.');
+        setLoading(false);
+        setShowWelcome(false);
+      }
 
     } catch (err) {
       console.error('Unexpected error during login:', err);
       setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setLoading(false);
     } finally {
-      // Always reset loading after navigation or error
-      if (!showWelcome) {
-        setLoading(false);
-      }
+      // Fallback: ensure loading is reset after 15 seconds
+      setTimeout(() => {
+        if (loading) {
+          console.log('Fallback: Resetting loading state');
+          setLoading(false);
+        }
+      }, 15000);
     }
   };
 

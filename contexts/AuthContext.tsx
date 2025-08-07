@@ -2,16 +2,39 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-const AuthContext = createContext(null);
+// Define types for the auth context
+interface User {
+  id: string;
+  email: string;
+  role?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  [key: string]: any; // Allow additional properties
+}
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+interface AuthContextType {
+  user: User | null;
+  setUser: (user: User | null) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  authError: string;
+  setAuthError: (error: string) => void;
+  isHydrated: boolean;
+  setIsHydrated: (hydrated: boolean) => void;
+  changePassword: (params: { currentPassword: string; newPassword: string }) => Promise<{ success: boolean; error?: string }>;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Change password function that updates both Supabase Auth and database
-  const changePassword = async ({ currentPassword, newPassword }) => {
+  const changePassword = async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
     console.log('🔐 [changePassword] Function called with:', { currentPassword: '***', newPassword: '***' });
     
     try {
@@ -175,7 +198,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Fetch user profile (including role) from your users table
-  async function fetchUserProfile(authUser) {
+  async function fetchUserProfile(authUser: any): Promise<User> {
     if (!authUser?.id) return null;
     
     // Try to find user by email first (most reliable)
@@ -294,7 +317,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used inside an AuthProvider');
   return context;

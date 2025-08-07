@@ -12,6 +12,8 @@ const navItems = [
   { name: 'Dashboard', href: '/teachers/dashboard' },
   { name: 'My Classes', href: '/teachers/classes' },
   { name: 'My Subjects', href: '/teachers/subjects' },
+  { name: 'My Timetable', href: '/teachers/timetable' },
+  { name: 'Live Classes', href: '/teachers/live-classes' },
   { name: 'Resources', href: '/teachers/resources' },
   { name: 'My Assessments', href: '/assessments' },
   { name: 'Messages', href: '/teachers/messages' },

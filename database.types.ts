@@ -583,6 +583,331 @@ export type Database = {
         }
         Relationships: []
       }
+      timetables: {
+        Row: {
+          timetable_id: string
+          level_id: string
+          subject_id: string
+          teacher_id: string
+          day_of_week: string
+          start_time: string
+          end_time: string
+          room_name: string | null
+          meeting_platform: string
+          meeting_link: string | null
+          meeting_id: string | null
+          meeting_password: string | null
+          is_active: boolean
+          academic_year: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          timetable_id?: string
+          level_id: string
+          subject_id: string
+          teacher_id: string
+          day_of_week: string
+          start_time: string
+          end_time: string
+          room_name?: string | null
+          meeting_platform?: string
+          meeting_link?: string | null
+          meeting_id?: string | null
+          meeting_password?: string | null
+          is_active?: boolean
+          academic_year: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          timetable_id?: string
+          level_id?: string
+          subject_id?: string
+          teacher_id?: string
+          day_of_week?: string
+          start_time?: string
+          end_time?: string
+          room_name?: string | null
+          meeting_platform?: string
+          meeting_link?: string | null
+          meeting_id?: string | null
+          meeting_password?: string | null
+          is_active?: boolean
+          academic_year?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetables_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
+          },
+          {
+            foreignKeyName: "timetables_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "timetables_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["teacher_id"]
+          },
+        ]
+      }
+      student_timetables: {
+        Row: {
+          id: string
+          student_id: string
+          timetable_id: string
+          enrollment_date: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          student_id: string
+          timetable_id: string
+          enrollment_date?: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          student_id?: string
+          timetable_id?: string
+          enrollment_date?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_timetables_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_timetables_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "timetables"
+            referencedColumns: ["timetable_id"]
+          },
+        ]
+      }
+      live_classes: {
+        Row: {
+          live_class_id: string
+          timetable_id: string | null
+          title: string
+          description: string | null
+          scheduled_date: string
+          start_time: string
+          end_time: string
+          meeting_platform: string
+          meeting_link: string | null
+          meeting_id: string | null
+          meeting_password: string | null
+          max_participants: number
+          status: string
+          teacher_id: string
+          level_id: string
+          subject_id: string
+          academic_year: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          live_class_id?: string
+          timetable_id?: string | null
+          title: string
+          description?: string | null
+          scheduled_date: string
+          start_time: string
+          end_time: string
+          meeting_platform?: string
+          meeting_link?: string | null
+          meeting_id?: string | null
+          meeting_password?: string | null
+          max_participants?: number
+          status?: string
+          teacher_id: string
+          level_id: string
+          subject_id: string
+          academic_year: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          live_class_id?: string
+          timetable_id?: string | null
+          title?: string
+          description?: string | null
+          scheduled_date?: string
+          start_time?: string
+          end_time?: string
+          meeting_platform?: string
+          meeting_link?: string | null
+          meeting_id?: string | null
+          meeting_password?: string | null
+          max_participants?: number
+          status?: string
+          teacher_id?: string
+          level_id?: string
+          subject_id?: string
+          academic_year?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_classes_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "timetables"
+            referencedColumns: ["timetable_id"]
+          },
+          {
+            foreignKeyName: "live_classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "live_classes_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
+          },
+          {
+            foreignKeyName: "live_classes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["subject_id"]
+          },
+        ]
+      }
+      live_class_participants: {
+        Row: {
+          id: string
+          live_class_id: string
+          student_id: string
+          join_time: string | null
+          leave_time: string | null
+          attendance_status: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          live_class_id: string
+          student_id: string
+          join_time?: string | null
+          leave_time?: string | null
+          attendance_status?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          live_class_id?: string
+          student_id?: string
+          join_time?: string | null
+          leave_time?: string | null
+          attendance_status?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_class_participants_live_class_id_fkey"
+            columns: ["live_class_id"]
+            isOneToOne: false
+            referencedRelation: "live_classes"
+            referencedColumns: ["live_class_id"]
+          },
+          {
+            foreignKeyName: "live_class_participants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_notifications: {
+        Row: {
+          notification_id: string
+          timetable_id: string | null
+          live_class_id: string | null
+          title: string
+          message: string
+          notification_type: string
+          scheduled_for: string | null
+          sent_at: string | null
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          notification_id?: string
+          timetable_id?: string | null
+          live_class_id?: string | null
+          title: string
+          message: string
+          notification_type: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          notification_id?: string
+          timetable_id?: string | null
+          live_class_id?: string | null
+          title?: string
+          message?: string
+          notification_type?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_notifications_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "timetables"
+            referencedColumns: ["timetable_id"]
+          },
+          {
+            foreignKeyName: "class_notifications_live_class_id_fkey"
+            columns: ["live_class_id"]
+            isOneToOne: false
+            referencedRelation: "live_classes"
+            referencedColumns: ["live_class_id"]
+          },
+          {
+            foreignKeyName: "class_notifications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       applications_with_programs: {
@@ -664,6 +989,109 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_timetable_view: {
+        Row: {
+          student_id: string
+          timetable_id: string
+          day_of_week: string
+          start_time: string
+          end_time: string
+          subject_name: string
+          subject_id: string
+          level_name: string
+          level_id: string
+          program_name: string
+          teacher_name: string
+          meeting_link: string | null
+          meeting_platform: string
+          room_name: string | null
+          is_active: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_timetables_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_timetables_timetable_id_fkey"
+            columns: ["timetable_id"]
+            isOneToOne: false
+            referencedRelation: "timetables"
+            referencedColumns: ["timetable_id"]
+          },
+        ]
+      }
+      teacher_timetable_view: {
+        Row: {
+          timetable_id: string
+          day_of_week: string
+          start_time: string
+          end_time: string
+          subject_name: string
+          subject_id: string
+          level_name: string
+          level_id: string
+          program_name: string
+          meeting_link: string | null
+          meeting_platform: string
+          room_name: string | null
+          is_active: boolean
+          student_count: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timetables_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "timetables_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
+          },
+        ]
+      }
+      live_classes_view: {
+        Row: {
+          live_class_id: string
+          title: string
+          description: string | null
+          scheduled_date: string
+          start_time: string
+          end_time: string
+          meeting_link: string | null
+          meeting_platform: string
+          status: string
+          subject_name: string
+          level_name: string
+          program_name: string
+          teacher_name: string
+          participant_count: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_classes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["subject_id"]
+          },
+          {
+            foreignKeyName: "live_classes_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "levels"
+            referencedColumns: ["level_id"]
           },
         ]
       }
