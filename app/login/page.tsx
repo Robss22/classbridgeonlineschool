@@ -41,7 +41,7 @@ const Login: React.FC = () => {
 
     // Check network status
     if (offline) {
-      setError('You appear to bee offline. Please check your internet connection and try again.');
+      setError('You appear to be offline. Please check your internet connection and try again.');
       setLoading(false);
       return;
     }
@@ -76,7 +76,7 @@ const Login: React.FC = () => {
 
       if (!authData?.user) {
   console.error('No user returned from authentication');
-  setError('Login failed: No users data received. Please try again.');
+  setError('Login failed: No user data received. Please try again.');
   setLoading(false);
   return;
       }
