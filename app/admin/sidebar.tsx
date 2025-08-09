@@ -19,8 +19,8 @@ export default function Sidebar() {
 
   // Close mobile menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isMobileMenuOpen && !event.target.closest('aside')) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobileMenuOpen && event.target && !(event.target as Element).closest('aside')) {
         setIsMobileMenuOpen(false);
       }
     };

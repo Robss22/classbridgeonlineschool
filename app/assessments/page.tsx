@@ -4,8 +4,8 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTeacher } from '@/contexts/TeacherContext';
-import Link from "next/link";
-import { BookOpen, Users, Calendar, Megaphone, UploadCloud, MessageCircle, FolderKanban } from "lucide-react";
+// import Link from "next/link";
+// import { BookOpen, Users, Calendar, Megaphone, UploadCloud, MessageCircle, FolderKanban } from "lucide-react";
 import FileDownload from '@/components/FileDownload';
 import TeacherAssessmentForm from '@/components/TeacherAssessmentForm';
 
@@ -157,7 +157,7 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
 
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [allLevels, setAllLevels] = useState<any[]>([]);
-  const [allSubjects, setAllSubjects] = useState<any[]>([]);
+  // const [allSubjects, setAllSubjects] = useState<any[]>([]);
   const [offeredSubjects, setOfferedSubjects] = useState<any[]>([]);
   const [availablePapers, setAvailablePapers] = useState<any[]>([]);
 
@@ -189,18 +189,18 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
           levelsData.filter((level, index, self) => 
             index === self.findIndex(l => l.level_id === level.level_id)
           ) : [];
-        setAllLevels(uniqueLevels);
+                setAllLevels(uniqueLevels);
 
-        const { data: subjectsData, error: subjectsError } = await supabase
-          .from('subjects')
-          .select('subject_id, name');
-        if (subjectsError) throw subjectsError;
+        // const { data: subjectsData, error: subjectsError } = await supabase
+        //   .from('subjects')
+        //   .select('subject_id, name');
+        // if (subjectsError) throw subjectsError;
         // Remove duplicates based on subject_id
-        const uniqueSubjects = subjectsData ? 
-          subjectsData.filter((subject, index, self) => 
-            index === self.findIndex(s => s.subject_id === subject.subject_id)
-          ) : [];
-        setAllSubjects(uniqueSubjects);
+        // const uniqueSubjects = subjectsData ?
+        //   subjectsData.filter((subject, index, self) =>
+        //     index === self.findIndex(s => s.subject_id === subject.subject_id)
+        //   ) : [];
+        // setAllSubjects(uniqueSubjects);
       } catch (err: any) {
         console.error('Error fetching form dependencies:', err);
         setError('Failed to load form options.');
@@ -239,7 +239,7 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
   const teacherPrograms = allPrograms; // For now, show all programs to teachers
   const availablePrograms = userRole === 'admin' ? allPrograms : teacherPrograms;
   const availableLevels = userRole === 'admin' ? allLevels : allLevels.filter(level => teacherLevelIds.includes(level.level_id));
-  const availableSubjects = userRole === 'admin' ? allSubjects : allSubjects.filter(subject => teacherSubjectIds.includes(subject.subject_id));
+  // const availableSubjects = userRole === 'admin' ? allSubjects : allSubjects.filter(subject => teacherSubjectIds.includes(subject.subject_id));
   
   // Filter levels by selected program for dropdown
   const dropdownLevels = availableLevels.filter(level => level.program_id === programId);
@@ -375,7 +375,7 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
         fileType: file.type
       });
       
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('assessments')
         .upload(fileName, file, { upsert: true });
       if (error) throw error;
@@ -578,7 +578,7 @@ function useTeacherSafely() {
 
 export default function AssessmentsPage() {
   const { user, loading: authLoading } = useAuth();
-  const { assignments: teacherAssignments, loading: teacherLoading } = useTeacherSafely();
+  const { assignments: teacherAssignments } = useTeacherSafely();
   console.log('DEBUG user:', user, 'authLoading:', authLoading);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -723,7 +723,6 @@ export default function AssessmentsPage() {
   // For teachers: show only their assessments in a simple list
   // For admins: group assessments by creator role
   const isTeacher = user && (user.role === 'teacher' || user.role === 'class_tutor');
-  const isAdmin = user && user.role === 'admin';
 
   // Group assessments by creator role (only for admin view)
   const groupedAssessments = {

@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data, success: true });
   } catch (error) {
-    const errorResponse = errorHandler.handleError(error);
-    return NextResponse.json(errorResponse, { status: errorResponse.status });
+    const errorResponse = errorHandler.handleSupabaseError(error, 'fetch_timetables');
+    return NextResponse.json({ error: errorResponse.message }, { status: 500 });
   }
 }
 
@@ -120,13 +120,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear related caches
-    cache.delete(cache.keys.timetables());
-    cache.delete(cache.keys.teacherTimetables(body.teacher_id));
+    // cache.delete(cache.keys.timetables());
+    // cache.delete(cache.keys.teacherTimetables(body.teacher_id));
 
     return NextResponse.json({ data, success: true }, { status: 201 });
   } catch (error) {
-    const errorResponse = errorHandler.handleError(error);
-    return NextResponse.json(errorResponse, { status: errorResponse.status });
+    const errorResponse = errorHandler.handleSupabaseError(error, 'create_timetable');
+    return NextResponse.json({ error: errorResponse.message }, { status: 500 });
   }
 }
 
@@ -208,13 +208,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Clear related caches
-    cache.delete(cache.keys.timetables());
-    cache.delete(cache.keys.teacherTimetables(existing.teacher_id));
+    // cache.delete(cache.keys.timetables());
+    // cache.delete(cache.keys.teacherTimetables(existing.teacher_id));
 
     return NextResponse.json({ data, success: true });
   } catch (error) {
-    const errorResponse = errorHandler.handleError(error);
-    return NextResponse.json(errorResponse, { status: errorResponse.status });
+    const errorResponse = errorHandler.handleSupabaseError(error, 'update_timetable');
+    return NextResponse.json({ error: errorResponse.message }, { status: 500 });
   }
 }
 
@@ -249,12 +249,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Clear related caches
-    cache.delete(cache.keys.timetables());
-    cache.delete(cache.keys.teacherTimetables(existing.teacher_id));
+    // cache.delete(cache.keys.timetables());
+    // cache.delete(cache.keys.teacherTimetables(existing.teacher_id));
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const errorResponse = errorHandler.handleError(error);
-    return NextResponse.json(errorResponse, { status: errorResponse.status });
+    const errorResponse = errorHandler.handleSupabaseError(error, 'delete_timetable');
+    return NextResponse.json({ error: errorResponse.message }, { status: 500 });
   }
 }

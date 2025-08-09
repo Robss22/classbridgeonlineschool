@@ -19,11 +19,6 @@ const fileTypeTags = {
 };
 
 export default function StudentResources() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
-      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
-        {/* --- Resource Content Below --- */}
-        {/* ORIGINAL CONTENT START */}
   const { studentInfo } = useStudent();
   const [resources, setResources] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -146,108 +141,110 @@ export default function StudentResources() {
   }
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6 text-blue-700" /> Resources</h1>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
-        <input
-          type="text"
-          placeholder="Search by title or uploader..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-80"
-        />
-      </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
+      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
+        <h1 className="text-2xl font-bold mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6 text-blue-700" /> Resources</h1>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search by title or uploader..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full sm:w-80"
+          />
+        </div>
         {loading ? (
-        <div className="p-6 text-center">Loading...</div>
-      ) : subjectIds.length === 0 ? (
-        <div className="p-6 text-center text-gray-500">No subjects found for your level/program.</div>
-      ) : (
-        subjectIds.map(subjectId => {
-          const subject = subjectMap[subjectId];
-          const subjectResources = filterResources(resourcesBySubject[subjectId] || []);
-          const isCollapsed = collapsed[subjectId] ?? false;
-          return (
-            <div key={subjectId} className="mb-10 border rounded-lg shadow-sm">
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-t-lg focus:outline-none"
-                onClick={() => toggleCollapse(subjectId)}
-              >
-                <span className="flex items-center gap-2 text-lg font-semibold">
-                  {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  <BookOpen className="w-5 h-5 text-blue-700" /> {subject?.name || 'Subject'}
-                </span>
-                <span className="text-xs text-gray-500">{subjectResources.length} resource{subjectResources.length !== 1 ? 's' : ''}</span>
-              </button>
-              {!isCollapsed && (
-                <div className="overflow-x-auto rounded-b-lg border-t border-gray-200">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      {subjectResources.length === 0 ? (
+          <div className="p-6 text-center">Loading...</div>
+        ) : subjectIds.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">No subjects found for your level/program.</div>
+        ) : (
+          subjectIds.map(subjectId => {
+            const subject = subjectMap[subjectId];
+            const subjectResources = filterResources(resourcesBySubject[subjectId] || []);
+            const isCollapsed = collapsed[subjectId] ?? false;
+            return (
+              <div key={subjectId} className="mb-10 border rounded-lg shadow-sm">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-t-lg focus:outline-none"
+                  onClick={() => toggleCollapse(subjectId)}
+                >
+                  <span className="flex items-center gap-2 text-lg font-semibold">
+                    {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    <BookOpen className="w-5 h-5 text-blue-700" /> {subject?.name || 'Subject'}
+                  </span>
+                  <span className="text-xs text-gray-500">{subjectResources.length} resource{subjectResources.length !== 1 ? 's' : ''}</span>
+                </button>
+                {!isCollapsed && (
+                  <div className="overflow-x-auto rounded-b-lg border-t border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
                         <tr>
-                          <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
-                      ) : (
-                        subjectResources.map(resource => {
-                          const type = resource.url?.endsWith('.pdf') ? 'PDF'
-                            : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
-                            : resource.url?.startsWith('http') ? 'Link'
-                            : 'File';
-                          return (
-                            <tr key={resource.resource_id}>
-                              <td className="px-4 py-2 font-medium text-gray-900 flex items-center gap-2">
-                                {resource.title || resource.url}
-                                {(type === 'PDF' || type === 'Video' || type === 'Link') && (
-                                  <button
-                                    className="ml-2 p-1 rounded hover:bg-blue-100 text-blue-700"
-                                    title="Preview"
-                                    onClick={() => setPreviewResource(resource)}
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {subjectResources.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
+                          </tr>
+                        ) : (
+                          subjectResources.map(resource => {
+                            const type = resource.url?.endsWith('.pdf') ? 'PDF'
+                              : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
+                              : resource.url?.startsWith('http') ? 'Link'
+                              : 'File';
+                            return (
+                              <tr key={resource.resource_id}>
+                                <td className="px-4 py-2 font-medium text-gray-900 flex items-center gap-2">
+                                  {resource.title || resource.url}
+                                  {(type === 'PDF' || type === 'Video' || type === 'Link') && (
+                                    <button
+                                      className="ml-2 p-1 rounded hover:bg-blue-100 text-blue-700"
+                                      title="Preview"
+                                      onClick={() => setPreviewResource(resource)}
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 text-gray-700">{type}</td>
+                                <td className="px-4 py-2 text-gray-700">{resource.uploader?.full_name || resource.uploader?.email || resource.uploaded_by || 'Unknown'}</td>
+                                <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at).toLocaleDateString() : '-'}</td>
+                                <td className="px-4 py-2">
+                                  <a
+                                    href={resource.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors text-xs mr-2"
                                   >
-                                    <Eye className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </td>
-                              <td className="px-4 py-2 text-gray-700">{type}</td>
-                              <td className="px-4 py-2 text-gray-700">{resource.uploader?.full_name || resource.uploader?.email || resource.uploaded_by || 'Unknown'}</td>
-                              <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at).toLocaleDateString() : '-'}</td>
-                              <td className="px-4 py-2">
-                <a
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                                  className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors text-xs mr-2"
-                >
-                  View
-                </a>
-                <a
-                  href={resource.url}
-                  download
-                                  className="px-3 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors text-xs"
-                >
-                  Download
-                </a>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+                                    View
+                                  </a>
+                                  <a
+                                    href={resource.url}
+                                    download
+                                    className="px-3 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors text-xs"
+                                  >
+                                    Download
+                                  </a>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              )}
-            </div>
-          );
-        })
-      )}
-      {previewResource && <ResourcePreviewModal resource={previewResource} onClose={() => setPreviewResource(null)} />}
+            );
+          })
+        )}
+        {previewResource && <ResourcePreviewModal resource={previewResource} onClose={() => setPreviewResource(null)} />}
+      </div>
     </div>
   );
 }

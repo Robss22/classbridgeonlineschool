@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Calendar, Clock, Users, Plus, Edit, Trash2, Eye, BookOpen, User, Video } from 'lucide-react';
+import { Calendar, Users, Plus, Trash2 } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
 
 interface TimetableEntry {
@@ -40,11 +40,11 @@ export default function AdminTimetablePage() {
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showAssignForm, setShowAssignForm] = useState(false);
-  const [selectedTimetable, setSelectedTimetable] = useState<TimetableEntry | null>(null);
-  const [levels, setLevels] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [teachers, setTeachers] = useState([]);
-  const [students, setStudents] = useState([]);
+
+  const [levels, setLevels] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -159,7 +159,7 @@ export default function AdminTimetablePage() {
       
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -191,7 +191,7 @@ export default function AdminTimetablePage() {
       
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -214,7 +214,7 @@ export default function AdminTimetablePage() {
 
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -237,7 +237,7 @@ export default function AdminTimetablePage() {
 
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -328,12 +328,6 @@ export default function AdminTimetablePage() {
                     </td>
                     <td className="p-3">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => setSelectedTimetable(timetable)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                         <button
                           onClick={() => handleDeleteTimetable(timetable.timetable_id)}
                           className="p-1 text-red-600 hover:text-red-800"

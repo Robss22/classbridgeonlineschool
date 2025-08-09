@@ -48,7 +48,7 @@ export default function DashboardHome() {
   );
 }
 
-function DashboardCard({ title, href, desc }) {
+function DashboardCard({ title, href, desc }: { title: string; href: string; desc: string }) {
   return (
     <Link href={href} className="block bg-white rounded-xl shadow-md hover:shadow-lg transition p-6 border border-gray-100 hover:border-blue-400">
       <h2 className="text-xl font-semibold mb-2 text-blue-700">{title}</h2>

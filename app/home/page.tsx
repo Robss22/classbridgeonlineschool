@@ -1,33 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.7,
-    },
-  },
-};
-
-// Animation for each letter
-const letterVariants = {
-  initial: { y: 40, opacity: 0 },
-  animate: { y: 0, opacity: 1, transition: { duration: 0.4 } },
-};
-
-const wordStagger = {
-  animate: {
-    transition: {
-      staggerChildren: 0.07,
-    },
-  },
-};
 
 export default function HomePage() {
   // Ensure the function returns valid JSX

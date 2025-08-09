@@ -6,7 +6,7 @@ export default function ClientLayout({ children }) {
   const { user } = useAuth();
   return (
     <>
-      {!user && <Header />}
+      {user ? null : <Header />}
       {children}
     </>
   );

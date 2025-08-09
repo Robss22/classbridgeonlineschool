@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Calendar, Clock, Users, Plus, Edit, Trash2, Eye, Video, Play, Pause } from 'lucide-react';
+import { Plus, Video, Play, Pause, Trash2 } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
 
 interface LiveClass {
@@ -30,9 +30,9 @@ export default function AdminLiveClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [levels, setLevels] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [teachers, setTeachers] = useState([]);
+  const [levels, setLevels] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -127,7 +127,7 @@ export default function AdminLiveClassesPage() {
       
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,7 @@ export default function AdminLiveClassesPage() {
 
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -173,7 +173,7 @@ export default function AdminLiveClassesPage() {
 
       fetchData(); // Refresh data
     } catch (error) {
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

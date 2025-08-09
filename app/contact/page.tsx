@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FaEnvelope, FaPhone, FaMapMarkerAlt, FaClock, FaUser, FaRegCommentDots } from 'react-icons/fa';
+import { FaEnvelope, FaPhone, FaMapMarkerAlt, FaClock } from 'react-icons/fa';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({

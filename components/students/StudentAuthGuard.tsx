@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function StudentAuthGuard({ children }) {
+export default function StudentAuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loadingAuth } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -16,7 +16,7 @@ export default function StudentAuthGuard({ children }) {
       if (!isAuthenticated) {
         console.log('[StudentAuthGuard] Redirecting to /login');
         router.push('/login');
-
+      }
     }
   }, [isAuthenticated, user, loadingAuth, router, pathname]);
 

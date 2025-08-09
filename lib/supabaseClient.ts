@@ -1,6 +1,5 @@
-// lib/supabaseClient.js
-
 import { createClient } from '@supabase/supabase-js';
+import { Database } from './supabase.types';
 
 // Load Supabase URL and Anon Key from environment variables
 // These variables must be prefixed with NEXT_PUBLIC_ to be accessible in the browser
@@ -33,4 +32,4 @@ if (typeof window !== 'undefined') {
 
 // Create and export the Supabase client instance
 // This client uses the anonymous key and is safe for client-side operations.
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

@@ -1,10 +1,10 @@
 'use client';
-console.log('Loaded change-password/page.tsx file');
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Shield, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import { AuthContextType, ChangePasswordResult } from '@/types/auth';
 
 // --- Type Definitions for State ---
 interface FormData {
@@ -12,6 +12,8 @@ interface FormData {
   newPassword: string;
   confirmPassword: string;
 }
+
+
 
 interface Errors {
   currentPassword?: string;
@@ -26,6 +28,7 @@ interface PasswordStrengthRules {
   lowercase: boolean;
   number: boolean;
   special: boolean;
+  [key: string]: boolean;
 }
 
 interface PasswordStrength {
@@ -34,39 +37,13 @@ interface PasswordStrength {
   rules: PasswordStrengthRules;
 }
 
-// --- Error Boundary ---
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error: any, errorInfo: any) {
-    console.error('ErrorBoundary caught error:', error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-red-100">
-          <div className="bg-white p-8 rounded shadow text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
-            <pre className="text-xs text-left text-gray-700 overflow-x-auto max-w-md mx-auto bg-gray-100 p-2 rounded">
-              {String(this.state.error)}
-            </pre>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 // --- ChangePasswordPage Component ---
 function ChangePasswordPageInner() {
-  const { user, isAuthenticated, loadingAuth, changePassword } = useAuth();
+  const auth = useAuth() as AuthContextType;
+  const { user, loading: loadingAuth, changePassword } = auth;
+  const isAuthenticated = !!user;
   const router = useRouter();
+  
   const [formData, setFormData] = useState<FormData>({
     currentPassword: '',
     newPassword: '',
@@ -235,11 +212,11 @@ function ChangePasswordPageInner() {
       });
       
       console.log('🚀 [handleSubmit] Waiting for changePassword result...');
-      const result = await Promise.race([changePasswordPromise, timeoutPromise]);
+      const result = await Promise.race([changePasswordPromise, timeoutPromise]) as ChangePasswordResult;
       
       console.log('✅ [handleSubmit] changePassword completed with result:', result);
       
-      if (result && result.success) {
+      if (result.success) {
         console.log('✅ [handleSubmit] Password change successful');
         setSubmitSuccess(true);
         
@@ -256,17 +233,22 @@ function ChangePasswordPageInner() {
           router.push('/login');
         }, 2000);
       } else {
-        console.error('❌ [handleSubmit] Password change failed:', result?.error);
-        setSubmitError(result?.error || 'Failed to change password');
+        console.error('❌ [handleSubmit] Password change failed:', result.error);
+        setSubmitError(result.error || 'Failed to change password');
       }
-    } catch (error) {
-      console.error('❌ [handleSubmit] Exception caught:', error);
-      console.error('❌ [handleSubmit] Error stack:', error.stack);
+    } catch (err) {
+      console.error('❌ [handleSubmit] Exception caught:', err);
       
-      if (error.message?.includes('timeout') || error.message?.includes('timed out')) {
+      const error = err as Error;
+      if (error.stack) {
+        console.error('❌ [handleSubmit] Error stack:', error.stack);
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
         setSubmitError('The password change operation timed out. Please check your internet connection and try again.');
       } else {
-        setSubmitError('An unexpected error occurred: ' + error.message);
+        setSubmitError('An unexpected error occurred: ' + errorMessage);
       }
     } finally {
       console.log('🏁 [handleSubmit] Setting loading to false');
@@ -420,7 +402,7 @@ function ChangePasswordPageInner() {
                     <div className="mt-2 text-sm text-gray-600 space-y-1">
                       {passwordStrength.feedback.map((item, index) => (
                         <p key={index} className="flex items-center">
-                          {passwordStrength.rules[Object.keys(passwordStrength.rules).find(key => item.toLowerCase().includes(key))] ? (
+                          {passwordStrength.rules[Object.keys(passwordStrength.rules).find(key => item.toLowerCase().includes(key)) || 'length'] ? (
                             <CheckCircle size={16} className="text-green-500 mr-1" />
                           ) : (
                             <XCircle size={16} className="text-red-500 mr-1" />

@@ -12,12 +12,20 @@ const Login: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [offline, setOffline] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   
   // Handle hydration
   useEffect(() => {
     setIsClient(true);
+    setOffline(!navigator.onLine);
+    window.addEventListener('online', () => setOffline(false));
+    window.addEventListener('offline', () => setOffline(true));
+    return () => {
+      window.removeEventListener('online', () => setOffline(false));
+      window.removeEventListener('offline', () => setOffline(true));
+    };
   }, []);
   
   // Automatically reset loading and welcome state on route change
@@ -30,45 +38,47 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
-    console.log('Login attempt started:', { email });
-    console.log('Supabase client check:', { 
-      hasClient: !!supabase, 
-      hasAuth: !!supabase?.auth,
-      envUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...',
-      hasEnvKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    });
+
+    // Check network status
+    if (offline) {
+      setError('You appear to be offline. Please check your internet connection and try again.');
+      setLoading(false);
+      return;
+    }
+
+    // Check Supabase config
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError('Login service is not configured. Please contact support.');
+      setLoading(false);
+      return;
+    }
 
     try {
       // Step 1: Authenticate with Supabase
-      console.log('Step 1: Authenticating...');
-      
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging (increased to 15s)
       const authPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Authentication timeout after 10 seconds')), 10000);
+      const timeoutPromise = new Promise<typeof authPromise>((_, reject) => {
+        setTimeout(() => reject(new Error('Authentication timeout after 15 seconds')), 15000);
       });
-      
       const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
       
       console.log('Auth response:', { user: authData?.user, authError });
 
       if (authError) {
-        console.error('Authentication error:', authError);
-        setError(`Authentication failed: ${authError.message}`);
-        setLoading(false);
-        return;
+  console.error('Authentication error:', authError);
+  setError(`Login failed: ${authError.message}. Please check your credentials or try again later.`);
+  setLoading(false);
+  return;
       }
 
       if (!authData?.user) {
-        console.error('No user returned from authentication');
-        setError('Authentication failed: No user data received');
-        setLoading(false);
-        return;
+  console.error('No user returned from authentication');
+  setError('Login failed: No user data received. Please try again.');
+  setLoading(false);
+  return;
       }
 
       // Step 2: Fetch user profile
@@ -80,8 +90,8 @@ const Login: React.FC = () => {
         .eq('auth_user_id', authData.user.id)
         .single();
       
-      const profileTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000);
+      const profileTimeoutPromise = new Promise<typeof profilePromise>((_, reject) => {
+  setTimeout(() => reject(new Error('Profile fetch timeout after 15 seconds')), 15000);
       });
       
       let { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeoutPromise]);
@@ -92,16 +102,22 @@ const Login: React.FC = () => {
         console.error('Profile fetch error:', profileError);
         // Try fallback query by email
         console.log('Step 2b: Trying fallback query by email...');
-        const { data: fallbackProfile, error: fallbackError } = await supabase
+        const fallbackPromise = supabase
           .from('users')
           .select('full_name, first_name, last_name, role, password_changed, auth_user_id')
           .eq('email', email)
           .single();
+
+        const fallbackTimeoutPromise = new Promise<typeof fallbackPromise>((_, reject) => {
+    setTimeout(() => reject(new Error('Fallback profile fetch timeout after 15 seconds')), 15000);
+        });
+
+        const { data: fallbackProfile, error: fallbackError } = await Promise.race([fallbackPromise, fallbackTimeoutPromise]);
         
         console.log('Fallback profile result:', { fallbackProfile, fallbackError });
         
         if (fallbackError || !fallbackProfile) {
-          setError(`Failed to fetch user profile: ${profileError.message}`);
+          setError(`Failed to fetch user profile: ${profileError.message}. Please try again later or contact support.`);
           setLoading(false);
           return;
         }
@@ -111,10 +127,10 @@ const Login: React.FC = () => {
       }
 
       if (!profile) {
-        console.error('No profile data found');
-        setError('User profile not found in database');
-        setLoading(false);
-        return;
+  console.error('No profile data found');
+  setError('User profile not found in database. Please contact support.');
+  setLoading(false);
+  return;
       }
 
       // Step 3: Set welcome message
@@ -164,7 +180,11 @@ const Login: React.FC = () => {
 
     } catch (err) {
       console.error('Unexpected error during login:', err);
-      setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      if (err instanceof Error && err.message.includes('timeout')) {
+        setError('Login timed out. The server may be busy or unreachable. Please check your connection and try again.');
+      } else {
+        setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
       setLoading(false);
     } finally {
       // Fallback: ensure loading is reset after 15 seconds
@@ -210,6 +230,9 @@ const Login: React.FC = () => {
             marginBottom: '20px'
           }} />
           <p>Loading...</p>
+          {offline && (
+            <p style={{ color: 'red', marginTop: '10px' }}>You are offline. Please check your internet connection.</p>
+          )}
         </div>
       </div>
     );
@@ -251,6 +274,11 @@ const Login: React.FC = () => {
               Welcome to Class Bridge Online School
             </h2>
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              {offline && (
+                <div style={{ color: 'red', textAlign: 'center', marginBottom: '10px' }}>
+                  You are offline. Please check your internet connection.
+                </div>
+              )}
               <label style={{ display: 'flex', flexDirection: 'column', color: '#555' }}>
                 Email:
                 <input

@@ -49,9 +49,62 @@ export default function TeacherTimetablePage() {
     '16:00-17:00', '17:00-18:00'
   ];
 
-  useEffect(() => {
+    useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        if (!user || !user.id) {
+          throw new Error('User not authenticated');
+        }
+
+        // Get teacher_id from user
+        const { data: teacherData, error: teacherError } = await supabase
+          .from('teachers')
+          .select('teacher_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (teacherError || !teacherData) {
+          throw new Error('Teacher profile not found');
+        }
+
+        // Fetch teacher's timetables
+        const { data: timetableData, error: timetableError } = await supabase
+          .from('teacher_timetable_view')
+          .select('*')
+          .eq('teacher_id', teacherData.teacher_id)
+          .order('day_of_week, start_time');
+
+        if (timetableError) throw timetableError;
+
+        // Fetch teacher's live classes
+        const { data: liveClassData, error: liveClassError } = await supabase
+          .from('live_classes')
+          .select(`
+            *,
+            subjects:subject_id (name),
+            levels:level_id (name)
+          `)
+          .eq('teacher_id', teacherData.teacher_id)
+          .gte('scheduled_date', new Date().toISOString().split('T')[0])
+          .order('scheduled_date, start_time');
+
+        if (liveClassError) throw liveClassError;
+
+        setTimetable(timetableData || []);
+        setLiveClasses(liveClassData || []);
+
+      } catch (error) {
+        const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_timetable', user?.id || '');
+        setError(appError.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchData();
-  }, []);
+  }, [user]);
 
   const fetchData = async () => {
     try {
@@ -334,7 +387,7 @@ export default function TeacherTimetablePage() {
 
         {/* Today's Classes Summary */}
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Classes</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Today&apos;s Classes</h3>
           {(() => {
             const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
             const todaysClasses = timetable.filter(t => t.day_of_week === today);

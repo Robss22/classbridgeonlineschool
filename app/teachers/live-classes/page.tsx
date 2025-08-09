@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Calendar, Clock, Users, Plus, Edit, Trash2, Eye, Video, Play, Pause } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
@@ -49,11 +49,7 @@ export default function TeacherLiveClassesPage() {
     status: 'scheduled'
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -101,7 +97,11 @@ export default function TeacherLiveClassesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleCreateLiveClass = async (e: React.FormEvent) => {
     e.preventDefault();

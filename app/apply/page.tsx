@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react'; // Import useRef
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getNames } from 'country-list';
 import 'react-phone-input-2/lib/style.css';
@@ -8,6 +9,7 @@ import dynamic from 'next/dynamic';
 const PhoneInput = dynamic(() => import('react-phone-input-2'), { ssr: false });
 
 export default function ApplyPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -22,25 +24,25 @@ export default function ApplyPage() {
     email: '',
     about: '',
     consent: false,
-    academicDocs: null,
+    academicDocs: null as File | null,
   });
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [sessionInfo, setSessionInfo] = useState(null);
+  // const [sessionInfo, setSessionInfo] = useState(null);
 
   const [curricula, setCurricula] = useState<{ program_id: string; name: string }[]>([]);
-  const [classesByCurriculum, setClassesByCurriculum] = useState({});
+  const [classesByCurriculum, setClassesByCurriculum] = useState<{ [key: string]: string[] }>({});
 
   const countries = getNames();
-  const [filteredCountries, setFilteredCountries] = useState([]);
+  const [filteredCountries, setFilteredCountries] = useState<string[]>([]);
 
   // New state for success message overlay
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
   const [successMessageContent, setSuccessMessageContent] = useState('');
 
   // Ref for the hidden file input
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // START: Logging for initial data fetch in useEffect
@@ -57,8 +59,8 @@ export default function ApplyPage() {
         console.error('fetchProgramsAndClasses: Error fetching programs:', programsError);
         return; // Exit if programs cannot be fetched
       }
-      console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs.length);
-      setCurricula(programs); // Store as array of objects
+      console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs?.length || 0);
+      setCurricula(programs || []); // Store as array of objects
 
       console.log('fetchProgramsAndClasses: Fetching levels from Supabase...');
       let { data: levels, error: levelsError } = await supabase
@@ -70,15 +72,15 @@ export default function ApplyPage() {
         console.error('fetchProgramsAndClasses: Error fetching levels:', levelsError);
         return; // Exit if levels cannot be fetched
       }
-      console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels.length);
+      console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels?.length || 0);
 
-      const programIdToName = {};
-      programs.forEach((p) => {
+      const programIdToName: { [key: string]: string } = {};
+      (programs || []).forEach((p) => {
         programIdToName[p.program_id] = p.name;
       });
 
-      const grouped = {};
-      levels.forEach((level) => {
+      const grouped: { [key: string]: string[] } = {};
+      (levels || []).forEach((level) => {
         const programName = programIdToName[level.program_id] || 'Unknown Program';
         if (!grouped[programName]) grouped[programName] = [];
         grouped[programName].push(level.name);
@@ -92,21 +94,21 @@ export default function ApplyPage() {
 
     fetchProgramsAndClasses(); // Call the async function
 
-    async function getSession() {
-      console.log('getSession: Attempting to get Supabase session...');
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('getSession: Error getting Supabase session:', error);
-        setSessionInfo('Error: Could not get session.');
-      } else if (session) {
-        console.log('getSession: Supabase Session (Authenticated):', session);
-        setSessionInfo(`Authenticated User ID: ${session.user.id}, Role: ${session.user.role}`);
-      } else {
-        console.log('getSession: Supabase Session (Anon): No active session, likely anon user.');
-        setSessionInfo('No active session (Anon user)');
-      }
-    }
-    getSession(); // Call the async function
+    // async function getSession() {
+    //   console.log('getSession: Attempting to get Supabase session...');
+    //   const { data: { session }, error } = await supabase.auth.getSession();
+    //   if (error) {
+    //     console.error('getSession: Error getting Supabase session:', error);
+    //     setSessionInfo('Error: Could not get session.');
+    //   } else if (session) {
+    //     console.log('getSession: Supabase Session (Authenticated):', session);
+    //     setSessionInfo(`Authenticated User ID: ${session.user.id}, Role: ${session.user.role}`);
+    //   } else {
+    //     console.log('getSession: Supabase Session (Anon): No active session, likely anon user.');
+    //     setSessionInfo('No active session (Anon user)');
+    //   }
+    // }
+    // getSession(); // Call the async function
     // END: Logging for initial data fetch in useEffect
   }, []);
 
@@ -159,12 +161,12 @@ export default function ApplyPage() {
   // New function to handle "OK" click on success message
   const handleSuccessOk = () => {
     setShowSuccessOverlay(false); // Hide the overlay
-    window.location.reload(); // Reload the page
+    router.push('/home'); // Navigate to home page using Next.js router
   };
 
   // Function to programmatically click the hidden file input
   const handleButtonClick = () => {
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   };
 
   async function handleSubmit(e: React.FormEvent) {
@@ -198,7 +200,7 @@ export default function ApplyPage() {
         console.log('handleSubmit: File to upload:', form.academicDocs.name);
         console.log('handleSubmit: Calculated storage fileName:', fileName);
 
-        const { data, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('academic-docs')
           .upload(fileName, form.academicDocs);
 
@@ -291,7 +293,7 @@ export default function ApplyPage() {
 
     } catch (err) {
       console.error('handleSubmit: Catch block - General error during application submission:', err);
-      setMessage('Error submitting application: ' + err.message);
+      setMessage('Error submitting application: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
       console.log('handleSubmit: Form submission process completed. Loading state set to false.');
@@ -368,7 +370,11 @@ export default function ApplyPage() {
           </select>
           <select name="className" value={form.className} onChange={handleChange} required className="flex-1 border rounded px-3 py-2" disabled={!form.curriculum}>
             <option value="">Select Class</option>
-            {form.curriculum && classesByCurriculum[form.curriculum]?.map((cls) => ( <option key={cls} value={cls}> {cls} </option> )) || <option value="">No classes available</option>}
+            {form.curriculum && (() => {
+              const selectedProgram = curricula.find(p => p.program_id === form.curriculum);
+              const programName = selectedProgram?.name || '';
+              return classesByCurriculum[programName]?.map((cls) => ( <option key={cls} value={cls}> {cls} </option> )) || <option value="">No classes available</option>;
+            })()}
           </select>
         </div>
         {/* Academic Documents - Styled Button */}

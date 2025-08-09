@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { Calendar, Video, BookOpen, Bell, Play } from 'lucide-react';
@@ -49,11 +49,7 @@ export default function StudentTimetablePage() {
     '16:00-17:00', '17:00-18:00'
   ];
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -92,7 +88,11 @@ export default function StudentTimetablePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getCurrentDayIndex = () => {
     const jsDay = new Date().getDay();
@@ -323,7 +323,7 @@ export default function StudentTimetablePage() {
 
         {/* Today's Classes Summary */}
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Classes</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Today&apos;s Classes</h3>
           {(() => {
             const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
             const todaysClasses = timetable.filter(t => t.day_of_week === today);

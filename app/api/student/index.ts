@@ -1,6 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import express, { Request, Response, NextFunction } from 'express';
-import { Database } from '../../../database.types'; // Path to root database.types.ts
+import { Database } from '@/database.types';
 
 // Initialize Supabase client
 const supabase = createClient<Database>(
@@ -8,56 +8,44 @@ const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-const router = express.Router();
-
-// --- Password change is now optional. Middleware removed. ---
-
-// Endpoint to handle password change
-router.post('/change-password', async (req: Request, res: Response) => {
+export async function POST(req: NextRequest) {
   try {
-    // Get user from Supabase Auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      req.headers.authorization?.split(' ')[1]
-    );
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { newPassword } = req.body;
+    const { newPassword } = await req.json();
 
     if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
     }
 
-    // Update password in Supabase Auth
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
 
     if (updateError) {
-      return res.status(400).json({ error: updateError.message });
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
     }
 
-    // Update password_changed flag in users table
     const { error: dbError } = await supabase
       .from('users')
       .update({ password_changed: true })
       .eq('auth_user_id', user.id);
 
     if (dbError) {
-      return res.status(500).json({ error: 'Failed to update user status' });
+      return NextResponse.json({ error: 'Failed to update user status' }, { status: 500 });
     }
 
-    return res.status(200).json({ message: 'Password updated successfully' });
+    return NextResponse.json({ message: 'Password updated successfully' }, { status: 200 });
   } catch (err) {
-    return res.status(500).json({ error: 'Server error' });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
-});
-
-// Protected route (student dashboard)
-router.get('/dashboard', (req: Request, res: Response) => {
-  res.json({ message: 'Access granted to student dashboard' });
-});
-
-export default router;
+}

@@ -143,7 +143,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
         const mappedSubjects = (offerings || []).map(offering => {
           const subj = (subjectsData || []).find(s => s.subject_id === offering.subject_id);
           return subj ? { subject_offering_id: offering.subject_offering_id, subject_id: offering.subject_id, name: subj.name } : null;
-        }).filter(Boolean);
+        }).filter((item): item is { subject_offering_id: string; subject_id: string; name: string } => item !== null);
         console.log('✅ [AddResourceForm] Mapped subjects for dropdown:', mappedSubjects);
         setSubjectsForDropdown(mappedSubjects);
         if (resource && resource.subject_id && resource.level_id === selectedLevel && resource.program_id === selectedProgram) {
@@ -395,7 +395,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
               <label className="block text-sm font-medium mb-1">File Upload (optional)</label>
               <FileUpload
                 bucket="resources"
-                folder={selectedProgram ? `program_${selectedProgram}` : undefined}
+                folder={selectedProgram ? `program_${selectedProgram}` : ""}
                 onUpload={setFileUrl}
                 label="Attach Resource File"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.txt,.mp4,.avi,.mov,.jpg,.jpeg,.png"

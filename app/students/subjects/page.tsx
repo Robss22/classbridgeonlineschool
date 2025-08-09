@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { supabase } from '@/lib/supabaseClient';
 
 type Subject = {
   subject_id: string;
@@ -29,7 +29,6 @@ type EnrolledOptional = {
 };
 
 export default function MySubjectsPage() {
-  const supabase = createClient();
 
   const [compulsorySubjects, setCompulsorySubjects] = useState<SubjectOffering[]>([]);
   const [optionalSubjects, setOptionalSubjects] = useState<EnrolledOptional[]>([]);

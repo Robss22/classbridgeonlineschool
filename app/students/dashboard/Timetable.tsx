@@ -2,10 +2,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
+import { Database } from '@/lib/supabase.types';
+
+type TimetableEntry = Database['public']['Tables']['timetables']['Row'];
 
 export default function Timetable() {
   const { user } = useAuth();
-  const [timetable, setTimetable] = useState([]);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
