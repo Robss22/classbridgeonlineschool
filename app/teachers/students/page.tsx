@@ -4,34 +4,46 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from "@/lib/supabaseClient";
 import { Users, Search } from "lucide-react";
 
-// Type definition for assignments with joined levels
-interface Assignment {
-  level_id: string;
-  levels: { name: string }[];
-}
+
+type StudentRow = {
+  user_id: string | null;
+  registration_number: string | null;
+  users: {
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+};
 
 export default function TeacherStudentsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState<{ level_id: string; name: string }[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(false);
 
+
+  // Define Assignment type for teacher_assignments query
+  type Assignment = {
+    level_id: string | null;
+    levels: { name: string } | null;
+  };
+
   useEffect(() => {
-    if (!user) return;
     async function fetchClasses() {
+      if (!user) return;
       const { data: assignments } = await supabase
         .from("teacher_assignments")
         .select("level_id, levels:level_id (name)")
         .eq("teacher_id", user.id);
       const uniqueClasses = Array.from(
         new Map(
-          (assignments as Assignment[] || [])
-            .filter(a => a.level_id && a.levels?.[0]?.name)
-            .map(a => [a.level_id, { level_id: a.level_id, name: a.levels[0].name }])
+          ((assignments as Assignment[]) || [])
+            .filter(a => !!a.level_id && !!a.levels?.name)
+            .map(a => [a.level_id as string, { level_id: a.level_id as string, name: a.levels!.name }])
         ).values()
       );
-      setClasses(uniqueClasses);
+      setClasses(uniqueClasses as { level_id: string; name: string }[]);
       if (uniqueClasses.length && !selectedClass) setSelectedClass(uniqueClasses[0].level_id);
     }
     fetchClasses();
@@ -47,7 +59,7 @@ export default function TeacherStudentsPage() {
         .select("user_id, registration_number, users: user_id (full_name, email, phone)")
         .eq("class", selectedClass)
         .eq("status", "active");
-      setStudents(enrollments || []);
+      setStudents((enrollments as any[]) || []);
       setLoading(false);
     }
     fetchStudents();

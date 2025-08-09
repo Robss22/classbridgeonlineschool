@@ -1,31 +1,20 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import { BookOpen, FileText, Video, Link2, MoreVertical, CheckCircle, ChevronDown, ChevronRight, Eye } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { useStudent } from '@/contexts/StudentContext';
 
-const fileTypeIcons = {
-  pdf: FileText,
-  video: Video,
-  link: Link2,
-  default: BookOpen,
-};
-
-const fileTypeTags = {
-  pdf: '#PDF',
-  video: '#Video',
-  link: '#Link',
-  default: '#File',
-};
 
 export default function StudentResources() {
   const { studentInfo } = useStudent();
-  const [resources, setResources] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [subjectMap, setSubjectMap] = useState({});
+  // Removed unused ResourceRow type
+  type SubjectRow = { subject_id: string; name?: string | null };
+  const [resources, setResources] = useState<any[]>([]);
+  // Removed unused subjects state
+  const [subjectMap, setSubjectMap] = useState<Record<string, SubjectRow>>({});
   const [loading, setLoading] = useState(true);
-  const [subjectIds, setSubjectIds] = useState([]);
-  const [collapsed, setCollapsed] = useState({});
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
   const [previewResource, setPreviewResource] = useState(null);
 
@@ -50,7 +39,7 @@ export default function StudentResources() {
         .select('subject_offering_id, subject_offerings(subject_id, is_compulsory)')
         .eq('user_id', studentInfo.id)
         .eq('status', 'active');
-      const optionalSubjectIds = enrollments
+      const optionalSubjectIds = (enrollments || [])
         .filter(e => {
           const so = Array.isArray(e.subject_offerings) ? e.subject_offerings[0] : e.subject_offerings;
           return so && !so.is_compulsory;
@@ -64,10 +53,10 @@ export default function StudentResources() {
       const allSubjectIds = Array.from(new Set([...compulsorySubjectIds, ...optionalSubjectIds]));
       setSubjectIds(allSubjectIds);
       // 5. Fetch subject info for mapping
-      const { data: subjectsData } = await supabase.from('subjects').select('*').in('subject_id', allSubjectIds);
-      setSubjects(subjectsData || []);
-      const map = {};
-      (subjectsData || []).forEach(s => { map[s.subject_id] = s; });
+      const { data: subjectsData } = await supabase.from('subjects').select('subject_id, name').in('subject_id', allSubjectIds);
+  // Removed setSubjects, not needed
+      const map: Record<string, SubjectRow> = {};
+      (subjectsData || []).forEach((s: any) => { if (s?.subject_id) map[s.subject_id] = s; });
       setSubjectMap(map);
       // 6. Fetch resources for these subjects
       let { data: resourcesData, error } = await supabase
@@ -75,9 +64,9 @@ export default function StudentResources() {
         .select('*, uploader:uploaded_by (full_name, email)')
         .in('subject_id', allSubjectIds);
       if (!resourcesData || error) {
-        resourcesData = (await supabase.from('resources').select('*').in('subject_id', allSubjectIds)).data;
+        resourcesData = ((await supabase.from('resources').select('*').in('subject_id', allSubjectIds)).data || []).map((r: any) => ({ ...r, uploader: null }));
       }
-      setResources(resourcesData || []);
+      setResources(resourcesData);
       setLoading(false);
     }
     if (studentInfo.program_id && studentInfo.level_id && studentInfo.id) fetchSubjectsAndResources();
@@ -86,21 +75,23 @@ export default function StudentResources() {
   useEffect(() => {
     // When subjectIds change, collapse all by default
     if (subjectIds.length > 0) {
-      const collapsedInit = {};
-      subjectIds.forEach(id => { collapsedInit[id] = true; });
+      const collapsedInit: Record<string, boolean> = {};
+      subjectIds.forEach((id: string) => { collapsedInit[id] = true; });
       setCollapsed(collapsedInit);
     }
   }, [subjectIds]);
 
   // Group resources by subject_id
-  const resourcesBySubject = {};
-  resources.forEach(r => {
-    if (!resourcesBySubject[r.subject_id]) resourcesBySubject[r.subject_id] = [];
-    resourcesBySubject[r.subject_id].push(r);
+  const resourcesBySubject: Record<string, any[]> = {};
+  (resources as any[]).forEach((r: any) => {
+    const sid = r.subject_id as string | undefined;
+    if (!sid) return;
+    if (!resourcesBySubject[sid]) resourcesBySubject[sid] = [];
+    resourcesBySubject[sid].push(r);
   });
 
   // Filter resources by search
-  function filterResources(list) {
+  function filterResources(list: any[]) {
     if (!search.trim()) return list;
     const s = search.trim().toLowerCase();
     return list.filter(r =>
@@ -110,12 +101,12 @@ export default function StudentResources() {
     );
   }
 
-  function toggleCollapse(subjectId) {
+  function toggleCollapse(subjectId: string) {
     setCollapsed(prev => ({ ...prev, [subjectId]: !prev[subjectId] }));
   }
 
   // Resource preview modal
-  function ResourcePreviewModal({ resource, onClose }) {
+  function ResourcePreviewModal({ resource, onClose }: { resource: any; onClose: () => void }) {
     if (!resource) return null;
     const type = resource.url?.endsWith('.pdf') ? 'PDF'
       : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
@@ -192,7 +183,7 @@ export default function StudentResources() {
                             <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
                           </tr>
                         ) : (
-                          subjectResources.map(resource => {
+                      subjectResources.map((resource: any) => {
                             const type = resource.url?.endsWith('.pdf') ? 'PDF'
                               : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
                               : resource.url?.startsWith('http') ? 'Link'
@@ -213,7 +204,7 @@ export default function StudentResources() {
                                 </td>
                                 <td className="px-4 py-2 text-gray-700">{type}</td>
                                 <td className="px-4 py-2 text-gray-700">{resource.uploader?.full_name || resource.uploader?.email || resource.uploaded_by || 'Unknown'}</td>
-                                <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at).toLocaleDateString() : '-'}</td>
+                                <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at ?? '').toLocaleDateString() : '-'}</td>
                                 <td className="px-4 py-2">
                                   <a
                                     href={resource.url}
@@ -249,57 +240,4 @@ export default function StudentResources() {
   );
 }
 
-// DropdownAction component
-function DropdownAction({ url, type }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (ref.current && !ref.current.contains(event.target)) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [open]);
-  return (
-    <div className="relative inline-block text-left" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="p-2 rounded-full hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        title="Actions"
-      >
-        <MoreVertical className="w-5 h-5 text-blue-700" />
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-32 bg-blue-100 border border-blue-200 rounded-lg shadow-lg z-10">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block px-4 py-2 text-sm text-blue-900 hover:bg-blue-200 hover:text-blue-900 rounded-t-lg"
-            onClick={() => setOpen(false)}
-            style={{ color: '#1e3a8a' }}
-          >
-            View
-          </a>
-          <a
-            href={url}
-            download
-            className="block px-4 py-2 text-sm text-blue-900 hover:bg-blue-200 hover:text-blue-900 rounded-b-lg"
-            onClick={() => setOpen(false)}
-            style={{ color: '#1e3a8a' }}
-          >
-            Download
-          </a>
-        </div>
-      )}
-    </div>
-  );
-}
+// Removed unused DropdownAction component

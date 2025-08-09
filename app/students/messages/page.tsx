@@ -10,30 +10,40 @@ const senderStyles = {
   Default: 'bg-gray-200 text-gray-900',
 };
 
-const iconForType = type => type === 'announcement' ? <Megaphone className="w-5 h-5 text-blue-700" /> : <MailOpen className="w-5 h-5 text-green-700" />;
+const iconForType = (type?: string | null) => type === 'announcement' ? <Megaphone className="w-5 h-5 text-blue-700" /> : <MailOpen className="w-5 h-5 text-green-700" />;
+
+type StudentMessage = {
+  message_id: string;
+  title?: string | null;
+  body?: string | null;
+  created_at?: string | null;
+  read?: boolean | null;
+  type?: string | null;
+  sender_type?: string | null;
+};
 
 export default function MessagesPage() {
   const { studentInfo } = useStudent();
-  const [messages, setMessages] = useState([]);
-  const [expanded, setExpanded] = useState(null);
+  const [messages, setMessages] = useState<StudentMessage[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchMessages() {
       setLoading(true);
       // Example: fetch all messages for now
-      const { data, error } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
-      setMessages(data || []);
+      const { data } = await supabase.from('messages').select('message_id, title, body, created_at, read, message_type, sender_type').order('created_at', { ascending: false });
+      setMessages((data as any[]) || []);
       setLoading(false);
     }
     fetchMessages();
   }, [studentInfo.class, studentInfo.program]);
 
-  const markAsRead = async (id) => {
+  const markAsRead = async (id: string) => {
     await supabase.from('messages').update({ read: true }).eq('message_id', id);
     setMessages(msgs => msgs.map(m => m.message_id === id ? { ...m, read: true } : m));
   };
-  const archive = async (id) => {
+  const archive = async (id: string) => {
     await supabase.from('messages').update({ archived: true }).eq('message_id', id);
     setMessages(msgs => msgs.filter(m => m.message_id !== id));
   };
@@ -54,15 +64,15 @@ export default function MessagesPage() {
               <div key={msg.message_id} className={`rounded-2xl border shadow-md hover:shadow-lg transition-shadow bg-white p-4 flex flex-col gap-2 ${msg.read ? 'opacity-70' : ''}`}>
                 <div className="flex items-center gap-2">
                   {iconForType(msg.type)}
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${senderStyles[senderType] || senderStyles.Default}`}>{msg.sender_type || 'Unknown'}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${senderStyles[senderType as keyof typeof senderStyles] || senderStyles.Default}`}>{msg.sender_type || 'Unknown'}</span>
                   <span className="font-semibold text-base flex-1">{msg.title}</span>
-                  <span className="text-xs text-gray-500">{msg.created_at ? new Date(msg.created_at).toLocaleString() : ''}</span>
+                  <span className="text-xs text-gray-500">{msg.created_at ? new Date(msg.created_at ?? '').toLocaleString() : ''}</span>
                 </div>
                 <div className="flex gap-2">
                   <button
                     className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-semibold transition-colors ${msg.read ? 'bg-green-200 text-green-900' : 'bg-blue-700 text-white hover:bg-blue-900'}`}
                     onClick={() => markAsRead(msg.message_id)}
-                    disabled={msg.read}
+                    disabled={!!msg.read}
                   >
                     <CheckCircle className="w-4 h-4" /> {msg.read ? 'Read' : 'Mark as Read'}
                   </button>

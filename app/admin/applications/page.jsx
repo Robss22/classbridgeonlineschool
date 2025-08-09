@@ -301,7 +301,7 @@ export default function ApplicationsPage() {
                         <button
                           onClick={() => handleDeny(app.application_id)}
                           className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition duration-150 ease-in-out text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          disabled={loading}
+                          disabled={!!loading}
                         >
                           Deny
                         </button>

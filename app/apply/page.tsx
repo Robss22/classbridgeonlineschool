@@ -81,7 +81,8 @@ export default function ApplyPage() {
 
       const grouped: { [key: string]: string[] } = {};
       (levels || []).forEach((level) => {
-        const programName = programIdToName[level.program_id] || 'Unknown Program';
+        const pid = (level.program_id ?? '') as string;
+        const programName = (pid && programIdToName[pid]) ? programIdToName[pid] : 'Unknown Program';
         if (!grouped[programName]) grouped[programName] = [];
         grouped[programName].push(level.name);
       });
@@ -416,7 +417,7 @@ export default function ApplyPage() {
           <input type="checkbox" name="consent" checked={form.consent} onChange={handleChange} required />
           <span>I agree to the terms and conditions.</span>
         </label>
-        <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
+        <button type="submit" disabled={!!loading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
           {loading ? 'Submitting...' : 'Submit Application'}
         </button>
       </form>

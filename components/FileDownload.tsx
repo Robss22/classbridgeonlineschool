@@ -73,7 +73,7 @@ export default function FileDownload({ fileUrl, fileName, className = '' }: File
       <div className="flex items-center gap-1">
         <button
           onClick={handleView}
-          disabled={isLoading}
+          disabled={!!isLoading}
           className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors disabled:opacity-50"
           title="View file"
         >
@@ -83,7 +83,7 @@ export default function FileDownload({ fileUrl, fileName, className = '' }: File
         
         <button
           onClick={handleDownload}
-          disabled={isLoading}
+          disabled={!!isLoading}
           className="flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-600 hover:bg-green-100 rounded transition-colors disabled:opacity-50"
           title="Download file"
         >

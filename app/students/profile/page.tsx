@@ -1,14 +1,14 @@
 'use client';
 import React, { useState } from 'react';
 import { useStudent } from '@/contexts/StudentContext';
-import { User, Mail, Hash, BookOpen, Settings, Sun, Moon, Camera, Lock } from 'lucide-react';
+import { User, Mail, Hash, BookOpen, Settings, Sun, Camera, Lock } from 'lucide-react';
 import Image from 'next/image';
 
-function Avatar({ name, photoUrl }) {
+function Avatar({ name, photoUrl }: { name: string; photoUrl: string }) {
   if (photoUrl) {
     return <Image src={photoUrl} alt="Profile" width={80} height={80} className="w-20 h-20 rounded-full object-cover border-4 border-blue-200 shadow" />;
   }
-  const initials = name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+  const initials = name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || '?';
   return <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-3xl font-bold text-blue-700 border-4 border-blue-200 shadow">{initials}</div>;
 }
 

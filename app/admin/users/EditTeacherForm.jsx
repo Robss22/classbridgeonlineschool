@@ -62,7 +62,7 @@ export default function TeacherForm({ teacher, onSuccess, onCancel }) {
         // Update users_extended
         const { error: userError } = await supabase
           .from('users_extended')
-          .update(updates)
+          .update(normalizeForInsert(updates))
           .eq('user_id', teacher.user_id);
         if (userError) throw userError;
 
@@ -149,7 +149,7 @@ export default function TeacherForm({ teacher, onSuccess, onCancel }) {
       <div className="flex space-x-4">
         <button
           type="submit"
-          disabled={loading}
+          disabled={!!loading}
           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
         >
           {loading ? 'Saving...' : 'Save Changes'}

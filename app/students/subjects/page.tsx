@@ -35,39 +35,20 @@ export default function MySubjectsPage() {
 
   useEffect(() => {
     const fetchSubjects = async () => {
-      const {
-        data: user,
-        error: userError,
-      } = await supabase.auth.getUser();
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser?.user?.id) return;
+      const userId = authUser.user.id;
 
-      if (userError || !user.user) return;
-
-      const userId = user.user.id;
-
-      // 1. Get student's class_id from extended_users table
-      const { data: userDetails, error: userDetailsError } = await supabase
-        .from('users_extended')
-        .select('class_id')
-        .eq('user_id', userId)
+      // Get student's program from users table
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('curriculum')
+        .eq('id', userId)
         .single();
-
-      if (userDetailsError || !userDetails) return;
-
-      const classId = userDetails.class_id;
-
-      // 2. Get the program_id from the classes table
-      const { data: classInfo, error: classError } = await supabase
-        .from('classes')
-        .select('program_id')
-        .eq('id', classId)
-        .single();
-
-      if (classError || !classInfo) return;
-
-      const programId = classInfo.program_id;
+      const programId = (userRow as any)?.curriculum as string | undefined;
 
       // 3. Get compulsory subjects
-      const { data: compulsory, error: compulsoryError } = await supabase
+      const { data: compulsory } = await supabase
         .from('subject_offerings')
         .select(`
           id,
@@ -82,37 +63,63 @@ export default function MySubjectsPage() {
             name
           )
         `)
-        .eq('program_id', programId)
+        .eq('program_id', programId || '')
         .eq('is_compulsory', true);
 
-      if (!compulsoryError && compulsory) {
-        setCompulsorySubjects(compulsory as SubjectOffering[]);
-      }
+      // Only keep valid SubjectOffering objects, skip error objects
+      const validCompulsory: SubjectOffering[] = (compulsory || [])
+        .filter((s: any) =>
+          !s?.error &&
+          typeof s?.id === 'string' &&
+          typeof s?.is_compulsory === 'boolean' &&
+          s?.subjects && typeof s.subjects.name === 'string'
+        )
+        .map((s: any) => ({
+          id: s.id,
+          is_compulsory: s.is_compulsory,
+          subjects: s.subjects,
+          programs: s.programs,
+          teacher: s.teacher
+        }));
+      setCompulsorySubjects(validCompulsory);
 
       // 4. Get optional subjects the student enrolled in
-      const { data: optional, error: optionalError } = await supabase
-        .from('enrolled_optionals')
+      const { data: optional } = await supabase
+        .from('enrollments')
         .select(`
           subject_offering_id,
-          subject_offerings (
+          subject_offerings:subject_offering_id (
             id,
             is_compulsory,
             teacher,
-            subjects (
+            subjects:subject_id (
               subject_id,
               name
             ),
-            programs (
+            programs:program_id (
               program_id,
               name
             )
           )
         `)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('status', 'active');
 
-      if (!optionalError && optional) {
-        setOptionalSubjects(optional as EnrolledOptional[]);
-      }
+      // Only keep valid EnrolledOptional objects, skip error objects and null ids
+      const validOptional: EnrolledOptional[] = (optional || [])
+        .filter((entry: any) =>
+          typeof entry?.subject_offering_id === 'string' &&
+          entry.subject_offering_id &&
+          entry.subject_offerings &&
+          !entry.subject_offerings.error &&
+          typeof entry.subject_offerings.id === 'string' &&
+          entry.subject_offerings.subjects && typeof entry.subject_offerings.subjects.name === 'string'
+        )
+        .map((entry: any) => ({
+          subject_offering_id: entry.subject_offering_id,
+          subject_offerings: entry.subject_offerings
+        }));
+      setOptionalSubjects(validOptional);
     };
 
     fetchSubjects();

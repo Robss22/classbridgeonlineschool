@@ -90,19 +90,7 @@ export default function AdminTimetablePage() {
 
       if (timetableError) throw timetableError;
 
-      // Fetch student timetables
-      const { data: studentData, error: studentError } = await supabase
-        .from('student_timetables')
-        .select(`
-          *,
-          users:student_id (first_name, last_name, email),
-          timetables:timetable_id (*)
-        `)
-        .order('created_at');
-
-      if (studentError) throw studentError;
-
-      // Fetch reference data
+      // Fetch reference data required by the UI
       const [levelsRes, subjectsRes, teachersRes, studentsRes] = await Promise.all([
         supabase.from('levels').select('level_id, name'),
         supabase.from('subjects').select('subject_id, name'),
@@ -110,7 +98,29 @@ export default function AdminTimetablePage() {
         supabase.from('users').select('id, first_name, last_name, email').eq('role', 'student')
       ]);
 
-      setTimetables(timetableData || []);
+      // NOTE: The current schema does not include a 'student_timetables' table.
+      const studentData: any[] = [];
+
+      // Normalize timetable rows to the TimetableEntry interface
+      const normalizedTimetables: TimetableEntry[] = (timetableData || []).map((row: any) => ({
+        timetable_id: row.timetable_id ?? '',
+        level_id: row.level_id ?? '',
+        subject_id: row.subject_id ?? '',
+        teacher_id: row.teacher_id ?? '',
+        day_of_week: row.day_of_week ?? '',
+        start_time: row.start_time ?? '',
+        end_time: row.end_time ?? '',
+        room_name: row.room_name ?? '',
+        meeting_platform: row.meeting_platform ?? 'Zoom',
+        meeting_link: row.meeting_link ?? '',
+        is_active: typeof row.is_active === 'boolean' ? row.is_active : true,
+        academic_year: row.academic_year ?? new Date().getFullYear().toString(),
+        levels: row.levels ?? undefined,
+        subjects: row.subjects ?? undefined,
+        teachers: row.teachers ?? undefined,
+      }));
+
+      setTimetables(normalizedTimetables);
       setStudentTimetables(studentData || []);
       setLevels(levelsRes.data || []);
       setSubjects(subjectsRes.data || []);
@@ -343,7 +353,8 @@ export default function AdminTimetablePage() {
           </div>
         </div>
 
-        {/* Student Assignments Section */}
+        {/* Student Assignments Section (hidden when no data available) */}
+        {studentTimetables.length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -398,6 +409,7 @@ export default function AdminTimetablePage() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Create Timetable Modal */}
         {showCreateForm && (

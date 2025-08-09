@@ -461,7 +461,7 @@ function ChangePasswordPageInner() {
             {/* Submit Button */}
             <button
               onClick={handleSubmit}
-              disabled={isLoading}
+              disabled={!!isLoading}
               className={`w-full py-3 rounded-lg font-semibold text-white transition-colors duration-300 ${
                 isLoading ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
               } flex items-center justify-center`}

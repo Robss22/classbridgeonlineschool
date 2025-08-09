@@ -155,14 +155,14 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
         // Edit existing offering
         const { error: updateError } = await supabase
           .from('subject_offerings')
-          .update(dataToSave)
+          .update(normalizeForInsert(dataToSave))
           .eq('id', offeringItem.id);
         if (updateError) throw updateError;
       } else {
         // Add new offering
         const { error: insertError } = await supabase
           .from('subject_offerings')
-          .insert([dataToSave]);
+          .insert([normalizeForInsert(dataToSave)]);
         if (insertError) throw insertError;
       }
       onSave();
@@ -242,14 +242,14 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
               type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               {loading ? 'Saving...' : 'Save Offering'}
             </button>
@@ -529,14 +529,14 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
         // Edit existing subject
         const { error: updateError } = await supabase
           .from('subjects')
-          .update(dataToSave)
+          .update(normalizeForInsert(dataToSave))
           .eq('subject_id', subjectItem.subject_id);
         if (updateError) throw updateError;
       } else {
         // Add new subject
         const { error: insertError } = await supabase
           .from('subjects')
-          .insert([dataToSave]);
+          .insert([normalizeForInsert(dataToSave)]);
         if (insertError) throw insertError;
       }
       onSave();
@@ -579,14 +579,14 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
               type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               {loading ? 'Saving...' : 'Save Subject'}
             </button>

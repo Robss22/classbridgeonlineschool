@@ -22,7 +22,7 @@ interface AuthContextType {
   setAuthError: (error: string) => void;
   isHydrated: boolean;
   setIsHydrated: (hydrated: boolean) => void;
-  changePassword: (params: { currentPassword: string; newPassword: string }) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (params: { newPassword: string }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -34,8 +34,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Change password function that updates both Supabase Auth and database
-  const changePassword = async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
-    console.log('🔐 [changePassword] Function called with:', { currentPassword: '***', newPassword: '***' });
+  const changePassword = async ({ newPassword }: { newPassword: string }) => {
+    console.log('🔐 [changePassword] Function called with:', { newPassword: '***' });
     
     try {
       console.log('🔐 [changePassword] Starting password change process');
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         console.log('🔐 [changePassword] Update response data:', updateData);
         console.log('🔐 [changePassword] Update response error:', updateAuthError);
-      } catch (authException) {
+      } catch (authException: any) {
         console.error('❌ [changePassword] Exception during auth update:', authException);
         
         if (authException.message?.includes('timeout')) {
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Skip the auth update and just update the database
           // This is not ideal but prevents the hanging issue
           console.log('⚠️ [changePassword] Skipping Supabase auth update due to timeout');
-          updateData = { user: user };
+            updateData = { user: user } as any;
           updateAuthError = null;
         } else {
           return { success: false, error: 'Authentication service error: ' + authException.message };
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             updateDbError = result3.error;
           }
         }
-      } catch (dbException) {
+      } catch (dbException: any) {
         console.error('❌ [changePassword] Exception during database update:', dbException);
         
         if (dbException.message?.includes('timeout')) {
@@ -186,19 +186,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Step 3: Update the user object in context to reflect the change immediately
       console.log('🔐 [changePassword] Step 3: Updating user context');
-      setUser(prevUser => ({ ...prevUser, password_changed: true }));
+      setUser(prevUser => (prevUser ? { ...prevUser, password_changed: true } : null));
       
       console.log('✅ [changePassword] All steps completed successfully');
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [changePassword] Unexpected error:', error);
-      console.error('❌ [changePassword] Error stack:', error.stack);
-      return { success: false, error: 'An unexpected error occurred: ' + error.message };
+      console.error('❌ [changePassword] Error stack:', error?.stack);
+      return { success: false, error: 'An unexpected error occurred: ' + (error?.message || 'Unknown') };
     }
   };
 
   // Fetch user profile (including role) from your users table
-  async function fetchUserProfile(authUser: any): Promise<User> {
+  async function fetchUserProfile(authUser: any): Promise<User | null> {
     if (!authUser?.id) return null;
     
     // Try to find user by email first (most reliable)
@@ -263,7 +263,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setUser(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         setAuthError('Error getting session: ' + (err?.message || err));
         console.error('DEBUG [AuthContext] getSession error:', err);
         setUser(null);
@@ -282,7 +282,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setUser(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         setAuthError('Error on auth state change: ' + (err?.message || err));
         console.error('DEBUG [AuthContext] onAuthStateChange error:', err);
         setUser(null);

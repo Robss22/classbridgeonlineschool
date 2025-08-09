@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { errorHandler } from '@/lib/errorHandler';
 import { cache } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     
     const studentId = searchParams.get('student_id');
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const body = await request.json();
 
     // Validate required fields
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const body = await request.json();
     const { searchParams } = new URL(request.url);
     const assignmentId = searchParams.get('id');
@@ -186,7 +186,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     const assignmentId = searchParams.get('id');
 

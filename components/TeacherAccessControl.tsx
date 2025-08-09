@@ -48,7 +48,7 @@ export default function TeacherAccessControl({ children }: TeacherAccessControlP
         const { data: teacherRecord, error: teacherError } = await supabase
           .from('teachers')
           .select('teacher_id')
-          .eq('user_id', user.id)
+          .eq('user_id', user?.id ?? '')
           .single();
 
         if (teacherError) {

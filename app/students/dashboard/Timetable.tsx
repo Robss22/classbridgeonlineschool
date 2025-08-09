@@ -17,7 +17,7 @@ export default function Timetable() {
     supabase
       .from('timetables')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', user?.id ?? '')
       .then(({ data }) => {
         setTimetable(data || []);
         setLoading(false);

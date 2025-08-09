@@ -58,28 +58,76 @@ export default function StudentTimetablePage() {
       }
 
       // Fetch student's timetable
-      const { data: timetableData, error: timetableError } = await supabase
-        .from('student_timetable_view')
-        .select('*')
-        .eq('student_id', user.id)
+      // Build timetable by joining student's enrollments to timetables
+      // 1) get student's level (class)
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('class')
+        .eq('id', user.id)
+        .single();
+
+      const classLevelId = (userRow as any)?.class as string | undefined;
+
+      // 2) fetch timetables for that level
+      const { data: rawTimetables, error: timetableError } = await supabase
+        .from('timetables')
+        .select(`
+          timetable_id, day_of_week, start_time, end_time, meeting_link, meeting_platform, room_name, is_active,
+          subjects:subject_id(name),
+          levels:level_id(name),
+          teachers:teacher_id(teacher_id)
+        `)
+        .eq('level_id', classLevelId || '')
         .order('day_of_week', { ascending: true })
         .order('start_time', { ascending: true });
 
       if (timetableError) throw timetableError;
 
       // Fetch live classes for student's subjects
+      const subjectIds = (rawTimetables || []).map((t: any) => t.subjects?.subject_id).filter(Boolean);
       const { data: liveClassData, error: liveClassError } = await supabase
-        .from('live_classes_view')
-        .select('*')
-        .in('subject_id', timetableData?.map(t => t.subject_id) || [])
+        .from('live_classes')
+        .select(`
+          live_class_id, title, description, scheduled_date, start_time, end_time, meeting_link, meeting_platform, status,
+          subjects:subject_id(name),
+          levels:level_id(name)
+        `)
+        .in('subject_id', subjectIds.length ? subjectIds : [''])
         .gte('scheduled_date', new Date().toISOString().split('T')[0])
         .order('scheduled_date', { ascending: true })
         .order('start_time', { ascending: true });
 
       if (liveClassError) throw liveClassError;
 
-      setTimetable(timetableData || []);
-      setLiveClasses(liveClassData || []);
+      const normalizedTimetable: TimetableEntry[] = (rawTimetables || []).map((t: any) => ({
+        timetable_id: t.timetable_id,
+        day_of_week: t.day_of_week,
+        start_time: t.start_time,
+        end_time: t.end_time,
+        subject_name: t.subjects?.name ?? '-',
+        level_name: t.levels?.name ?? '-',
+        program_name: '',
+        teacher_name: t.teachers?.teacher_id ?? '',
+        meeting_link: t.meeting_link ?? '',
+        meeting_platform: t.meeting_platform ?? 'Zoom',
+        room_name: t.room_name ?? '',
+        is_active: t.is_active ?? true,
+      }));
+      setTimetable(normalizedTimetable);
+      const normalizedLive: LiveClass[] = (liveClassData || []).map((lc: any) => ({
+        live_class_id: lc.live_class_id,
+        title: lc.title ?? '',
+        description: lc.description ?? '',
+        scheduled_date: lc.scheduled_date ?? '',
+        start_time: lc.start_time ?? '',
+        end_time: lc.end_time ?? '',
+        meeting_link: lc.meeting_link ?? '',
+        meeting_platform: lc.meeting_platform ?? 'Zoom',
+        status: lc.status ?? 'scheduled',
+        subject_name: lc.subjects?.name ?? '-',
+        level_name: lc.levels?.name ?? '-',
+      }));
+      setLiveClasses(normalizedLive);
       
 
     } catch (error) {

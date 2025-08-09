@@ -147,7 +147,7 @@ export default function AdminRegisterPage() {
         )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={!!loading}
           className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-50 mb-2"
         >
           {loading ? 'Creating...' : 'Register User'}

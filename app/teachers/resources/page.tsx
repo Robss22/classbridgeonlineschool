@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import TeacherResourceForm from "@/components/TeacherResourceForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,11 +23,20 @@ const fileTypeTags = {
 export default function TeacherResourcesPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [resources, setResources] = useState([]);
+  type ResourceRow = {
+    resource_id: string;
+    title?: string;
+    url?: string;
+    subject_id?: string | null;
+    level_id?: string | null;
+    created_at?: string | null;
+    subjects?: { name?: string } | null;
+    levels?: { name?: string } | null;
+  };
+  const [resources, setResources] = useState<ResourceRow[]>([]);
   const [filters, setFilters] = useState({ subject: "", class: "", date: "" });
   const [showForm, setShowForm] = useState(false);
-  const [editingResource, setEditingResource] = useState(null);
-  const fileInputRef = useRef(null);
+  const [editingResource, setEditingResource] = useState<ResourceRow | null>(null);
 
   const fetchResources = useCallback(async () => {
     if (!user) return;
@@ -37,7 +46,7 @@ export default function TeacherResourcesPage() {
       const { data: teacherRecord, error: teacherError } = await supabase
         .from("teachers")
         .select("teacher_id")
-        .eq("user_id", user.id)
+        .eq("user_id", user?.id ?? "")
         .single();
 
       if (teacherError) {
@@ -52,18 +61,18 @@ export default function TeacherResourcesPage() {
         .select("subject_id, level_id")
         .eq("teacher_id", teacherRecord.teacher_id);
 
-      const subjectIds = teacherAssignments?.map((a) => a.subject_id).filter(Boolean);
-      const levelIds = teacherAssignments?.map((a) => a.level_id).filter(Boolean);
+      const subjectIds = (teacherAssignments || []).map((a) => a.subject_id).filter(Boolean) as (string | null)[];
+      const levelIds = (teacherAssignments || []).map((a) => a.level_id).filter(Boolean) as (string | null)[];
 
       let query = supabase
         .from("resources")
         .select("*, subjects:subject_id(name), levels:level_id(name)")
         .eq("uploaded_by", user.id);
 
-      if (subjectIds.length > 0) {
+      if (subjectIds && subjectIds.length > 0) {
         query = query.in("subject_id", subjectIds);
       }
-      if (levelIds.length > 0) {
+      if (levelIds && levelIds.length > 0) {
         query = query.in("level_id", levelIds);
       }
 
@@ -97,7 +106,7 @@ export default function TeacherResourcesPage() {
     );
   }
 
-  const handleDelete = async (resource_id) => {
+  const handleDelete = async (resource_id: string) => {
     if (!window.confirm("Are you sure you want to delete this resource?")) return;
     try {
       await supabase.from("resources").delete().eq("resource_id", resource_id);
@@ -108,7 +117,7 @@ export default function TeacherResourcesPage() {
     }
   };
 
-  const handleEdit = (resource) => {
+  const handleEdit = (resource: ResourceRow) => {
     setEditingResource(resource);
     setShowForm(true);
   };
@@ -130,8 +139,8 @@ export default function TeacherResourcesPage() {
     );
   });
 
-  const uniqueSubjects = [...new Set(resources.map((r) => r.subject_id))];
-  const uniqueLevels = [...new Set(resources.map((r) => r.level_id))];
+  const uniqueSubjects = [...new Set(resources.map((r) => r.subject_id || ''))].filter(Boolean) as string[];
+  const uniqueLevels = [...new Set(resources.map((r) => r.level_id || ''))].filter(Boolean) as string[];
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -255,7 +264,7 @@ export default function TeacherResourcesPage() {
                       </span>
                     </td>
                     <td className="p-3 text-sm text-gray-500">
-                      {resource.created_at ? new Date(resource.created_at).toLocaleDateString() : "-"}
+                      {resource.created_at ? new Date(resource.created_at ?? '').toLocaleDateString() : "-"}
                     </td>
                     <td className="p-3 flex gap-2">
                       <a

@@ -9,6 +9,9 @@ import { useTeacher } from '@/contexts/TeacherContext';
 import FileDownload from '@/components/FileDownload';
 import TeacherAssessmentForm from '@/components/TeacherAssessmentForm';
 
+import { normalizeForInsert } from '../../utils/normalizeForInsert';
+import type { TablesInsert } from '../../database.types';
+
 // Reusable Dropdown menu for actions
 function ActionsDropdown({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
@@ -332,16 +335,19 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
     }
 
     try {
+      const allowedFields: (keyof TablesInsert<'assessments'>)[] = [
+        'title', 'description', 'type', 'program_id', 'level_id', 'subject_id', 'due_date', 'file_url', 'creator_id', 'paper_id', 'created_at', 'id'
+      ];
       if (assessmentItem) {
         const { error: updateError } = await supabase
           .from('assessments')
-          .update(dataToSave)
+          .update(normalizeForInsert<TablesInsert<'assessments'>>(dataToSave, allowedFields))
           .eq('id', assessmentItem.id);
         if (updateError) throw updateError;
       } else {
         const { error: insertError } = await supabase
           .from('assessments')
-          .insert([dataToSave]);
+          .insert([normalizeForInsert<TablesInsert<'assessments'>>(dataToSave, allowedFields)]);
         if (insertError) throw insertError;
       }
       onSave();
@@ -539,14 +545,14 @@ function AssessmentForm({ assessmentItem, onClose, onSave, creatorId, userRole }
               type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-              disabled={loading}
+              disabled={!!loading}
             >
               {loading ? 'Saving...' : (assessmentItem ? 'Save Changes' : 'Create Assessment')}
             </button>

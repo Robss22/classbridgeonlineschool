@@ -9,6 +9,10 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-const eslintConfig = [...compat.extends("next/core-web-vitals")];
+// Ignore auto-generated or binary-like files that ESLint shouldn't parse
+const config = [
+  { ignores: ["lib/supabase.types.ts"] },
+  ...compat.extends("next/core-web-vitals"),
+];
 
-export default eslintConfig;
+export default config;

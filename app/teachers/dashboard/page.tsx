@@ -8,13 +8,7 @@ import Link from "next/link";
 import { BookOpen, Users, Calendar, Megaphone, UploadCloud, MessageCircle, FolderKanban } from "lucide-react";
 
 // Define interfaces for data fetched from Supabase
-interface TeacherAssignmentRaw {
-  subject_id: string;
-  level_id: string;
-  // Supabase returns these as arrays when using `alias (column_name)` syntax
-  subjects: { name: string }[] | null;
-  levels: { name: string }[] | null;
-}
+// ...existing code...
 
 interface Message {
   message_id: string;
@@ -63,10 +57,7 @@ function DashboardSkeleton() {
 }
 
 // Helper function to get today's date in ISO format (not directly used in current fetch, but useful)
-function getTodayISO() {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-}
+// ...existing code...
 
 // Reusable component for dashboard navigation cards
 function DashboardCard({ title, href, desc }: { title: string; href: string; desc: string }) {
@@ -81,7 +72,7 @@ function DashboardCard({ title, href, desc }: { title: string; href: string; des
 // TeacherDashboardPage component
 export default function TeacherDashboardPage() {
   const { user, loading: authLoading } = useAuth();
-  const { subjects, levels, programs, loading: teacherLoading, error: teacherError } = useTeacher();
+  const { subjects, levels, programs, loading: teacherLoading } = useTeacher();
   const [todayLessons, setTodayLessons] = useState<Lesson[]>([]);
   const [announcements, setAnnouncements] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +125,17 @@ export default function TeacherDashboardPage() {
         }));
 
         setTodayLessons(lessonsForToday);
-        setAnnouncements(Array.isArray(annData) ? annData : []);
+        setAnnouncements(
+          Array.isArray(annData)
+            ? annData.map(a => ({
+                message_id: a.message_id ?? a.id ?? '',
+                title: a.body ? a.body.slice(0, 30) + '...' : 'Announcement',
+                body: a.body ?? '',
+                created_at: a.created_at ?? '',
+                recipient_type: a.recipient_type ?? '',
+              }))
+            : []
+        );
 
       } catch (err: any) {
         setError("Error fetching dashboard data: " + (err.message || "Unknown error"));

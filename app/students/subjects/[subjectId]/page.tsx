@@ -5,16 +5,18 @@ import { supabase } from '../../../../lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function SubjectPage() {
-  const { subjectId } = useParams();
+  const params = useParams();
+  const subjectId = (params as any)?.subjectId as string | undefined;
   const { user, loading: authLoading } = useAuth();
-  const [subject, setSubject] = useState(null);
-  const [timetable, setTimetable] = useState([]);
-  const [liveClasses, setLiveClasses] = useState([]);
+  type SubjectRow = { subject_id: string; name?: string | null; description?: string | null } | null;
+  const [subject, setSubject] = useState<SubjectRow>(null);
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !subjectId) return;
     setLoading(true);
     setError("");
     const fetchData = async () => {
@@ -22,7 +24,7 @@ export default function SubjectPage() {
       const { data: subjectData, error: subjectError } = await supabase
         .from('subjects')
         .select('*')
-        .eq('subject_id', subjectId)
+        .eq('subject_id', subjectId as string)
         .single();
       if (subjectError) {
         setError('Subject not found.');
@@ -33,15 +35,14 @@ export default function SubjectPage() {
       // Fetch timetable for this subject and user
       const { data: timetableData } = await supabase
         .from('timetables')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('subject_id', subjectId);
+        .select('timetable_id, day_of_week, start_time, end_time, meeting_link')
+        .eq('subject_id', subjectId as string);
       setTimetable(timetableData || []);
       // Fetch live classes for this subject
       const { data: liveClassData } = await supabase
         .from('live_classes')
-        .select('*')
-        .eq('subject_id', subjectId)
+        .select('live_class_id, title, scheduled_date, start_time, end_time, meeting_link')
+        .eq('subject_id', subjectId as string)
         .order('scheduled_date', { ascending: true });
       setLiveClasses(liveClassData || []);
       setLoading(false);

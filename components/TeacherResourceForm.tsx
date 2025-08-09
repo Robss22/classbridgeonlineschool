@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import FileUpload from '@/components/FileUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import TeacherAccessControl from './TeacherAccessControl';
+
+import { normalizeForInsert } from '../utils/normalizeForInsert';
+import type { TablesInsert } from '../database.types';
 
 interface TeacherResourceFormProps {
   onClose: () => void;
@@ -14,7 +17,7 @@ interface TeacherResourceFormProps {
 
 export default function TeacherResourceForm({ onClose, resource, onSuccess }: TeacherResourceFormProps) {
   const { user } = useAuth();
-  const [hydrated, setHydrated] = useState(false);
+  // const [hydrated, setHydrated] = useState(false); // removed unused
   const [selectedProgram, setSelectedProgram] = useState(resource?.program_id || '');
   const [selectedLevel, setSelectedLevel] = useState(resource?.level_id || '');
   const [selectedSubject, setSelectedSubject] = useState(resource?.subject_id || '');
@@ -35,7 +38,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
   ];
 
   useEffect(() => { 
-    setHydrated(true); 
+  // setHydrated(true); // removed unused
   }, []);
 
   useEffect(() => {
@@ -90,24 +93,25 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
         level_id: selectedLevel,
         subject_id: selectedSubject,
         paper_id: selectedPaper || null,
-        uploaded_by: user?.id,
+        uploaded_by: user?.id ?? null,
         created_at: new Date().toISOString(),
       };
 
+      const allowedFields: (keyof TablesInsert<'resources'>)[] = [
+        'title', 'description', 'url', 'program_id', 'level_id', 'uploaded_by', 'created_at', 'resource_id'
+      ];
       if (resource?.resource_id) {
         // Update existing resource
         const { error: updateError } = await supabase
           .from('resources')
-          .update(dataToSave)
+          .update(normalizeForInsert<TablesInsert<'resources'>>(dataToSave, allowedFields))
           .eq('resource_id', resource.resource_id);
-        
         if (updateError) throw updateError;
       } else {
         // Create new resource
         const { error: insertError } = await supabase
           .from('resources')
-          .insert([dataToSave]);
-        
+          .insert([normalizeForInsert<TablesInsert<'resources'>>(dataToSave, allowedFields)]);
         if (insertError) throw insertError;
       }
 
@@ -326,7 +330,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
                   ) : (
                     <FileUpload 
                       bucket="resources"
-                      folder={selectedProgram ? `program_${selectedProgram}` : undefined}
+                      folder={selectedProgram ? `program_${selectedProgram}` : ''}
                       onUpload={handleFileUpload}
                       label="Upload File"
                       accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.txt,.mp4,.avi,.mov,.jpg,.jpeg,.png"
@@ -341,14 +345,14 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
                     type="button"
                     onClick={onClose}
                     className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-                    disabled={loading}
+                    disabled={!!loading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-                    disabled={loading}
+                    disabled={!!loading}
                   >
                     {loading ? 'Saving...' : (resource ? 'Update Resource' : 'Create Resource')}
                   </button>

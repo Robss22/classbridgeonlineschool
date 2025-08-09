@@ -132,7 +132,7 @@ export default function TeachersPage() {
             const { data: teacherRecord, error: teacherError } = await supabase
               .from('teachers')
               .select('*')
-              .eq('user_id', user.id)
+              .eq('user_id', user?.id ?? '')
               .single();
             
             let finalTeacherRecord = teacherRecord;
@@ -363,7 +363,7 @@ export default function TeachersPage() {
         return;
       }
     }
-    const { error: updateError } = await supabase.from('users').update(updates).eq('id', editUser.id);
+    const { error: updateError } = await supabase.from('users').update(normalizeForInsert(updates)).eq('id', editUser.id);
     error = updateError;
     if (error) alert('Update error: ' + error.message);
     else {
@@ -617,7 +617,7 @@ export default function TeachersPage() {
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
-                disabled={editLoading}
+                disabled={!!editLoading}
               >{editLoading ? 'Saving...' : 'Save Changes'}</button>
             </form>
           </div>

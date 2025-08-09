@@ -7,7 +7,14 @@ import { BookOpen, Users, FilePlus2, ClipboardList } from "lucide-react";
 
 export default function TeacherSubjectsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [assignments, setAssignments] = useState([]);
+  type AssignmentRow = {
+    assignment_id: string;
+    subject_id: string | null;
+    level_id: string | null;
+    subjects?: { name?: string } | null;
+    levels?: { name?: string } | null;
+  };
+  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +25,7 @@ export default function TeacherSubjectsPage() {
       const { data: teacherRecord, error: teacherRecordError } = await supabase
         .from('teachers')
         .select('teacher_id')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       if (teacherRecordError) {
@@ -29,7 +36,7 @@ export default function TeacherSubjectsPage() {
       }
 
       // Fetch teacher_assignments joined with subjects and levels using teacher_id
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("teacher_assignments")
         .select(`assignment_id, subject_id, level_id, subjects:subject_id (name), levels:level_id (name)`)
         .eq("teacher_id", teacherRecord.teacher_id);

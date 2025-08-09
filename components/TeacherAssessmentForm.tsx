@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import FileUpload from '@/components/FileUpload';
+// import FileUpload from '@/components/FileUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import TeacherAccessControl from './TeacherAccessControl';
+
+import { normalizeForInsert } from '../utils/normalizeForInsert';
+import type { TablesInsert } from '../database.types';
 
 interface TeacherAssessmentFormProps {
   onClose: () => void;
@@ -72,25 +75,26 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
       subject_id: subjectId,
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       file_url: fileUrl || null,
-      creator_id: user?.id,
+      creator_id: user?.id ?? null,
       paper_id: paperId || null,
     };
 
     try {
+      const allowedFields: (keyof TablesInsert<'assessments'>)[] = [
+        'title', 'description', 'type', 'program_id', 'level_id', 'subject_id', 'due_date', 'file_url', 'creator_id', 'paper_id', 'created_at', 'id'
+      ];
       if (assessmentItem?.id) {
         // Update existing assessment
         const { error: updateError } = await supabase
           .from('assessments')
-          .update(dataToSave)
+          .update(normalizeForInsert<TablesInsert<'assessments'>>(dataToSave, allowedFields))
           .eq('id', assessmentItem.id);
-        
         if (updateError) throw updateError;
       } else {
         // Create new assessment
         const { error: insertError } = await supabase
           .from('assessments')
-          .insert([dataToSave]);
-        
+          .insert([normalizeForInsert<TablesInsert<'assessments'>>(dataToSave, allowedFields)]);
         if (insertError) throw insertError;
       }
 
@@ -351,14 +355,14 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
                     type="button"
                     onClick={onClose}
                     className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-                    disabled={loading}
+                    disabled={!!loading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition"
-                    disabled={loading}
+                    disabled={!!loading}
                   >
                     {loading ? 'Saving...' : (assessmentItem ? 'Save Changes' : 'Create Assessment')}
                   </button>

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -8,11 +8,11 @@ if (!supabaseUrl || !serviceRoleKey) {
 }
 
 // Create server-side Supabase client with service role key
-export const createClient = () => {
-  return createClient(supabaseUrl, serviceRoleKey, {
+export const createServerClient = (): SupabaseClient => {
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 };

@@ -2,9 +2,22 @@
 import React, { useState, useEffect } from "react";
 import { Megaphone, Inbox, Send } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
-import FileDownload from "@/components/FileDownload";
+// import FileDownload from "@/components/FileDownload";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from '@/contexts/AuthContext';
+
+type UserMini = { full_name?: string; email?: string };
+type MessageItem = {
+  id: string;
+  subject?: string;
+  body?: string;
+  created_at?: string;
+  sender_id?: string;
+  recipient_id?: string;
+  parent_id?: string | null;
+  sender?: UserMini | null;
+  recipient?: UserMini | null;
+};
 
 const TABS = [
   { key: "announcements", label: "Announcements", icon: Megaphone },
@@ -24,19 +37,19 @@ export default function TeacherMessagesPage() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-  const [announcements, setAnnouncements] = useState([]);
+  const [announcements, setAnnouncements] = useState<MessageItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const { user, loading: authLoading } = useAuth();
-  const [inbox, setInbox] = useState([]);
-  const [sent, setSent] = useState([]);
+  const [inbox, setInbox] = useState<MessageItem[]>([]);
+  const [sent, setSent] = useState<MessageItem[]>([]);
   const [loadingInbox, setLoadingInbox] = useState(false);
   const [loadingSent, setLoadingSent] = useState(false);
   const [inboxError, setInboxError] = useState("");
   const [sentError, setSentError] = useState("");
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
-  const [thread, setThread] = useState([]);
+  const [thread, setThread] = useState<MessageItem[]>([]);
   const [loadingThread, setLoadingThread] = useState(false);
   const [threadError, setThreadError] = useState("");
   const [reply, setReply] = useState("");
@@ -54,7 +67,13 @@ export default function TeacherMessagesPage() {
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setFetchError(error.message);
-        setAnnouncements(data || []);
+        setAnnouncements((data as any[])?.map(d => ({
+          id: d.id,
+          subject: d.subject ?? '',
+          body: d.body ?? '',
+          created_at: d.created_at ?? undefined,
+          sender: d.sender ?? null,
+        })) || []);
         setLoading(false);
       });
   }, [tab, showModal]);
@@ -72,7 +91,16 @@ export default function TeacherMessagesPage() {
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setInboxError(error.message);
-        setInbox(data || []);
+        setInbox((data as any[])?.map(d => ({
+          id: d.id,
+          subject: d.subject ?? '',
+          body: d.body ?? '',
+          created_at: d.created_at ?? undefined,
+          sender: d.sender ?? null,
+          sender_id: d.sender_id,
+          recipient_id: d.recipient_id,
+          parent_id: d.parent_id,
+        })) || []);
         setLoadingInbox(false);
       });
   }, [tab, user]);
@@ -90,7 +118,16 @@ export default function TeacherMessagesPage() {
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (error) setSentError(error.message);
-        setSent(data || []);
+        setSent((data as any[])?.map(d => ({
+          id: d.id,
+          subject: d.subject ?? '',
+          body: d.body ?? '',
+          created_at: d.created_at ?? undefined,
+          recipient: d.recipient ?? null,
+          sender_id: d.sender_id,
+          recipient_id: d.recipient_id,
+          parent_id: d.parent_id,
+        })) || []);
         setLoadingSent(false);
       });
   }, [tab, user]);
@@ -116,7 +153,16 @@ export default function TeacherMessagesPage() {
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
         if (error) setThreadError(error.message);
-        setThread(data || []);
+        setThread(((data as any[]) || []).map(d => ({
+          id: d.id,
+          subject: d.subject ?? '',
+          body: d.body ?? '',
+          created_at: d.created_at ?? undefined,
+          sender: d.sender ?? null,
+          sender_id: d.sender_id,
+          recipient_id: d.recipient_id,
+          parent_id: d.parent_id,
+        })));
         setLoadingThread(false);
       });
   }, [expandedMsg, inbox, sent]);
@@ -129,7 +175,7 @@ export default function TeacherMessagesPage() {
   }
 
   // Handle reply
-  const handleReply = async (e) => {
+  const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     setReplying(true);
     setThreadError("");
@@ -140,7 +186,7 @@ export default function TeacherMessagesPage() {
       // Determine recipient: if user is sender, reply to the other party
       const lastMsg = thread[thread.length - 1];
       const recipientId = lastMsg.sender_id === user.id ? lastMsg.recipient_id : lastMsg.sender_id;
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         subject: lastMsg.subject,
         body: reply,
         sender_id: user.id,
@@ -159,29 +205,38 @@ export default function TeacherMessagesPage() {
         .order("created_at", { ascending: true })
         .then(({ data, error }) => {
           if (error) setThreadError(error.message);
-          setThread(data || []);
+          setThread(((data as any[]) || []).map(d => ({
+            id: d.id,
+            subject: d.subject ?? '',
+            body: d.body ?? '',
+            created_at: d.created_at ?? undefined,
+            sender: d.sender ?? null,
+            sender_id: d.sender_id,
+            recipient_id: d.recipient_id,
+            parent_id: d.parent_id,
+          })));
           setLoadingThread(false);
         });
-    } catch (err) {
-      setThreadError(err.message || "Failed to send reply");
+    } catch (err: any) {
+      setThreadError(err?.message || "Failed to send reply");
     } finally {
       setReplying(false);
     }
   };
 
-  const handleFormChange = (e) => {
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
   };
 
-  const handleSend = async (e) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
     setError("");
     setSuccess("");
     try {
       if (!form.title || !form.message) throw new Error("Title and message are required");
-      const { error } = await supabase.from("messages").insert({
+      const { error } = await (supabase as any).from("messages").insert({
         subject: form.title,
         body: form.message,
         sender_id: user.id,
@@ -196,8 +251,8 @@ export default function TeacherMessagesPage() {
       setSuccess("Announcement sent!");
       setForm({ title: "", message: "", recipient: "all", fileUrl: "" });
       setShowModal(false);
-    } catch (err) {
-      setError(err.message || "Failed to send announcement");
+    } catch (err: any) {
+      setError(err?.message || "Failed to send announcement");
     } finally {
       setSending(false);
     }
@@ -253,7 +308,7 @@ export default function TeacherMessagesPage() {
                   <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpanded(expanded === a.id ? null : a.id)}>
                     <div>
                       <div className="font-semibold text-blue-900">{a.subject}</div>
-                      <div className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()} &bull; Announcement</div>
+                      <div className="text-xs text-gray-500">{new Date(a.created_at ?? '').toLocaleString()} &bull; Announcement</div>
                     </div>
                     <button className="text-blue-600 text-xs underline">{expanded === a.id ? "Hide" : "View"}</button>
                   </div>
@@ -286,10 +341,10 @@ export default function TeacherMessagesPage() {
             <ul className="divide-y divide-gray-100">
               {inbox.map(m => (
                 <li key={m.id} className="py-4">
-                  <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedMsg(expandedMsg === m.id ? null : m.id)}>
+                  <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedMsg(expandedMsg === m.id ? null : (m.id ?? null))}>
                     <div>
                       <div className="font-semibold text-blue-900">{m.subject || "(No Subject)"}</div>
-                      <div className="text-xs text-gray-500">From: {m.sender?.full_name || m.sender_id} &bull; {new Date(m.created_at).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">From: {m.sender?.full_name || m.sender_id} &bull; {new Date(m.created_at ?? '').toLocaleString()}</div>
                       <div className="text-xs text-gray-500 truncate max-w-xs">{m.body?.slice(0, 60) || "(No message)"}</div>
                     </div>
                     <button className="text-blue-600 text-xs underline">{expandedMsg === m.id ? "Hide" : "View"}</button>
@@ -303,9 +358,9 @@ export default function TeacherMessagesPage() {
                       ) : (
                         <>
                           <div className="mb-4 space-y-3">
-                            {thread.map(msg => (
-                              <div key={msg.id} className="bg-white rounded shadow p-3">
-                                <div className="text-xs text-gray-500 mb-1">{msg.sender?.full_name || msg.sender_id} &bull; {new Date(msg.created_at).toLocaleString()}</div>
+                           {thread.map(msg => (
+                              <div key={msg.id ?? Math.random().toString(36)} className="bg-white rounded shadow p-3">
+                                <div className="text-xs text-gray-500 mb-1">{msg.sender?.full_name || msg.sender_id} &bull; {new Date(msg.created_at ?? '').toLocaleString()}</div>
                                 <div className="text-gray-800 whitespace-pre-line">{msg.body}</div>
                               </div>
                             ))}
@@ -317,7 +372,7 @@ export default function TeacherMessagesPage() {
                               onChange={e => setReply(e.target.value)}
                               placeholder="Type your reply..."
                               className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                              disabled={replying}
+                              disabled={!!replying}
                             />
                             <button
                               type="submit"
@@ -354,10 +409,10 @@ export default function TeacherMessagesPage() {
             <ul className="divide-y divide-gray-100">
               {sent.map(m => (
                 <li key={m.id} className="py-4">
-                  <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedMsg(expandedMsg === m.id ? null : m.id)}>
+                   <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpandedMsg(expandedMsg === m.id ? null : (m.id ?? null))}>
                     <div>
                       <div className="font-semibold text-blue-900">{m.subject || "(No Subject)"}</div>
-                      <div className="text-xs text-gray-500">To: {m.recipient?.full_name || m.recipient_id} &bull; {new Date(m.created_at).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">To: {m.recipient?.full_name || m.recipient_id} &bull; {new Date(m.created_at ?? '').toLocaleString()}</div>
                       <div className="text-xs text-gray-500 truncate max-w-xs">{m.body?.slice(0, 60) || "(No message)"}</div>
                     </div>
                     <button className="text-blue-600 text-xs underline">{expandedMsg === m.id ? "Hide" : "View"}</button>
@@ -371,9 +426,9 @@ export default function TeacherMessagesPage() {
                       ) : (
                         <>
                           <div className="mb-4 space-y-3">
-                            {thread.map(msg => (
-                              <div key={msg.id} className="bg-white rounded shadow p-3">
-                                <div className="text-xs text-gray-500 mb-1">{msg.sender?.full_name || msg.sender_id} &bull; {new Date(msg.created_at).toLocaleString()}</div>
+                          {thread.map(msg => (
+                              <div key={msg.id ?? Math.random().toString(36)} className="bg-white rounded shadow p-3">
+                                <div className="text-xs text-gray-500 mb-1">{msg.sender?.full_name || msg.sender_id} &bull; {new Date(msg.created_at ?? '').toLocaleString()}</div>
                                 <div className="text-gray-800 whitespace-pre-line">{msg.body}</div>
                               </div>
                             ))}
@@ -385,7 +440,7 @@ export default function TeacherMessagesPage() {
                               onChange={e => setReply(e.target.value)}
                               placeholder="Type your reply..."
                               className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                              disabled={replying}
+                              disabled={!!replying}
                             />
                             <button
                               type="submit"
@@ -449,7 +504,7 @@ export default function TeacherMessagesPage() {
               <div>
                 <FileUpload
                   bucket="announcements"
-                  folder={undefined}
+                  folder={""}
                   onUpload={url => setForm(f => ({ ...f, fileUrl: url }))}
                   label="Attach File (optional)"
                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.txt"
@@ -461,7 +516,7 @@ export default function TeacherMessagesPage() {
               {error && <div className="text-red-600 text-sm text-center">{error}</div>}
               <button
                 type="submit"
-                disabled={sending}
+                disabled={!!sending}
                 className="w-full py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition disabled:bg-blue-300 mt-2"
               >
                 {sending ? "Sending..." : "Send Announcement"}

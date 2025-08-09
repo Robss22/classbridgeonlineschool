@@ -10,8 +10,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
 
     let query = supabase
-      .from('live_classes_view')
-      .select('*')
+      .from('live_classes')
+      .select(`
+        *,
+        subjects:subject_id (name),
+        levels:level_id (name),
+        teachers:teacher_id (teacher_id, users:user_id (first_name, last_name))
+      `)
       .order('scheduled_date', { ascending: true })
       .order('start_time', { ascending: true });
 

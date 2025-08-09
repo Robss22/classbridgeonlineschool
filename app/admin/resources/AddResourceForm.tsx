@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import { normalizeForInsert } from '../../../utils/normalizeForInsert';
+import type { TablesInsert } from '../../../database.types';
 import { supabase } from '@/lib/supabaseClient';
 import FileUpload from '@/components/FileUpload';
 import { useAuth } from '@/contexts/AuthContext';
@@ -108,7 +110,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
     console.log('🔍 [AddResourceForm] Fetching subject offerings for level:', selectedLevel, 'program:', selectedProgram);
     supabase
       .from('subject_offerings')
-      .select('subject_offering_id, subject_id, is_compulsory')
+      .select('id, subject_id, is_compulsory')
       .eq('level_id', selectedLevel)
       .eq('program_id', selectedProgram)
       .then(async ({ data: offerings, error }) => {
@@ -122,8 +124,10 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
           setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
           return;
         }
-        setSubjectOfferings(offerings);
-        const subjectIds = offerings.map(so => so.subject_id).filter(Boolean);
+        // Normalize to include subject_offering_id expected by UI
+        const normalized = (offerings || []).map((o: any) => ({ ...o, subject_offering_id: o.id }));
+        setSubjectOfferings(normalized);
+        const subjectIds = normalized.map(so => so.subject_id).filter(Boolean);
         console.log('🔍 [AddResourceForm] Subject IDs extracted:', subjectIds);
         if (!subjectIds.length) {
           console.log('⚠️ [AddResourceForm] No valid subject IDs found');
@@ -140,7 +144,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
         } else {
           console.log('✅ [AddResourceForm] Subjects fetched:', subjectsData);
         }
-        const mappedSubjects = (offerings || []).map(offering => {
+        const mappedSubjects = (normalized || []).map(offering => {
           const subj = (subjectsData || []).find(s => s.subject_id === offering.subject_id);
           return subj ? { subject_offering_id: offering.subject_offering_id, subject_id: offering.subject_id, name: subj.name } : null;
         }).filter((item): item is { subject_offering_id: string; subject_id: string; name: string } => item !== null);
@@ -245,26 +249,43 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
         return;
       }
     }
-    const resourceData = {
+    const resourceData: {
+      title: string;
+      description: string | null;
+      url: string;
+      program_id: string | null;
+      level_id: string | null;
+      subject_id: string | null;
+      paper_id: string | null;
+      type: string | null;
+      uploaded_by: string | null;
+    } = {
       title,
-      description,
+      description: description || null,
       url: resourceUrl,
-      program_id: selectedProgram,
+      program_id: selectedProgram || null,
       level_id: selectedLevel || null,
       subject_id: actualSubjectId || null,
       paper_id: selectedPaper || null,
-      type: resourceType,
-      uploaded_by: user?.id,
+      type: resourceType || null,
+      uploaded_by: user?.id ?? null,
     };
+    const allowedFields: (keyof TablesInsert<'resources'>)[] = [
+      'title', 'description', 'url', 'program_id', 'level_id', 'subject_id', 'paper_id', 'type', 'uploaded_by', 'created_at', 'resource_id'
+    ];
     if (resource) {
-      const { error: updateError } = await supabase.from('resources').update(resourceData).eq('resource_id', resource.resource_id);
+      const { error: updateError } = await supabase.from('resources').update(
+        normalizeForInsert<TablesInsert<'resources'>>(resourceData, allowedFields)
+      ).eq('resource_id', resource.resource_id);
       if (updateError) {
         setError('Failed to update resource: ' + (updateError.message || 'Unknown error'));
         setLoading(false);
         return;
       }
     } else {
-      const { error: insertError } = await supabase.from('resources').insert([resourceData]);
+      const { error: insertError } = await supabase.from('resources').insert([
+        normalizeForInsert<TablesInsert<'resources'>>(resourceData, allowedFields)
+      ]);
       if (insertError) {
         setError('Failed to add resource: ' + (insertError.message || 'Unknown error'));
         setLoading(false);
@@ -413,10 +434,10 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
           </div>
           {error && <div className="text-red-600 text-sm text-center">{error}</div>}
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="flex-1 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition disabled:bg-blue-300 mt-2">
+            <button type="submit" disabled={!!loading} className="flex-1 py-3 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition disabled:bg-blue-300 mt-2">
               {loading ? (resource ? 'Saving...' : 'Adding...') : (resource ? 'Save Changes' : 'Add Resource')}
             </button>
-            <button type="button" onClick={onClose} disabled={loading} className="flex-1 py-3 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition mt-2">
+            <button type="button" onClick={onClose} disabled={!!loading} className="flex-1 py-3 rounded-lg font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 transition mt-2">
               Cancel
             </button>
           </div>

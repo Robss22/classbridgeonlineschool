@@ -78,7 +78,28 @@ export default function AdminLiveClassesPage() {
         supabase.from('teachers').select('teacher_id, users:user_id (first_name, last_name)')
       ]);
 
-      setLiveClasses(liveClassData || []);
+      // Normalize rows to match LiveClass interface
+      const normalizedLiveClasses: LiveClass[] = (liveClassData || []).map((row: any) => ({
+        live_class_id: row.live_class_id ?? '',
+        title: row.title ?? '',
+        description: row.description ?? '',
+        scheduled_date: row.scheduled_date ?? '',
+        start_time: row.start_time ?? '',
+        end_time: row.end_time ?? '',
+        meeting_link: row.meeting_link ?? '',
+        meeting_platform: row.meeting_platform ?? 'Zoom',
+        status: row.status ?? 'scheduled',
+        max_participants: typeof row.max_participants === 'number' ? row.max_participants : 0,
+        teacher_id: row.teacher_id ?? '',
+        level_id: row.level_id ?? '',
+        subject_id: row.subject_id ?? '',
+        academic_year: row.academic_year ?? new Date().getFullYear().toString(),
+        teachers: row.teachers ?? undefined,
+        levels: row.levels ?? undefined,
+        subjects: row.subjects ?? undefined,
+      }));
+
+      setLiveClasses(normalizedLiveClasses);
       setLevels(levelsRes.data || []);
       setSubjects(subjectsRes.data || []);
       setTeachers(teachersRes.data || []);

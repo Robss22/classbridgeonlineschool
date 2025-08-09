@@ -2,21 +2,22 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from "@/lib/supabaseClient";
-import { BookOpen, Users, UploadCloud } from "lucide-react";
+import { Users, UploadCloud } from "lucide-react";
 import Image from 'next/image';
 
 export default function TeacherProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [assignments, setAssignments] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  type Profile = { id: string; email: string; full_name?: string | null; first_name?: string | null; last_name?: string | null } | null;
+  const [profile, setProfile] = useState<Profile>(null);
+
+  const [classes, setClasses] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState("");
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -24,22 +25,21 @@ export default function TeacherProfilePage() {
       // Fetch user profile
       const { data: userData } = await supabase
         .from("users")
-        .select("id, email, full_name, first_name, last_name, avatar_url")
-        .eq("auth_user_id", user.id)
+        .select("id, email, full_name, first_name, last_name")
+  .eq("auth_user_id", user?.id ?? "")
         .single();
-      setProfile(userData);
-      setAvatarUrl(userData?.avatar_url || "");
+      setProfile(userData as any);
+      setAvatarUrl("");
       
       // First, get the teacher_id from the teachers table
       const { data: teacherRecord, error: teacherRecordError } = await supabase
         .from('teachers')
         .select('teacher_id')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       if (teacherRecordError) {
         console.error('Error fetching teacher record:', teacherRecordError);
-        setAssignments([]);
         setClasses([]);
         setSubjects([]);
         return;
@@ -50,21 +50,20 @@ export default function TeacherProfilePage() {
         .from("teacher_assignments")
         .select("subject_id, level_id, subjects:subject_id (name), levels:level_id (name)")
         .eq("teacher_id", teacherRecord.teacher_id);
-      setAssignments(assignData || []);
       setClasses([
         ...new Set(
-          assignData
-            ?.flatMap(a => Array.isArray(a.levels) ? a.levels.map(l => l.name) : [])
+          (assignData || [])
+            .map((a: any) => a?.levels?.name)
             .filter(Boolean)
         ),
-      ]);
+      ] as string[]);
       setSubjects([
         ...new Set(
-          assignData
-            ?.flatMap(a => Array.isArray(a.subjects) ? a.subjects.map(s => s.name) : [])
+          (assignData || [])
+            .map((a: any) => a?.subjects?.name)
             .filter(Boolean)
         ),
-      ]);
+      ] as string[]);
     }
     fetchProfile();
   }, [user]);
@@ -76,8 +75,8 @@ export default function TeacherProfilePage() {
     return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your profile.</div>;
   }
 
-  const handleAvatarChange = async (e) => {
-    const file = e.target.files[0];
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
     if (!file) return;
     setAvatarUploading(true);
     try {
@@ -93,16 +92,16 @@ export default function TeacherProfilePage() {
       const url = publicUrlData?.publicUrl;
       setAvatarUrl(url);
       // Update user profile
-      await supabase.from("users").update({ avatar_url: url }).eq("auth_user_id", user.id);
-    } catch (err) {
-      alert("Avatar upload failed: " + (err.message || err.error_description || "Unknown error"));
+      // No avatar_url column in users schema; storing only in storage/public URL state
+    } catch (err: any) {
+      alert("Avatar upload failed: " + (err?.message || err?.error_description || "Unknown error"));
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handlePasswordChange = async (e) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordLoading(true);
     setPasswordMsg("");
@@ -126,8 +125,8 @@ export default function TeacherProfilePage() {
       
       setPasswordMsg("Password updated successfully.");
       setPassword("");
-    } catch (err) {
-      setPasswordMsg("Error: " + (err.message || err.error_description || "Unknown error"));
+    } catch (err: any) {
+      setPasswordMsg("Error: " + (err?.message || err?.error_description || "Unknown error"));
     } finally {
       setPasswordLoading(false);
     }
@@ -157,7 +156,7 @@ export default function TeacherProfilePage() {
                 className="hidden"
                 onChange={handleAvatarChange}
                 ref={fileInputRef}
-                disabled={avatarUploading}
+                disabled={!!avatarUploading}
               />
               <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors cursor-pointer text-sm">
                 <UploadCloud className="w-4 h-4" /> {avatarUploading ? "Uploading..." : "Change Photo"}
@@ -193,11 +192,11 @@ export default function TeacherProfilePage() {
               className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               minLength={6}
               required
-              disabled={passwordLoading}
+              disabled={!!passwordLoading}
             />
             <button
               type="submit"
-              disabled={passwordLoading}
+              disabled={!!passwordLoading}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors disabled:opacity-60"
             >
               {passwordLoading ? "Updating..." : "Update Password"}

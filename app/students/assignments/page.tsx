@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
+import type { Database } from '../../../database.types';
 import { supabase } from '../../../lib/supabaseClient';
 import { BookOpen, FileText, UploadCloud, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useStudent } from '@/contexts/StudentContext';
@@ -10,29 +11,14 @@ const statusStyles = {
   Overdue: 'bg-red-200 text-red-900',
 };
 
-// ...existing code...
-
-type Submission = {
+interface Submission {
   submission_url: string | null;
   submitted_at: string | null;
   status: string | null;
-};
+}
 
-type Assignment = {
-  id: string | null;
-  title: string | null;
-  description: string | null;
-  due_date: string | null;
-  program_id: string | null;
-  level_id: string | null;
-  subject_id: string | null;
-  paper_id: string | null;
-  file_url: string | null;
-  type: string | null;
-  created_at: string | null;
-  creator_id: string | null;
-  submissions?: Submission[];
-};
+// Use imported Database type from database.types.ts
+type Assignment = Omit<Database['public']['Tables']['assessments']['Row'], 'created_at'> & { created_at: string | null; submissions?: Submission[] };
 
 interface SubjectsMap {
   [key: string]: { subject_id: string; name: string };
@@ -65,6 +51,11 @@ export default function AssignmentsPage() {
   const [subjectsMap, setSubjectsMap] = useState<SubjectsMap>({});
   const [paperCodesMap, setPaperCodesMap] = useState<PaperCodesMap>({});
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | undefined }>({});
+
+  // Hoisted validator so it's available across effects/handlers
+  const isValidAssignment = (data: any): data is Assignment => {
+    return data && typeof data.id === 'string' && typeof data.title === 'string';
+  };
 
   useEffect(() => {
     // Wait for student info to load and be valid before fetching assignments
@@ -132,7 +123,7 @@ export default function AssignmentsPage() {
 
         // Process and validate the data
         const validAssignments = (assessmentsData || [])
-          .filter((data: any): data is Assignment => data && typeof data.id === 'string' && typeof data.title === 'string' && typeof data.created_at === 'string')
+          .filter(isValidAssignment)
           .map(assignment => ({
             ...assignment,
             submissions: Array.isArray(assignment.submissions) ? assignment.submissions : [],
@@ -177,11 +168,10 @@ export default function AssignmentsPage() {
       const filePath = `${studentInfo.registration_number || 'student'}/${assignment.id}/${file.name}`;
       const { error } = await supabase.storage.from('submissions').upload(filePath, file, { upsert: true });
       if (error) throw error;
-      // Save to submissions table
+      // Save to submissions table (cast from to satisfy types if 'submissions' is missing in generated types)
       const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
       const publicUrl = publicUrlData?.publicUrl;
-      // Insert submission with proper timestamps
-      await supabase.from('submissions').insert([{
+      await (supabase as any).from('submissions').insert([{
         assessment_id: assignment.id,
         student_id: studentInfo.id,
         submission_url: publicUrl,
@@ -222,7 +212,7 @@ export default function AssignmentsPage() {
         .from('assessments')
         .select(`
           *,
-          submissions(
+          submissions:student_submissions(
             submission_url,
             submitted_at,
             status
@@ -233,11 +223,11 @@ export default function AssignmentsPage() {
         .in('subject_id', subjectIds);
 
       if (updated) {
-        const validAssignments = (updated || [])
-          .filter((data: any): data is Assignment => data && typeof data.id === 'string' && typeof data.title === 'string' && typeof data.created_at === 'string')
+        const validAssignments = updated
+          .filter(isValidAssignment)
           .map(assignment => ({
             ...assignment,
-            submissions: Array.isArray(assignment.submissions) ? assignment.submissions : [],
+            submissions: Array.isArray(assignment.submissions) ? assignment.submissions : []
           }));
         setAssignments(validAssignments);
       }

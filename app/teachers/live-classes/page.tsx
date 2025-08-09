@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Calendar, Clock, Users, Plus, Edit, Trash2, Eye, Video, Play, Pause } from 'lucide-react';
+import { Plus, Trash2, Video, Play, Pause } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -31,8 +31,8 @@ export default function TeacherLiveClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [levels, setLevels] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const [levels, setLevels] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -61,7 +61,7 @@ export default function TeacherLiveClassesPage() {
       const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
         .select('teacher_id')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       if (teacherError || !teacherData) {
@@ -87,11 +87,30 @@ export default function TeacherLiveClassesPage() {
         supabase.from('subjects').select('subject_id, name')
       ]);
 
-      setLiveClasses(liveClassData || []);
+      setLiveClasses(
+        (liveClassData || []).map((item: any) => ({
+          meeting_platform: item.meeting_platform ?? '',
+          status: item.status ?? '',
+          max_participants: item.max_participants ?? 0,
+          teacher_id: item.teacher_id ?? '',
+          level_id: item.level_id ?? '',
+          subject_id: item.subject_id ?? '',
+          academic_year: item.academic_year ?? '',
+          live_class_id: item.live_class_id ?? '',
+          title: item.title ?? '',
+          description: item.description ?? '',
+          scheduled_date: item.scheduled_date ?? '',
+          start_time: item.start_time ?? '',
+          end_time: item.end_time ?? '',
+          meeting_link: item.meeting_link ?? '',
+          levels: item.levels ?? null,
+          subjects: item.subjects ?? null,
+        }))
+      );
       setLevels(levelsRes.data || []);
       setSubjects(subjectsRes.data || []);
 
-    } catch (error) {
+    } catch (error: any) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_live_classes', user?.id || '');
       setError(appError.message);
     } finally {
@@ -112,7 +131,7 @@ export default function TeacherLiveClassesPage() {
       const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
         .select('teacher_id')
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       if (teacherError || !teacherData) {
@@ -151,8 +170,8 @@ export default function TeacherLiveClassesPage() {
       });
       
       fetchData(); // Refresh data
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error?.message || 'Failed to create');
     } finally {
       setLoading(false);
     }
@@ -174,8 +193,8 @@ export default function TeacherLiveClassesPage() {
       }
 
       fetchData(); // Refresh data
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error?.message || 'Failed to update');
     } finally {
       setLoading(false);
     }
@@ -197,8 +216,8 @@ export default function TeacherLiveClassesPage() {
       }
 
       fetchData(); // Refresh data
-    } catch (error) {
-      setError(error.message);
+    } catch (error: any) {
+      setError(error?.message || 'Failed to delete');
     } finally {
       setLoading(false);
     }

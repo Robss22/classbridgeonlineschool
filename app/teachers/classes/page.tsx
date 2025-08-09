@@ -26,7 +26,7 @@ export default function TeacherClassesPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   // Fix: Declare 'classes' state variable and its setter 'setClasses'
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState<{ level_id: string; name: string; program: string; subjects: string[]; studentCount: number }[]>([]);
 
   useEffect(() => {
     // Ensure user is loaded and not null before fetching data
@@ -42,7 +42,7 @@ export default function TeacherClassesPage() {
         const { data: teacherRecord, error: teacherRecordError } = await supabase
           .from('teachers')
           .select('teacher_id')
-          .eq('user_id', user.id)
+          .eq('user_id', user?.id ?? '')
           .single();
 
         if (teacherRecordError) {
@@ -60,23 +60,23 @@ export default function TeacherClassesPage() {
 
         if (assignmentsError) throw assignmentsError;
 
-        const levelIds = [...new Set(assignments?.map(a => a.level_id).filter(Boolean))];
-        const subjectIds = [...new Set(assignments?.map(a => a.subject_id).filter(Boolean))];
+        const levelIds = [...new Set((assignments || []).map(a => a.level_id).filter(Boolean))] as string[];
+        const subjectIds = [...new Set((assignments || []).map(a => a.subject_id).filter(Boolean))] as string[];
 
         // 3. Fetch all levels in one query
         const { data: levelList, error: levelListError } = await supabase
           .from("levels")
           .select("level_id, name, program_id")
-          .in("level_id", levelIds.length ? levelIds : [""]); // Handle empty array case for .in()
+          .in("level_id", levelIds.length ? levelIds : ([''] as string[])); // Handle empty array case for .in()
 
         if (levelListError) throw levelListError;
 
         // 4. Fetch all programs in one query
-        const programIds = [...new Set(levelList?.map(l => l.program_id).filter(Boolean))];
+        const programIds = [...new Set((levelList || []).map(l => l.program_id).filter(Boolean))] as string[];
         const { data: programList, error: programListError } = await supabase
           .from("programs")
           .select("program_id, name")
-          .in("program_id", programIds.length ? programIds : [""]); // Handle empty array case
+          .in("program_id", programIds.length ? programIds : ([''] as string[])); // Handle empty array case
 
         if (programListError) throw programListError;
 
@@ -84,7 +84,7 @@ export default function TeacherClassesPage() {
         const { data: subjectList, error: subjectListError } = await supabase
           .from("subjects")
           .select("subject_id, name")
-          .in("subject_id", subjectIds.length ? subjectIds : [""]); // Handle empty array case
+          .in("subject_id", subjectIds.length ? subjectIds : ([''] as string[])); // Handle empty array case
 
         if (subjectListError) throw subjectListError;
 
@@ -92,17 +92,17 @@ export default function TeacherClassesPage() {
         const { data: enrollments, error: enrollmentsError } = await supabase
           .from("enrollments")
           .select("level_id")
-          .in("level_id", levelIds.length ? levelIds : [""]); // Handle empty array case
+          .in("level_id", levelIds.length ? levelIds : ([''] as string[])); // Handle empty array case
 
         if (enrollmentsError) throw enrollmentsError;
 
         // 7. Build level cards
-        const levelData = levelList.map(level => {
+        const levelData = (levelList || []).map(level => {
           const program = programList.find(p => p.program_id === level.program_id)?.name || "-";
           const subjects = assignments
             .filter(a => a.level_id === level.level_id)
             .map(a => subjectList.find(s => s.subject_id === a.subject_id)?.name)
-            .filter(Boolean); // Filter out any undefined subjects
+            .filter((name): name is string => typeof name === 'string'); // Ensure only strings
           const studentCount = enrollments.filter(e => e.level_id === level.level_id).length;
           return {
             level_id: level.level_id,
@@ -113,8 +113,8 @@ export default function TeacherClassesPage() {
           };
         });
         setClasses(levelData);
-      } catch (error) {
-        console.error("Error fetching levels:", error.message);
+      } catch (error: any) {
+        console.error("Error fetching levels:", error?.message || error);
         // Optionally, set an error state to display to the user
       } finally {
         setLoading(false);

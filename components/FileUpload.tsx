@@ -46,7 +46,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     try {
       const filePath = `${folder ? folder + "/" : ""}${Date.now()}_${file.name}`;
       // Supabase JS does not support progress natively, so we just show uploading state
-      const { data, error } = await supabase.storage.from(bucket).upload(filePath, file);
+      const { error } = await supabase.storage.from(bucket).upload(filePath, file);
       if (error) throw error;
       // Get public URL
       const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
@@ -93,7 +93,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       <button
         type="button"
         onClick={handleButtonClick}
-        disabled={uploading}
+        disabled={!!uploading}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-400"
       >
         <UploadCloud className="w-5 h-5" />
@@ -105,7 +105,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         accept={accept}
         onChange={handleFileChange}
         className="hidden"
-        disabled={uploading}
+        disabled={!!uploading}
       />
       {/* File name and upload status */}
       {fileName && (

@@ -34,8 +34,9 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
 
   // Close mobile menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isMobileMenuOpen && !event.target.closest('aside')) {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (isMobileMenuOpen && target && !target.closest('aside')) {
         setIsMobileMenuOpen(false);
       }
     };

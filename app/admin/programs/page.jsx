@@ -79,7 +79,7 @@ export default function ProgramsPage() {
         <button
           type="submit"
           className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-colors duration-200"
-          disabled={loading} // Disable button while loading
+          disabled={!!loading} // Disable button while loading
         >
           {loading ? 'Adding...' : 'Add Program'}
         </button>

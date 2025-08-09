@@ -57,7 +57,7 @@ export function TeacherProvider({ children }: { children: ReactNode }) {
           program_id,
           programs:program_id (name)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id ?? '')
         .single();
 
       console.log('🔍 [TeacherContext] Teacher record:', teacherRecord, 'Error:', teacherRecordError);

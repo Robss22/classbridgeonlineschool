@@ -285,7 +285,7 @@ const Login: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
+                  disabled={!!loading}
                   required
                   style={{
                     padding: '10px',
@@ -303,7 +303,7 @@ const Login: React.FC = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
+                  disabled={!!loading}
                   required
                   style={{
                     padding: '10px',
@@ -330,7 +330,7 @@ const Login: React.FC = () => {
                   position: 'relative',
                   opacity: loading ? 0.7 : 1
                 }}
-                disabled={loading}
+                disabled={!!loading}
                 onMouseOver={e => { if (!loading) e.currentTarget.style.backgroundColor = '#005bb5'; }}
                 onMouseOut={e => { if (!loading) e.currentTarget.style.backgroundColor = '#0070f3'; }}
               >

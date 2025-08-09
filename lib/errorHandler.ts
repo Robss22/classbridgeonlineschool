@@ -3,8 +3,8 @@ export interface AppError {
   message: string;
   details?: any;
   timestamp: Date;
-  userId?: string;
-  path?: string;
+  userId?: string | undefined;
+  path?: string | undefined;
 }
 
 export class ErrorHandler {

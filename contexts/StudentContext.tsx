@@ -1,7 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient'; // Assuming this is correctly configured
-import { BookOpen } from 'lucide-react';
 
 // Define a type for the student information coming from StudentContext
 // This interface MUST match the 'Student' interface defined in your StudentContext.tsx
@@ -51,8 +50,8 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       }
       const { data, error } = await supabase
         .from('users')
-        .select('*')
-        .eq('email', user.email)
+        .select('id, class, registration_number, curriculum, email, full_name, first_name, last_name')
+        .eq('email', user.email as string)
         .single();
       if (error || !data) {
         setStudentError('Error fetching user profile: ' + (error?.message || error));
@@ -65,11 +64,11 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         class: data.class || '',
         registration_number: data.registration_number || '',
         program: data.curriculum || '',
-        program_id: data.program_id || '',
-        level_id: data.level_id || '',
+        program_id: '',
+        level_id: '',
         name: data.full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
         email: data.email || '',
-        photoUrl: data.photoUrl || '',
+        photoUrl: '',
       });
       setLoading(false);
       console.log("Fetched user info:", data);

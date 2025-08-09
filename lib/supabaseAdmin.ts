@@ -1,7 +1,7 @@
 // src/lib/supabaseAdmin.js
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Never expose this in the browser!
 
 if (!serviceRoleKey) {
@@ -9,7 +9,7 @@ if (!serviceRoleKey) {
 }
 
 // Configure to avoid token persistence
-const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey as string, {
   auth: {
     autoRefreshToken: false,
     persistSession: false // Prevents storing sessions

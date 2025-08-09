@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { errorHandler } from '@/lib/errorHandler';
 import { cache } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     
     const teacherId = searchParams.get('teacher_id');
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const body = await request.json();
 
     // Validate required fields
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const body = await request.json();
     const { searchParams } = new URL(request.url);
     const timetableId = searchParams.get('id');
@@ -144,7 +144,7 @@ export async function PUT(request: NextRequest) {
     // Check if timetable exists
     const { data: existing, error: fetchError } = await supabase
       .from('timetables')
-      .select('teacher_id')
+      .select('teacher_id, day_of_week, start_time, end_time')
       .eq('timetable_id', timetableId)
       .single();
 
@@ -168,10 +168,10 @@ export async function PUT(request: NextRequest) {
         .from('timetables')
         .select('timetable_id')
         .eq('teacher_id', existing.teacher_id)
-        .eq('day_of_week', body.day_of_week || existing.day_of_week)
+        .eq('day_of_week', body.day_of_week || (existing as any).day_of_week)
         .neq('timetable_id', timetableId)
         .eq('is_active', true)
-        .or(`start_time.lt.${body.end_time || existing.end_time},end_time.gt.${body.start_time || existing.start_time}`);
+        .or(`start_time.lt.${body.end_time || (existing as any).end_time},end_time.gt.${body.start_time || (existing as any).start_time}`);
 
       if (conflictError) {
         throw errorHandler.createError('DATABASE_ERROR', 'Failed to check for conflicts', conflictError);
@@ -220,7 +220,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     const timetableId = searchParams.get('id');
 

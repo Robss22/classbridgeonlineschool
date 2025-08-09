@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Calendar, Clock, Users, Video, BookOpen, Bell, Play } from 'lucide-react';
+import { Calendar, Video, BookOpen, Bell, Play } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -49,36 +49,46 @@ export default function TeacherTimetablePage() {
     '16:00-17:00', '17:00-18:00'
   ];
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        if (!user || !user.id) {
-          throw new Error('User not authenticated');
-        }
+        if (!user?.id) throw new Error('User not authenticated');
 
-        // Get teacher_id from user
         const { data: teacherData, error: teacherError } = await supabase
           .from('teachers')
           .select('teacher_id')
-          .eq('user_id', user.id)
+          .eq('user_id', user?.id ?? '')
           .single();
+        if (teacherError || !teacherData) throw new Error('Teacher profile not found');
 
-        if (teacherError || !teacherData) {
-          throw new Error('Teacher profile not found');
-        }
-
-        // Fetch teacher's timetables
-        const { data: timetableData, error: timetableError } = await supabase
-          .from('teacher_timetable_view')
-          .select('*')
+        // Build timetable from timetables table
+        const { data: rawTimetables, error: ttError } = await supabase
+          .from('timetables')
+          .select(`
+            *,
+            subjects:subject_id(name),
+            levels:level_id(name)
+          `)
           .eq('teacher_id', teacherData.teacher_id)
           .order('day_of_week, start_time');
+        if (ttError) throw ttError;
 
-        if (timetableError) throw timetableError;
+        const normalizedTimetable: TimetableEntry[] = (rawTimetables || []).map((t: any) => ({
+          timetable_id: t.timetable_id ?? '',
+          day_of_week: t.day_of_week ?? '',
+          start_time: t.start_time ?? '',
+          end_time: t.end_time ?? '',
+          subject_name: t.subjects?.name ?? '-',
+          level_name: t.levels?.name ?? '-',
+          program_name: '',
+          meeting_link: t.meeting_link ?? '',
+          meeting_platform: t.meeting_platform ?? 'Zoom',
+          room_name: t.room_name ?? '',
+          is_active: typeof t.is_active === 'boolean' ? t.is_active : true,
+          student_count: 0,
+        }));
 
-        // Fetch teacher's live classes
         const { data: liveClassData, error: liveClassError } = await supabase
           .from('live_classes')
           .select(`
@@ -89,12 +99,24 @@ export default function TeacherTimetablePage() {
           .eq('teacher_id', teacherData.teacher_id)
           .gte('scheduled_date', new Date().toISOString().split('T')[0])
           .order('scheduled_date, start_time');
-
         if (liveClassError) throw liveClassError;
 
-        setTimetable(timetableData || []);
-        setLiveClasses(liveClassData || []);
+        const normalizedLive: LiveClass[] = (liveClassData || []).map((lc: any) => ({
+          live_class_id: lc.live_class_id ?? '',
+          title: lc.title ?? '',
+          description: lc.description ?? '',
+          scheduled_date: lc.scheduled_date ?? '',
+          start_time: lc.start_time ?? '',
+          end_time: lc.end_time ?? '',
+          meeting_link: lc.meeting_link ?? '',
+          meeting_platform: lc.meeting_platform ?? 'Zoom',
+          status: lc.status ?? 'scheduled',
+          subject_name: lc.subjects?.name ?? '-',
+          level_name: lc.levels?.name ?? '-',
+        }));
 
+        setTimetable(normalizedTimetable);
+        setLiveClasses(normalizedLive);
       } catch (error) {
         const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_timetable', user?.id || '');
         setError(appError.message);
@@ -105,59 +127,6 @@ export default function TeacherTimetablePage() {
 
     fetchData();
   }, [user]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      if (!user || !user.id) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get teacher_id from user
-      const { data: teacherData, error: teacherError } = await supabase
-        .from('teachers')
-        .select('teacher_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (teacherError || !teacherData) {
-        throw new Error('Teacher profile not found');
-      }
-
-      // Fetch teacher's timetables
-      const { data: timetableData, error: timetableError } = await supabase
-        .from('teacher_timetable_view')
-        .select('*')
-        .eq('teacher_id', teacherData.teacher_id)
-        .order('day_of_week, start_time');
-
-      if (timetableError) throw timetableError;
-
-      // Fetch teacher's live classes
-      const { data: liveClassData, error: liveClassError } = await supabase
-        .from('live_classes')
-        .select(`
-          *,
-          subjects:subject_id (name),
-          levels:level_id (name)
-        `)
-        .eq('teacher_id', teacherData.teacher_id)
-        .gte('scheduled_date', new Date().toISOString().split('T')[0])
-        .order('scheduled_date, start_time');
-
-      if (liveClassError) throw liveClassError;
-
-      setTimetable(timetableData || []);
-      setLiveClasses(liveClassData || []);
-
-    } catch (error) {
-      const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_timetable', user?.id || '');
-      setError(appError.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getCurrentDayIndex = () => {
     const jsDay = new Date().getDay();
