@@ -16,9 +16,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env
 // Optional: Add a check for missing environment variables during development
 // This helps catch configuration issues early.
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
+  console.warn(
     'Supabase URL or Anon Key is missing! Please check your .env.local file and ensure you have restarted your development server.'
   );
+  // Don't throw an error, just log a warning
 }
 
 // Debug logging for development
@@ -32,4 +33,14 @@ if (typeof window !== 'undefined') {
 
 // Create and export the Supabase client instance
 // This client uses the anonymous key and is safe for client-side operations.
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
+
+// Helper function to check if Supabase is properly configured
+export const isSupabaseConfigured = () => {
+  return !!(supabaseUrl && supabaseAnonKey && 
+    supabaseUrl !== 'https://your-project.supabase.co' && 
+    supabaseAnonKey !== 'your-anon-key-here');
+};

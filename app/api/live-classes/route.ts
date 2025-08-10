@@ -5,31 +5,19 @@ import { errorHandler } from '@/lib/errorHandler';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacher_id');
     const subjectId = searchParams.get('subject_id');
-    const status = searchParams.get('status');
 
     let query = supabase
       .from('live_classes')
       .select(`
         *,
         subjects:subject_id (name),
-        levels:level_id (name),
-        teachers:teacher_id (teacher_id, users:user_id (first_name, last_name))
+        levels:level_id (name)
       `)
-      .order('scheduled_date', { ascending: true })
-      .order('start_time', { ascending: true });
-
-    if (teacherId) {
-      query = query.eq('teacher_id', teacherId);
-    }
+      .order('created_at', { ascending: false });
 
     if (subjectId) {
       query = query.eq('subject_id', subjectId);
-    }
-
-    if (status) {
-      query = query.eq('status', status);
     }
 
     const { data, error } = await query;
@@ -49,12 +37,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, scheduled_date, start_time, end_time, subject_id, level_id, teacher_id, meeting_platform, max_participants } = body;
+    const { start_time, end_time, subject_id, level_id, program_id } = body;
 
     // Validate required fields
-    if (!title || !scheduled_date || !start_time || !end_time || !subject_id || !level_id || !teacher_id) {
+    if (!start_time || !end_time || !subject_id || !level_id || !program_id) {
       return NextResponse.json(
-        { error: 'Missing required fields', success: false },
+        { error: 'Missing required fields: start_time, end_time, subject_id, level_id, program_id', success: false },
         { status: 400 }
       );
     }
@@ -62,18 +50,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('live_classes')
       .insert([{
-        title,
-        description,
-        scheduled_date,
         start_time,
         end_time,
         subject_id,
         level_id,
-        teacher_id,
-        meeting_platform: meeting_platform || 'Zoom',
-        max_participants: max_participants || 50,
-        status: 'scheduled',
-        academic_year: new Date().getFullYear().toString(),
+        program_id,
       }])
       .select()
       .single();
@@ -83,6 +64,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data, success: true });
   } catch (error) {
     const appError = errorHandler.handleSupabaseError(error, 'create_live_class', '');
+    return NextResponse.json(
+      { error: appError.message, success: false },
+      { status: 500 }
+      );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Missing live class ID', success: false },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabase
+      .from('live_classes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const appError = errorHandler.handleSupabaseError(error, 'delete_live_class', '');
     return NextResponse.json(
       { error: appError.message, success: false },
       { status: 500 }
