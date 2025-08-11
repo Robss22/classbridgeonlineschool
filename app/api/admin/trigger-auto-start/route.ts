@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  // Create client (kept for parity and future use)
+  createClient(supabaseUrl, supabaseServiceKey);
 
     // Call the Edge Function
     const response = await fetch(`${supabaseUrl}/functions/v1/auto-start-classes`, {

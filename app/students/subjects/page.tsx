@@ -2,10 +2,10 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Clock, Users, Video, Play, BookOpen } from 'lucide-react';
+import { Calendar, Users, Video, Play, BookOpen } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 
@@ -54,7 +54,7 @@ export default function MySubjectsPage() {
   const [showAvailableSubjects, setShowAvailableSubjects] = useState(false);
   const [isS1OrS2, setIsS1OrS2] = useState(false);
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -256,11 +256,11 @@ export default function MySubjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchSubjects();
-  }, [user]);
+  }, [user, fetchSubjects]);
 
   const handleEnrollInSubject = async (subjectOfferingId: string) => {
     if (!user) return;
@@ -522,7 +522,7 @@ export default function MySubjectsPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4" />
-                                <span>Teacher: {subject.teacher || 'TBA'}</span>
+                <span>Teacher: TBA</span>
                               </div>
                             </div>
                           </div>

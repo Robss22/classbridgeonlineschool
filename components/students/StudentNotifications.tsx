@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell, Video, Clock, X, CheckCircle } from 'lucide-react';
-import { format, parseISO, isAfter, addMinutes } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 
 interface LiveClassNotification {
   live_class_id: string;
@@ -88,7 +88,7 @@ export default function StudentNotifications() {
           .order('start_time', { ascending: true });
 
         // Create live class notifications
-        const liveClassNotifications: Notification[] = (liveClassData || []).map((liveClass: LiveClassNotification) => {
+        const liveClassNotifications: Notification[] = (liveClassData as any[] || []).map((liveClass: any) => {
           const startTime = new Date(`${liveClass.scheduled_date}T${liveClass.start_time}`);
           const timeUntilStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
           
@@ -96,11 +96,11 @@ export default function StudentNotifications() {
             id: `live_${liveClass.live_class_id}`,
             type: 'live_class',
             title: 'Live Class Starting Soon',
-            message: `${liveClass.title} starts in ${timeUntilStart} minutes`,
+            message: `${(liveClass.title || 'Live Class')} starts in ${timeUntilStart} minutes`,
             timestamp: new Date().toISOString(),
             read: false,
             action_url: liveClass.meeting_link,
-            live_class: liveClass
+            live_class: liveClass as LiveClassNotification
           };
         });
 

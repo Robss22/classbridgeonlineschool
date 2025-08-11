@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfWeek, addDays, parseISO, isSameDay } from 'date-fns';
-import { Calendar, Clock, Video, Play, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, Video, Play, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 interface LiveClass {
@@ -40,14 +40,14 @@ export default function StudentTimetablePage() {
   const { user, loading: authLoading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [loading, setLoading] = useState(true);
+  // Removed unused loading state
   const [error, setError] = useState('');
 
   const fetchLiveClasses = useCallback(async () => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      // no-op: removed loading state
       
       // Get student's program
       const { data: authUser } = await supabase.auth.getUser();
@@ -65,7 +65,6 @@ export default function StudentTimetablePage() {
       
       if (!programId) {
         setError('No program assigned. Please contact your administrator.');
-        setLoading(false);
         return;
       }
 
@@ -105,7 +104,7 @@ export default function StudentTimetablePage() {
       console.error('Error fetching live classes:', err);
       setError(err.message || 'Failed to fetch live classes');
     } finally {
-      setLoading(false);
+      // no-op: removed loading state
     }
   }, [user, currentWeekStart]);
 

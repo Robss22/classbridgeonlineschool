@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, Clock, Users, Video, AlertCircle, CheckCircle, Play } from 'lucide-react';
-import { format, parseISO, isAfter, isBefore, addMinutes } from 'date-fns';
+import { format, parseISO, isAfter, isBefore } from 'date-fns';
 
 interface LiveClass {
   live_class_id: string;
@@ -103,12 +103,19 @@ export default function StudentLiveClassesPage() {
 
         // Fetch attendance for this student for these classes
         const classIds = processedClasses.map(c => c.live_class_id);
+        // Fetch attendance via RPC or skip if table not typed in client types
         if (classIds.length > 0) {
-          const { data: attendanceRows } = await supabase
-            .from('live_class_participants')
-            .select('live_class_id, attendance_status, join_time')
-            .eq('student_id', userId)
-            .in('live_class_id', classIds);
+          let attendanceRows: any[] | null = null;
+          try {
+            const { data } = await (supabase as any)
+              .from('live_class_participants' as any)
+              .select('live_class_id, attendance_status, join_time')
+              .eq('student_id', userId)
+              .in('live_class_id', classIds);
+            attendanceRows = data as any[] | null;
+          } catch (_) {
+            attendanceRows = null;
+          }
 
           const map: Record<string, boolean> = {};
           classIds.forEach(id => { map[id] = false; });
@@ -134,7 +141,7 @@ export default function StudentLiveClassesPage() {
 
   const getClassStatus = (liveClass: LiveClass) => {
     const now = new Date();
-    const classDate = parseISO(liveClass.scheduled_date);
+    // Removed unused classDate
     const startTime = new Date(`${liveClass.scheduled_date}T${liveClass.start_time}`);
     const endTime = new Date(`${liveClass.scheduled_date}T${liveClass.end_time}`);
     

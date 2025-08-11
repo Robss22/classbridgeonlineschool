@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Bell, X, ExternalLink, Clock, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,58 +22,60 @@ export default function StudentNotifications() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      
-      // Set up real-time updates for notifications
-      const channel = supabase
-        .channel('notifications_realtime')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'notifications' },
-          () => {
-            fetchNotifications();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('notifications')
+      const { data, error } = await (supabase as any)
+        .from('notifications' as any)
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id as any)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
 
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
+      setNotifications((data as any[]) || []);
+      setUnreadCount(((data as any[])?.filter((n: any) => !n.is_read).length) || 0);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetchNotifications();
+    
+    // Set up real-time updates for notifications
+    const channel = supabase
+      .channel('notifications_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchNotifications]);
+
+  
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase as any)
+        .from('notifications' as any)
         .update({ 
           is_read: true, 
           read_at: new Date().toISOString() 
         })
-        .eq('notification_id', notificationId);
+        .eq('notification_id', notificationId as any);
 
       if (error) throw error;
 
@@ -93,13 +95,13 @@ export default function StudentNotifications() {
 
   const markAllAsRead = async () => {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase as any)
+        .from('notifications' as any)
         .update({ 
           is_read: true, 
           read_at: new Date().toISOString() 
         })
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id as any)
         .eq('is_read', false);
 
       if (error) throw error;

@@ -78,7 +78,7 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
       <div className="bg-white rounded-xl shadow p-4 mb-4">
         <div className="flex items-center mb-2">
           <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-          <span className="font-semibold">Today's Schedule</span>
+          <span className="font-semibold">Today&apos;s Schedule</span>
         </div>
         <div className="text-gray-600 text-sm">No classes scheduled for today.</div>
       </div>
@@ -90,7 +90,7 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
       <div className="bg-white rounded-xl shadow p-4 mb-4 cursor-pointer">
         <div className="flex items-center mb-4">
           <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-          <span className="font-semibold">Today's Live Classes</span>
+          <span className="font-semibold">Today&apos;s Live Classes</span>
           <span className="ml-2 text-sm text-gray-500">({todayClasses.length})</span>
         </div>
         <div className="space-y-3">
@@ -131,7 +131,7 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
                       }`}
                     >
                       <Play className="w-3 h-3" />
-                      {isLive ? 'Join Now' : 'Join'}
+                       {isLive ? 'Join Now' : 'Join'}
                     </a>
                   )}
                 </div>

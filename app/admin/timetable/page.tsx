@@ -207,6 +207,33 @@ export default function AdminTimetablePage() {
     fetchFiltersData();
   }, []);
 
+  // Keep this callback above the effect so it can be safely referenced in deps
+  const checkClassesStatus = useCallback(async () => {
+    try {
+      setAutoStartStatus('checking');
+      // Call the auto-start Edge Function
+      const response = await fetch('/api/admin/trigger-auto-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.classesStarted > 0 || result.classesEnded > 0) {
+          setAutoStartStatus('updated');
+          // Refresh the timetable to show new status
+          fetchLiveClasses();
+          // Reset status after 3 seconds
+          setTimeout(() => setAutoStartStatus('idle'), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking classes status:', error);
+      setAutoStartStatus('error');
+      setTimeout(() => setAutoStartStatus('idle'), 3000);
+    }
+  }, [fetchLiveClasses]);
+
   useEffect(() => {
     fetchLiveClasses();
     
@@ -231,7 +258,7 @@ export default function AdminTimetablePage() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [fetchLiveClasses]);
+  }, [fetchLiveClasses, checkClassesStatus]);
 
   const handlePreviousWeek = () => {
     setCurrentWeekStart(prev => addDays(prev, -7));
@@ -241,35 +268,7 @@ export default function AdminTimetablePage() {
     setCurrentWeekStart(prev => addDays(prev, 7));
   };
 
-  const checkClassesStatus = async () => {
-    try {
-      setAutoStartStatus('checking');
-      
-      // Call the auto-start Edge Function
-      const response = await fetch('/api/admin/trigger-auto-start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.classesStarted > 0 || result.classesEnded > 0) {
-          setAutoStartStatus('updated');
-          // Refresh the timetable to show new status
-          fetchLiveClasses();
-          
-          // Reset status after 3 seconds
-          setTimeout(() => setAutoStartStatus('idle'), 3000);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking classes status:', error);
-      setAutoStartStatus('error');
-      setTimeout(() => setAutoStartStatus('idle'), 3000);
-    }
-  };
+  // (moved above)
 
   const fetchAllClasses = async () => {
     try {
