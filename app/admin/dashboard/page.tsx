@@ -38,7 +38,7 @@ export default function DashboardHome() {
           { title: "Programs", href: "/admin/programs", desc: "View and edit academic programs." },
           { title: "Resources", href: "/admin/resources", desc: "Manage learning resources, upload files, and assign to classes/programs." },
           { title: "Subjects", href: "/admin/subjects", desc: "Manage subjects for each program/class." },
-          { title: "Timetables", href: "/admin/timetable", desc: "Create and manage class schedules, teacher assignments, and student enrollments." },
+          { title: "Timetable", href: "/timetable", desc: "Schedule and view live classes, manage class schedules, and monitor student attendance." },
           { title: "Users", href: "/admin/users", desc: "Manage teacher and admin accounts and assignments." },
         ].sort((a, b) => a.title.localeCompare(b.title)).map(card => (
           <DashboardCard key={card.title} title={card.title} href={card.href} desc={card.desc} />

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Plus, Video, Play, Pause, Trash2 } from 'lucide-react';
+import AdminLiveClassModal from '@/components/AdminLiveClassModal';
 import { errorHandler } from '@/lib/errorHandler';
 
 interface LiveClass {
@@ -15,15 +16,18 @@ interface LiveClass {
   meeting_link: string;
   meeting_platform: string;
   status: string;
-  max_participants: number;
   teacher_id: string;
+  program_id: string;
   level_id: string;
   subject_id: string;
-  academic_year: string;
+  paper_id: string;
   teachers?: { teacher_id: string; users?: { first_name: string; last_name: string } };
   levels?: { name: string };
   subjects?: { name: string };
+  programs?: { name: string };
+  papers?: { paper_name: string; paper_code: string };
 }
+
 
 export default function AdminLiveClassesPage() {
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
@@ -33,22 +37,10 @@ export default function AdminLiveClassesPage() {
   const [levels, setLevels] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [papers, setPapers] = useState<any[]>([]);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    scheduled_date: '',
-    start_time: '',
-    end_time: '',
-    meeting_link: '',
-    meeting_platform: 'Zoom',
-    max_participants: 50,
-    teacher_id: '',
-    level_id: '',
-    subject_id: '',
-    academic_year: new Date().getFullYear().toString(),
-    status: 'scheduled'
-  });
+  // form state handled inside AdminLiveClassModal
 
   useEffect(() => {
     fetchData();
@@ -57,26 +49,59 @@ export default function AdminLiveClassesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch live classes
+
+      // Fetch reference data first
+      const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes] = await Promise.all([
+        supabase.from('levels').select('*'),
+        supabase.from('subjects').select('*'),
+        supabase.from('teachers').select('*, users(first_name, last_name)'),
+        supabase.from('programs').select('*'),
+        supabase.from('subject_papers').select('*')
+      ]);
+
+      // Check for errors in reference data
+      if (levelsRes.error) throw new Error('Error fetching levels: ' + levelsRes.error.message);
+      if (subjectsRes.error) throw new Error('Error fetching subjects: ' + subjectsRes.error.message);
+      if (teachersRes.error) throw new Error('Error fetching teachers: ' + teachersRes.error.message);
+      if (programsRes.error) throw new Error('Error fetching programs: ' + programsRes.error.message);
+      if (papersRes.error) throw new Error('Error fetching papers: ' + papersRes.error.message);
+
+      // Set reference data
+      setLevels(levelsRes.data || []);
+      setSubjects(subjectsRes.data || []);
+      setTeachers(teachersRes.data || []);
+      setPrograms(programsRes.data || []);
+      setPapers(papersRes.data || []);
+
+      // Now fetch live classes with proper relations
       const { data: liveClassData, error: liveClassError } = await supabase
         .from('live_classes')
         .select(`
           *,
-          teachers:teacher_id (teacher_id, users:user_id (first_name, last_name)),
-          levels:level_id (name),
-          subjects:subject_id (name)
+          teachers:teacher_id (
+            *,
+            users (
+              first_name,
+              last_name
+            )
+          ),
+          subjects:subject_id (
+            *
+          ),
+          levels:level_id (
+            *
+          ),
+          programs:program_id (
+            *
+          ),
+          papers:paper_id (
+            *
+          )
         `)
-        .order('scheduled_date, start_time');
+        .order('scheduled_date', { ascending: true })
+        .order('start_time', { ascending: true });
 
       if (liveClassError) throw liveClassError;
-
-      // Fetch reference data
-      const [levelsRes, subjectsRes, teachersRes] = await Promise.all([
-        supabase.from('levels').select('level_id, name'),
-        supabase.from('subjects').select('subject_id, name'),
-        supabase.from('teachers').select('teacher_id, users:user_id (first_name, last_name)')
-      ]);
 
       // Normalize rows to match LiveClass interface
       const normalizedLiveClasses: LiveClass[] = (liveClassData || []).map((row: any) => ({
@@ -93,16 +118,16 @@ export default function AdminLiveClassesPage() {
         teacher_id: row.teacher_id ?? '',
         level_id: row.level_id ?? '',
         subject_id: row.subject_id ?? '',
-        academic_year: row.academic_year ?? new Date().getFullYear().toString(),
+        program_id: row.program_id ?? '',
+        paper_id: row.paper_id ?? '',
         teachers: row.teachers ?? undefined,
         levels: row.levels ?? undefined,
         subjects: row.subjects ?? undefined,
+        programs: row.programs ?? undefined,
+        papers: row.papers ?? undefined,
       }));
 
       setLiveClasses(normalizedLiveClasses);
-      setLevels(levelsRes.data || []);
-      setSubjects(subjectsRes.data || []);
-      setTeachers(teachersRes.data || []);
 
     } catch (error) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_admin_live_classes', 'admin');
@@ -112,47 +137,7 @@ export default function AdminLiveClassesPage() {
     }
   };
 
-  const handleCreateLiveClass = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-
-      const response = await fetch('/api/live-classes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to create live class');
-      }
-
-      setShowCreateForm(false);
-      setFormData({
-        title: '',
-        description: '',
-        scheduled_date: '',
-        start_time: '',
-        end_time: '',
-        meeting_link: '',
-        meeting_platform: 'Zoom',
-        max_participants: 50,
-        teacher_id: '',
-        level_id: '',
-        subject_id: '',
-        academic_year: new Date().getFullYear().toString(),
-        status: 'scheduled'
-      });
-      
-      fetchData(); // Refresh data
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // creation handled inside AdminLiveClassModal
 
   const handleUpdateStatus = async (liveClassId: string, newStatus: string) => {
     try {
@@ -326,182 +311,18 @@ export default function AdminLiveClassesPage() {
 
         {/* Create Live Class Modal */}
         {showCreateForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Schedule Live Class</h3>
-              <form onSubmit={handleCreateLiveClass} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={formData.scheduled_date}
-                      onChange={(e) => setFormData({...formData, scheduled_date: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Academic Year</label>
-                    <input
-                      type="text"
-                      value={formData.academic_year}
-                      onChange={(e) => setFormData({...formData, academic_year: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Start Time</label>
-                    <input
-                      type="time"
-                      value={formData.start_time}
-                      onChange={(e) => setFormData({...formData, start_time: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">End Time</label>
-                    <input
-                      type="time"
-                      value={formData.end_time}
-                      onChange={(e) => setFormData({...formData, end_time: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Level</label>
-                  <select
-                    value={formData.level_id}
-                    onChange={(e) => setFormData({...formData, level_id: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  >
-                    <option value="">Select Level</option>
-                    {levels.map((level: any) => (
-                      <option key={level.level_id} value={level.level_id}>{level.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Subject</label>
-                  <select
-                    value={formData.subject_id}
-                    onChange={(e) => setFormData({...formData, subject_id: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  >
-                    <option value="">Select Subject</option>
-                    {subjects.map((subject: any) => (
-                      <option key={subject.subject_id} value={subject.subject_id}>{subject.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Teacher</label>
-                  <select
-                    value={formData.teacher_id}
-                    onChange={(e) => setFormData({...formData, teacher_id: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  >
-                    <option value="">Select Teacher</option>
-                    {teachers.map((teacher: any) => (
-                      <option key={teacher.teacher_id} value={teacher.teacher_id}>
-                        {teacher.users?.first_name} {teacher.users?.last_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Meeting Platform</label>
-                    <select
-                      value={formData.meeting_platform}
-                      onChange={(e) => setFormData({...formData, meeting_platform: e.target.value})}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      <option value="Zoom">Zoom</option>
-                      <option value="Google Meet">Google Meet</option>
-                      <option value="Teams">Teams</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Max Participants</label>
-                    <input
-                      type="number"
-                      value={formData.max_participants}
-                      onChange={(e) => setFormData({...formData, max_participants: parseInt(e.target.value)})}
-                      className="w-full border rounded-lg px-3 py-2"
-                      min="1"
-                      max="100"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Meeting Link</label>
-                  <input
-                    type="url"
-                    value={formData.meeting_link}
-                    onChange={(e) => setFormData({...formData, meeting_link: e.target.value})}
-                    className="w-full border rounded-lg px-3 py-2"
-                    placeholder="https://..."
-                  />
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-                  >
-                    Schedule Class
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <AdminLiveClassModal
+            onClose={() => setShowCreateForm(false)}
+            onSuccess={() => {
+              setShowCreateForm(false);
+              fetchData();
+            }}
+            programs={programs}
+            levels={levels}
+            subjects={subjects}
+            teachers={teachers}
+            papers={papers}
+          />
         )}
       </div>
     </div>
