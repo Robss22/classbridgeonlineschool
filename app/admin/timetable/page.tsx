@@ -43,6 +43,7 @@ export default function AdminTimetablePage() {
   const [error, setError] = useState('');
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [autoStartStatus, setAutoStartStatus] = useState<string>('idle');
   const [filters, setFilters] = useState({
     program_id: '',
     level_id: '',
@@ -162,6 +163,28 @@ export default function AdminTimetablePage() {
 
   useEffect(() => {
     fetchLiveClasses();
+    
+    // Set up real-time updates for live classes
+    const channel = supabase
+      .channel('live_classes_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_classes' },
+        () => {
+          fetchLiveClasses();
+        }
+      )
+      .subscribe();
+
+    // Set up interval to check for classes that should start/end
+    const interval = setInterval(() => {
+      checkClassesStatus();
+    }, 30000); // Check every 30 seconds
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [fetchLiveClasses]);
 
   const handlePreviousWeek = () => {
@@ -170,6 +193,36 @@ export default function AdminTimetablePage() {
 
   const handleNextWeek = () => {
     setCurrentWeekStart(prev => addDays(prev, 7));
+  };
+
+  const checkClassesStatus = async () => {
+    try {
+      setAutoStartStatus('checking');
+      
+      // Call the auto-start Edge Function
+      const response = await fetch('/api/admin/trigger-auto-start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.classesStarted > 0 || result.classesEnded > 0) {
+          setAutoStartStatus('updated');
+          // Refresh the timetable to show new status
+          fetchLiveClasses();
+          
+          // Reset status after 3 seconds
+          setTimeout(() => setAutoStartStatus('idle'), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking classes status:', error);
+      setAutoStartStatus('error');
+      setTimeout(() => setAutoStartStatus('idle'), 3000);
+    }
   };
 
   const getDayColumns = () => {
@@ -215,7 +268,31 @@ export default function AdminTimetablePage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">Live Class Timetable</h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Live Class Timetable</h1>
+              <div className="flex items-center mt-2 space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    autoStartStatus === 'idle' ? 'bg-gray-400' :
+                    autoStartStatus === 'checking' ? 'bg-yellow-400' :
+                    autoStartStatus === 'updated' ? 'bg-green-400' :
+                    'bg-red-400'
+                  }`}></div>
+                  <span className="text-sm text-gray-600">
+                    {autoStartStatus === 'idle' ? 'Auto-start: Active' :
+                     autoStartStatus === 'checking' ? 'Checking classes...' :
+                     autoStartStatus === 'updated' ? 'Classes updated!' :
+                     'Auto-start error'}
+                  </span>
+                </div>
+                <button
+                  onClick={checkClassesStatus}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Check Now
+                </button>
+              </div>
+            </div>
             <button
               onClick={() => setShowCreateForm(true)}
               className="flex items-center px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
@@ -335,26 +412,55 @@ export default function AdminTimetablePage() {
                     return (
                       <td key={date.toISOString()} className="px-2 py-2 relative">
                         {classes.map(liveClass => (
-                          <div
-                            key={liveClass.live_class_id}
-                            className="bg-blue-100 border border-blue-200 rounded-lg p-3 mb-2 shadow-sm"
-                          >
-                            <div className="text-sm font-semibold text-blue-800 mb-1">
-                              {liveClass.subjects?.name || 'Lecture'}
-                            </div>
-                            <div className="text-xs text-blue-600 mb-1">
-                              {liveClass.start_time} - {liveClass.end_time}
-                            </div>
-                            <div className="text-xs text-blue-700 font-medium">
-                              {liveClass.teachers?.users?.first_name} {liveClass.teachers?.users?.last_name}
-                            </div>
-                            <div className="text-xs text-blue-600">
-                              {liveClass.subjects?.name}
-                            </div>
-                            <div className="text-xs text-blue-700">
-                              {liveClass.levels?.name} {liveClass.programs?.name}
-                            </div>
-                          </div>
+                                                       <div
+                               key={liveClass.live_class_id}
+                               className={`rounded-lg p-3 mb-2 shadow-sm border ${
+                                 liveClass.status === 'ongoing' ? 'bg-green-100 border-green-300' :
+                                 liveClass.status === 'completed' ? 'bg-gray-100 border-gray-300' :
+                                 liveClass.status === 'cancelled' ? 'bg-red-100 border-red-300' :
+                                 'bg-blue-100 border-blue-200'
+                               }`}
+                             >
+                               <div className="flex items-center justify-between mb-1">
+                                 <div className={`text-sm font-semibold ${
+                                   liveClass.status === 'ongoing' ? 'text-green-800' :
+                                   liveClass.status === 'completed' ? 'text-gray-800' :
+                                   liveClass.status === 'cancelled' ? 'text-red-800' :
+                                   'text-blue-800'
+                                 }`}>
+                                   {liveClass.subjects?.name || 'Lecture'}
+                                 </div>
+                                 <div className={`px-2 py-1 text-xs rounded-full ${
+                                   liveClass.status === 'ongoing' ? 'bg-green-200 text-green-800' :
+                                   liveClass.status === 'completed' ? 'bg-gray-200 text-gray-800' :
+                                   liveClass.status === 'cancelled' ? 'bg-red-200 text-red-800' :
+                                   'bg-blue-200 text-blue-800'
+                                 }`}>
+                                   {liveClass.status}
+                                 </div>
+                               </div>
+                               <div className="text-xs text-gray-600 mb-1">
+                                 {liveClass.start_time} - {liveClass.end_time}
+                               </div>
+                               <div className="text-xs text-gray-700 font-medium">
+                                 {liveClass.teachers?.users?.first_name} {liveClass.teachers?.users?.last_name}
+                               </div>
+                               <div className="text-xs text-gray-600">
+                                 {liveClass.levels?.name} {liveClass.programs?.name}
+                               </div>
+                               {liveClass.status === 'ongoing' && liveClass.meeting_link && (
+                                 <div className="mt-2">
+                                   <a
+                                     href={liveClass.meeting_link}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors"
+                                   >
+                                     Join Class
+                                   </a>
+                                 </div>
+                               )}
+                             </div>
                         ))}
                       </td>
                     );
