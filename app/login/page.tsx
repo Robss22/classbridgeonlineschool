@@ -53,32 +53,41 @@ const Login: React.FC = () => {
       return;
     }
 
+    // Set a maximum timeout for the entire login process
+    const loginTimeout = setTimeout(() => {
+      setError('Login process timed out. Please try again.');
+      setLoading(false);
+      setShowWelcome(false);
+    }, 20000); // 20 seconds total timeout
+
     try {
       // Step 1: Authenticate with Supabase
-      // Add timeout to prevent hanging (increased to 15s)
       const authPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
-      const timeoutPromise = new Promise<typeof authPromise>((_, reject) => {
-        setTimeout(() => reject(new Error('Authentication timeout after 15 seconds')), 15000);
+      const authTimeoutPromise = new Promise<typeof authPromise>((_, reject) => {
+        setTimeout(() => reject(new Error('Authentication timeout after 10 seconds')), 10000);
       });
-      const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
+      
+      const { data: authData, error: authError } = await Promise.race([authPromise, authTimeoutPromise]);
       
       console.log('Auth response:', { user: authData?.user, authError });
 
       if (authError) {
-  console.error('Authentication error:', authError);
-  setError(`Login failed: ${authError.message}. Please check your credentials or try again later.`);
-  setLoading(false);
-  return;
+        console.error('Authentication error:', authError);
+        setError(`Login failed: ${authError.message}. Please check your credentials or try again later.`);
+        setLoading(false);
+        clearTimeout(loginTimeout);
+        return;
       }
 
       if (!authData?.user) {
-  console.error('No user returned from authentication');
-  setError('Login failed: No user data received. Please try again.');
-  setLoading(false);
-  return;
+        console.error('No user returned from authentication');
+        setError('Login failed: No user data received. Please try again.');
+        setLoading(false);
+        clearTimeout(loginTimeout);
+        return;
       }
 
       // Step 2: Fetch user profile
@@ -91,7 +100,7 @@ const Login: React.FC = () => {
         .single();
       
       const profileTimeoutPromise = new Promise<typeof profilePromise>((_, reject) => {
-  setTimeout(() => reject(new Error('Profile fetch timeout after 15 seconds')), 15000);
+        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000);
       });
       
       let { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeoutPromise]);
@@ -109,7 +118,7 @@ const Login: React.FC = () => {
           .single();
 
         const fallbackTimeoutPromise = new Promise<typeof fallbackPromise>((_, reject) => {
-    setTimeout(() => reject(new Error('Fallback profile fetch timeout after 15 seconds')), 15000);
+          setTimeout(() => reject(new Error('Fallback profile fetch timeout after 10 seconds')), 10000);
         });
 
         const { data: fallbackProfile, error: fallbackError } = await Promise.race([fallbackPromise, fallbackTimeoutPromise]);
@@ -119,6 +128,7 @@ const Login: React.FC = () => {
         if (fallbackError || !fallbackProfile) {
           setError(`Failed to fetch user profile: ${profileError.message}. Please try again later or contact support.`);
           setLoading(false);
+          clearTimeout(loginTimeout);
           return;
         }
         
@@ -127,10 +137,11 @@ const Login: React.FC = () => {
       }
 
       if (!profile) {
-  console.error('No profile data found');
-  setError('User profile not found in database. Please contact support.');
-  setLoading(false);
-  return;
+        console.error('No profile data found');
+        setError('User profile not found in database. Please contact support.');
+        setLoading(false);
+        clearTimeout(loginTimeout);
+        return;
       }
 
       // Step 3: Set welcome message
@@ -148,6 +159,9 @@ const Login: React.FC = () => {
         role: profile.role, 
         passwordChanged: profile.password_changed 
       });
+
+      // Clear the timeout since we're about to navigate
+      clearTimeout(loginTimeout);
 
       // Immediate navigation without delay
       console.log('Navigating immediately...');
@@ -180,20 +194,14 @@ const Login: React.FC = () => {
 
     } catch (err) {
       console.error('Unexpected error during login:', err);
+      clearTimeout(loginTimeout);
+      
       if (err instanceof Error && err.message.includes('timeout')) {
         setError('Login timed out. The server may be busy or unreachable. Please check your connection and try again.');
       } else {
         setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
       setLoading(false);
-    } finally {
-      // Fallback: ensure loading is reset after 15 seconds
-      setTimeout(() => {
-        if (loading) {
-          console.log('Fallback: Resetting loading state');
-          setLoading(false);
-        }
-      }, 15000);
     }
   };
 

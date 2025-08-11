@@ -2,6 +2,7 @@
 import { useStudent } from '@/contexts/StudentContext';
 import { Bell, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import StudentNotifications from './StudentNotifications';
 
 export default function StudentTopBar() {
   const { studentInfo, loadingStudent } = useStudent();
@@ -43,7 +44,8 @@ export default function StudentTopBar() {
             </div>
           </div>
         </div>
-        <div className="flex items-center ml-6">
+        <div className="flex items-center gap-4 ml-6">
+          <StudentNotifications />
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-blue-200 flex items-center justify-center overflow-hidden">
             {photoUrl ? (
               <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />

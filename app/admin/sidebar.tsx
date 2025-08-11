@@ -40,7 +40,7 @@ export default function Sidebar() {
     { name: 'Classes', href: '/admin/classes' },
     { name: 'Live Classes', href: '/admin/live-classes' },
     { name: 'Subjects', href: '/admin/subjects' },
-    { name: 'Timetable', href: '/timetable' },
+    { name: 'Timetable', href: '/admin/timetable' },
     { name: 'Users', href: '/admin/users' },
     { name: 'Programs', href: '/admin/programs' },
     { name: 'Resources', href: '/admin/resources' },

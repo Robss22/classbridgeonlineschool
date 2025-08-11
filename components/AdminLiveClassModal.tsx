@@ -98,7 +98,7 @@ export default function AdminLiveClassModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold mb-4">Schedule Live Class</h3>
-
+        
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded">
             {error}
@@ -198,11 +198,10 @@ export default function AdminLiveClassModal({
               }
               className="w-full border rounded-lg px-3 py-2"
               required
-              disabled={!formData.program_id}
             >
               <option value="">Select Level</option>
               {levels
-                .filter((level: any) => level.program_id === formData.program_id)
+                .filter((level: any) => !formData.program_id || level.program_id === formData.program_id)
                 .map((level: any) => (
                   <option key={level.level_id} value={level.level_id}>
                     {level.name}

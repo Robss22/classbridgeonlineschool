@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Calendar, User, Home, FileText, MessageCircle, Settings, ClipboardList, LogOut, Menu, X } from 'lucide-react';
+import { BookOpen, Calendar, User, Home, FileText, MessageCircle, Settings, ClipboardList, LogOut, Menu, X, Video } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 const links = [
   { name: 'Dashboard', href: '/students/dashboard', icon: Home },
   { name: 'My Subjects', href: '/students/subjects', icon: ClipboardList },
+  { name: 'Live Classes', href: '/students/live-classes', icon: Video },
   { name: 'Resources', href: '/students/resources', icon: BookOpen },
   { name: 'Timetable', href: '/students/timetable', icon: Calendar },
   { name: 'Assignments', href: '/students/assignments', icon: FileText }, // Optional, can be hidden if not implemented

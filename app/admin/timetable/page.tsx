@@ -34,8 +34,9 @@ interface LiveClass {
 }
 
 const timeSlots = [
-  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
-  "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"
+  "00:00", "01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00",
+  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00",
+  "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
 ];
 
 export default function AdminTimetablePage() {
@@ -44,6 +45,7 @@ export default function AdminTimetablePage() {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [autoStartStatus, setAutoStartStatus] = useState<string>('idle');
+  const [showAllClasses, setShowAllClasses] = useState(false);
   const [filters, setFilters] = useState({
     program_id: '',
     level_id: '',
@@ -54,6 +56,42 @@ export default function AdminTimetablePage() {
   const [subjects, setSubjects] = useState<Array<{ subject_id: string; name: string }>>([]);
   const [teachers, setTeachers] = useState<Array<{ teacher_id: string; users?: { first_name: string; last_name: string } | undefined }>>([]);
   const [papers, setPapers] = useState<Array<{ paper_id: string; paper_name: string; paper_code: string; subject_id: string }>>([]);
+  const [generatingLinks, setGeneratingLinks] = useState<Set<string>>(new Set());
+
+  const generateMeetingLink = async (liveClassId: string, platform: string = 'Google Meet') => {
+    try {
+      setGeneratingLinks(prev => new Set(prev).add(liveClassId));
+      
+      const response = await fetch('/api/live-classes/generate-meeting-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          live_class_id: liveClassId,
+          platform: platform
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Refresh the timetable to show the new meeting link
+          fetchLiveClasses();
+        }
+      } else {
+        console.error('Failed to generate meeting link');
+      }
+    } catch (error) {
+      console.error('Error generating meeting link:', error);
+    } finally {
+      setGeneratingLinks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(liveClassId);
+        return newSet;
+      });
+    }
+  };
 
   const fetchLiveClasses = useCallback(async () => {
     try {
@@ -79,13 +117,24 @@ export default function AdminTimetablePage() {
       if (filters.level_id) query = query.eq('level_id', filters.level_id);
       if (filters.subject_id) query = query.eq('subject_id', filters.subject_id);
 
+      // Only apply date filtering if not showing all classes
+      if (!showAllClasses) {
+        query = query
+          .gte('scheduled_date', format(currentWeekStart, 'yyyy-MM-dd'))
+          .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'));
+      }
+
       const { data, error } = await query
-        .gte('scheduled_date', format(currentWeekStart, 'yyyy-MM-dd'))
-        .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'))
         .order('scheduled_date', { ascending: true })
         .order('start_time', { ascending: true });
 
       if (error) throw error;
+      
+      // Debug: Log the fetched data
+      console.log('Fetched live classes:', data);
+      console.log('Current week start:', format(currentWeekStart, 'yyyy-MM-dd'));
+      console.log('Current week end:', format(weekEnd, 'yyyy-MM-dd'));
+      
       const liveClasses: LiveClass[] = data.map((item: any) => ({
         ...item,
         meeting_platform: item.meeting_platform || '',
@@ -96,63 +145,60 @@ export default function AdminTimetablePage() {
         title: item.title || '',
         description: item.description || ''
       }));
+      
+      console.log('Processed live classes:', liveClasses);
       setLiveClasses(liveClasses);
     } catch (error: any) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_live_classes', '');
       setError(appError.message);
     }
-  }, [currentWeekStart, filters]);
+  }, [currentWeekStart, filters, showAllClasses]);
 
   // Fetch filters data
   useEffect(() => {
     const fetchFiltersData = async () => {
       try {
-        // Fetch programs
-        const { data: programsData, error: programsError } = await supabase
-          .from('programs')
-          .select('program_id, name')
-          .order('name');
-        if (programsError) throw programsError;
-        setPrograms(programsData || []);
+        // Fetch reference data first using the same logic as live-classes page
+        const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes] = await Promise.all([
+          supabase.from('levels').select('*'),
+          supabase.from('subjects').select('*'),
+          supabase.from('teachers').select('*, users(first_name, last_name)'),
+          supabase.from('programs').select('*'),
+          supabase.from('subject_papers').select('*')
+        ]);
 
-        // Fetch levels
-        const { data: levelsData, error: levelsError } = await supabase
-          .from('levels')
-          .select('level_id, name')
-          .order('name');
-        if (levelsError) throw levelsError;
-        setLevels(levelsData || []);
+        // Check for errors in reference data
+        if (levelsRes.error) {
+          throw new Error('Error fetching levels: ' + levelsRes.error.message);
+        }
+        if (subjectsRes.error) {
+          throw new Error('Error fetching subjects: ' + subjectsRes.error.message);
+        }
+        if (teachersRes.error) {
+          throw new Error('Error fetching teachers: ' + teachersRes.error.message);
+        }
+        if (programsRes.error) {
+          throw new Error('Error fetching programs: ' + programsRes.error.message);
+        }
+        if (papersRes.error) {
+          throw new Error('Error fetching papers: ' + papersRes.error.message);
+        }
 
-        // Fetch subjects
-        const { data: subjectsData, error: subjectsError } = await supabase
-          .from('subjects')
-          .select('subject_id, name')
-          .order('name');
-        if (subjectsError) throw subjectsError;
-        setSubjects(subjectsData || []);
-
-        // Fetch teachers
-        const { data: teachersData, error: teachersError } = await supabase
-          .from('teachers')
-          .select('*, users(first_name, last_name)')
-          .order('teacher_id');
-        if (teachersError) throw teachersError;
-        const teachers = (teachersData || []).map((teacher: any) => ({
+        // Set reference data
+        setLevels(levelsRes.data || []);
+        setSubjects(subjectsRes.data || []);
+        setTeachers((teachersRes.data || []).map((teacher: any) => ({
           teacher_id: teacher.teacher_id,
           users: teacher.users ? {
             first_name: teacher.users.first_name || '',
             last_name: teacher.users.last_name || ''
           } : undefined
-        }));
-        setTeachers(teachers);
-
-        // Fetch papers
-        const { data: papersData, error: papersError } = await supabase
-          .from('subject_papers')
-          .select('paper_id, paper_name, paper_code, subject_id');
-        if (papersError) throw papersError;
-        setPapers(papersData || []);
+        })));
+        setPrograms(programsRes.data || []);
+        setPapers(papersRes.data || []);
+        
       } catch (error: any) {
+        console.error('Error in fetchFiltersData:', error);
         const appError = errorHandler.handleSupabaseError(error, 'fetch_filters_data', '');
         setError(appError.message);
       }
@@ -225,19 +271,74 @@ export default function AdminTimetablePage() {
     }
   };
 
+  const fetchAllClasses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('live_classes')
+        .select(`
+          *,
+          teachers:teacher_id (
+            teacher_id,
+            users:user_id (
+              first_name,
+              last_name
+            )
+          ),
+          levels:level_id (name),
+          subjects:subject_id (name),
+          programs:program_id (name)
+        `)
+        .order('scheduled_date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+      
+      console.log('All live classes (no date filter):', data);
+      
+      const allLiveClasses: LiveClass[] = data.map((item: any) => ({
+        ...item,
+        meeting_platform: item.meeting_platform || '',
+        status: item.status || '',
+        teacher_id: item.teacher_id || '',
+        program_id: item.program_id || '',
+        level_id: item.level_id || '',
+        title: item.title || '',
+        description: item.description || ''
+      }));
+      
+      setLiveClasses(allLiveClasses);
+      setShowAllClasses(true);
+    } catch (error: any) {
+      console.error('Error fetching all classes:', error);
+      const appError = errorHandler.handleSupabaseError(error, 'fetch_all_classes', '');
+      setError(appError.message);
+    }
+  };
+
   const getDayColumns = () => {
     return Array.from({ length: 7 }, (_, index) => addDays(currentWeekStart, index));
   };
 
   const parseTimeToMinutes = (time: string): number => {
+    if (!time) return 0;
+    
     const trimmed = time.trim();
-    const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
-    if (!match) return 0;
+    const match = trimmed.match(/^(\d{1,2}):(\d{2}):?(\d{2})?/);
+    if (!match) {
+      console.warn('Invalid time format:', time);
+      return 0;
+    }
     
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
     
-    return hours * 60 + minutes;
+    // Handle 24-hour format
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return hours * 60 + minutes;
+    }
+    
+    console.warn('Invalid time values:', { hours, minutes, original: time });
+    return 0;
   };
 
   const getClassesForTimeSlot = (date: Date, timeSlot: string) => {
@@ -251,6 +352,8 @@ export default function AdminTimetablePage() {
       const start = parseTimeToMinutes(liveClass.start_time);
       const end = parseTimeToMinutes(liveClass.end_time);
       
+      // Check if the class overlaps with this time slot
+      // A class overlaps if it starts before the slot ends AND ends after the slot starts
       return start < slotEnd && end > slotTime;
     });
   };
@@ -263,7 +366,7 @@ export default function AdminTimetablePage() {
   const currentDayIndex = getCurrentDayIndex();
 
   return (
-    <div className="w-full">
+    <div className="flex-1">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -290,6 +393,12 @@ export default function AdminTimetablePage() {
                   className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
                   Check Now
+                </button>
+                <button
+                  onClick={fetchAllClasses}
+                  className="text-sm text-green-600 hover:text-green-800 underline"
+                >
+                  Show All Classes
                 </button>
               </div>
             </div>
@@ -352,18 +461,37 @@ export default function AdminTimetablePage() {
             >
               Previous Week
             </button>
-            <div className="flex items-center">
-              <Calendar className="w-5 h-5 mr-2" />
-              <span className="font-semibold">
-                {format(currentWeekStart, 'MMM d, yyyy')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
-              </span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <Calendar className="w-5 h-5 mr-2" />
+                <span className="font-semibold">
+                  {showAllClasses ? 'All Classes' : `${format(currentWeekStart, 'MMM d, yyyy')} - ${format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}`}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowAllClasses(!showAllClasses)}
+                className={`px-3 py-1 text-sm rounded ${
+                  showAllClasses 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-gray-500 text-white hover:bg-gray-600'
+                }`}
+              >
+                {showAllClasses ? 'Show Current Week' : 'Show All Classes'}
+              </button>
             </div>
             <button
               onClick={handleNextWeek}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              disabled={showAllClasses}
             >
               Next Week
             </button>
+          </div>
+          
+          {/* Classes Summary */}
+          <div className="mb-4 text-sm text-gray-600">
+            Showing {liveClasses.length} live class{liveClasses.length !== 1 ? 'es' : ''}
+            {!showAllClasses && ` for the week of ${format(currentWeekStart, 'MMM d, yyyy')}`}
           </div>
         </div>
 
@@ -460,6 +588,32 @@ export default function AdminTimetablePage() {
                                    </a>
                                  </div>
                                )}
+                               {liveClass.status === 'ongoing' && !liveClass.meeting_link && (
+                                 <div className="mt-2">
+                                   <div className="flex items-center gap-2">
+                                     <select
+                                       className="text-xs border rounded px-1 py-1"
+                                       onChange={(e) => {
+                                         // Store the selected platform for this class
+                                         const platform = e.target.value;
+                                         generateMeetingLink(liveClass.live_class_id, platform);
+                                       }}
+                                       disabled={generatingLinks.has(liveClass.live_class_id)}
+                                     >
+                                       <option value="Google Meet">Google Meet</option>
+                                       <option value="Zoom">Zoom</option>
+                                       <option value="Teams">Microsoft Teams</option>
+                                     </select>
+                                     <button
+                                       onClick={() => generateMeetingLink(liveClass.live_class_id)}
+                                       className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition-colors"
+                                       disabled={generatingLinks.has(liveClass.live_class_id)}
+                                     >
+                                       {generatingLinks.has(liveClass.live_class_id) ? 'Generating...' : 'Generate'}
+                                     </button>
+                                   </div>
+                                 </div>
+                               )}
                              </div>
                         ))}
                       </td>
@@ -471,6 +625,7 @@ export default function AdminTimetablePage() {
           </table>
         </div>
 
+        {/* Create Live Class Modal */}
         {showCreateForm && (
           <AdminLiveClassModal
             onClose={() => setShowCreateForm(false)}
@@ -478,11 +633,11 @@ export default function AdminTimetablePage() {
               setShowCreateForm(false);
               fetchLiveClasses();
             }}
-            programs={programs as any[]}
-            levels={levels as any[]}
-            subjects={subjects as any[]}
-            teachers={teachers as any[]}
-            papers={papers as any[]}
+            programs={programs}
+            levels={levels}
+            subjects={subjects}
+            teachers={teachers}
+            papers={papers}
           />
         )}
       </div>

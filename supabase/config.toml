@@ -20,3 +20,9 @@ entrypoint = "./functions/approve-application/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/approve-application/*.html" ]
+
+[functions.auto-start-classes]
+enabled = true
+verify_jwt = false
+import_map = "./functions/auto-start-classes/deno.json"
+entrypoint = "./functions/auto-start-classes/index.ts"
