@@ -35,6 +35,7 @@ export default function StudentLiveClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'ongoing' | 'completed'>('all');
+  const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -49,14 +50,15 @@ export default function StudentLiveClassesPage() {
         
         const userId = authUser.user.id;
         
-        // Get student's program
+        // Get student's program (UUID) and level
         const { data: userData } = await supabase
           .from('users')
-          .select('curriculum')
+          .select('program_id, level_id')
           .eq('id', userId)
           .single();
         
-        const programId = userData?.curriculum;
+        const programId = (userData as any)?.program_id as string | undefined;
+        const levelId = (userData as any)?.level_id as string | undefined;
         
         if (!programId) {
           setError('No program assigned. Please contact your administrator.');
@@ -64,8 +66,8 @@ export default function StudentLiveClassesPage() {
           return;
         }
         
-        // Fetch live classes for the student's program
-        const { data, error: fetchError } = await supabase
+        // Fetch live classes for the student's program (and level if available)
+        let query = supabase
           .from('live_classes')
           .select(`
             *,
@@ -77,7 +79,13 @@ export default function StudentLiveClassesPage() {
             levels:level_id (name),
             programs:program_id (name)
           `)
-          .eq('program_id', programId)
+          .eq('program_id', programId);
+
+        if (levelId) {
+          query = query.eq('level_id', levelId);
+        }
+
+        const { data, error: fetchError } = await query
           .order('scheduled_date', { ascending: true })
           .order('start_time', { ascending: true });
         
@@ -92,6 +100,27 @@ export default function StudentLiveClassesPage() {
         }));
         
         setLiveClasses(processedClasses);
+
+        // Fetch attendance for this student for these classes
+        const classIds = processedClasses.map(c => c.live_class_id);
+        if (classIds.length > 0) {
+          const { data: attendanceRows } = await supabase
+            .from('live_class_participants')
+            .select('live_class_id, attendance_status, join_time')
+            .eq('student_id', userId)
+            .in('live_class_id', classIds);
+
+          const map: Record<string, boolean> = {};
+          classIds.forEach(id => { map[id] = false; });
+          (attendanceRows || []).forEach((row: any) => {
+            if (!row?.live_class_id) return;
+            const attended = row.attendance_status === 'present' || !!row.join_time;
+            if (attended) map[row.live_class_id] = true;
+          });
+          setAttendanceMap(map);
+        } else {
+          setAttendanceMap({});
+        }
       } catch (err: any) {
         console.error('Error fetching live classes:', err);
         setError(err.message || 'Failed to fetch live classes');
@@ -225,96 +254,91 @@ export default function StudentLiveClassesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {filteredClasses.map((liveClass) => {
               const status = getClassStatus(liveClass);
               const isLive = status === 'ongoing';
               const canJoin = canJoinClass(liveClass);
+              const isMissed = status === 'completed' && !attendanceMap[liveClass.live_class_id];
               
               return (
                 <div
                   key={liveClass.live_class_id}
-                  className={`bg-white rounded-lg shadow-sm border-2 p-6 transition-all hover:shadow-md ${
+                  className={`bg-white rounded-lg shadow-sm border-2 p-6 transition-all hover:shadow-md h-full flex flex-col ${
                     isLive ? 'border-green-300 bg-green-50' : 'border-gray-200'
                   }`}
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                            {liveClass.title}
-                          </h3>
-                          <p className="text-gray-600 mb-2">
-                            {liveClass.description || 'No description available'}
-                          </p>
-                        </div>
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(status)}`}>
-                          {getStatusIcon(status)}
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700">
-                            {format(parseISO(liveClass.scheduled_date), 'MMM dd, yyyy')}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700">
-                            {liveClass.start_time} - {liveClass.end_time}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700">
-                            {liveClass.teachers?.users?.first_name} {liveClass.teachers?.users?.last_name || 'TBA'}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Video className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700">
-                            {liveClass.subjects?.name || 'Unknown Subject'}
-                          </span>
-                        </div>
-                      </div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="pr-2">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                        {liveClass.title}
+                      </h3>
+                      <p className="text-gray-600 mb-2">
+                        {liveClass.description || 'No description available'}
+                      </p>
                     </div>
-                    
-                    <div className="flex flex-col gap-2 min-w-fit">
-                      {canJoin ? (
-                        <a
-                          href={liveClass.meeting_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
-                            isLive 
-                              ? 'bg-green-600 hover:bg-green-700 shadow-lg' 
-                              : 'bg-blue-600 hover:bg-blue-700'
-                          }`}
-                        >
-                          <Play className="w-4 h-4" />
-                          {isLive ? 'Join Now' : 'Join Class'}
-                        </a>
-                      ) : (
-                        <div className="text-gray-500 text-sm text-center px-6 py-3">
-                          {status === 'completed' ? 'Class ended' : 
-                           status === 'cancelled' ? 'Class cancelled' : 
-                           'No meeting link'}
-                        </div>
-                      )}
-                      
-                      {liveClass.meeting_platform && (
-                        <div className="text-xs text-gray-500 text-center">
-                          {liveClass.meeting_platform}
-                        </div>
-                      )}
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(status)}`}>
+                      {getStatusIcon(status)}
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 text-sm text-left">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700">
+                        {format(parseISO(liveClass.scheduled_date), 'MMM dd, yyyy')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700">
+                        {liveClass.start_time} - {liveClass.end_time}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700">
+                        {liveClass.teachers?.users?.first_name} {liveClass.teachers?.users?.last_name || 'TBA'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-gray-500" />
+                      <span className="text-gray-700">
+                        {liveClass.subjects?.name || 'Unknown Subject'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-4">
+                    {canJoin ? (
+                      <a
+                        href={liveClass.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-semibold text-white transition-colors ${
+                          isLive 
+                            ? 'bg-green-600 hover:bg-green-700 shadow-lg' 
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                      >
+                        <Play className="w-4 h-4" />
+                        {isLive ? 'Attend Class' : 'Join Class'}
+                      </a>
+                    ) : (
+                      <div
+                        className={`w-full text-sm text-center px-5 py-2.5 border rounded-md ${
+                          isMissed ? 'text-red-600 border-red-300 bg-red-50' : 'text-gray-500'
+                        }`}
+                      >
+                        {status === 'completed'
+                          ? (isMissed ? 'Missed' : 'Class ended')
+                          : status === 'cancelled'
+                            ? 'Class cancelled'
+                            : 'Not yet started'}
+                      </div>
+                    )}
+                      {/* Platform label removed as requested */}
                   </div>
                 </div>
               );

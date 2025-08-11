@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { errorHandler } from '@/lib/errorHandler';
 
-// Generate a random meeting ID for Google Meet
+// Generate a random meeting ID for Google Meet using 3-4-3 pattern (e.g., abc-defg-hij)
 function generateMeetingId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz'
-  let result = ''
-  for (let i = 0; i < 3; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  result += '-'
-  for (let i = 0; i < 4; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  const rand = (len: number) => Array.from({ length: len }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+  return `${rand(3)}-${rand(4)}-${rand(3)}`;
 }
 
 // Generate a meeting link based on platform
