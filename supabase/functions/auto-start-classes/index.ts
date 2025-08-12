@@ -14,19 +14,58 @@ serve(async (req) => {
 
   try {
     // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
+    // Note: Secrets starting with "SUPABASE_" are reserved and cannot be set via `supabase secrets set`.
+    // We use a custom secret name (e.g., FUNCTION_SERVICE_ROLE_KEY) and keep a fallback for local dev.
+    const supabaseUrl =
+      Deno.env.get('SUPABASE_URL') ||
+      Deno.env.get('PUBLIC_SUPABASE_URL') ||
+      Deno.env.get('NEXT_PUBLIC_SUPABASE_URL') ||
+      ''
+
+    const supabaseServiceKey =
+      Deno.env.get('FUNCTION_SERVICE_ROLE_KEY') ||
+      Deno.env.get('SERVICE_ROLE_KEY') ||
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ||
+      ''
+
+    if (!supabaseUrl) {
+      throw new Error('Missing SUPABASE_URL in Edge Function environment')
+    }
+    if (!supabaseServiceKey) {
+      throw new Error('Missing FUNCTION_SERVICE_ROLE_KEY (service role) in Edge Function environment')
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get current time
+    // Get current time in configured local timezone (default Africa/Kampala)
+    const timeZone =
+      Deno.env.get('LOCAL_TIMEZONE') ||
+      Deno.env.get('TIME_ZONE') ||
+      'Africa/Kampala'
+
+    // Build a zoned date/time using Intl parts to avoid UTC conversion issues
     const now = new Date()
-    const currentTime = now.toTimeString().slice(0, 5) // Format: HH:MM
-    const currentDate = now.toISOString().split('T')[0] // Format: YYYY-MM-DD
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = formatter.formatToParts(now)
+    const getPart = (type: Intl.DateTimeFormatPartTypes): string =>
+      parts.find((p) => p.type === type)?.value || ''
 
-    console.log(`Checking for classes to start at ${currentTime} on ${currentDate}`)
+    const currentDate = `${getPart('year')}-${getPart('month')}-${getPart('day')}` // YYYY-MM-DD
+    const currentTime = `${getPart('hour')}:${getPart('minute')}` // HH:MM
 
-    // Find classes that should start now
+    console.log(
+      `Checking for classes to start at ${currentTime} on ${currentDate} (timezone: ${timeZone})`,
+    )
+
+    // Find classes that should start now (or were missed earlier this minute)
     const { data: classesToStart, error: fetchError } = await supabase
       .from('live_classes')
       .select(`
@@ -43,7 +82,7 @@ serve(async (req) => {
         programs:program_id (name)
       `)
       .eq('scheduled_date', currentDate)
-      .eq('start_time', currentTime)
+      .lte('start_time', currentTime)
       .eq('status', 'scheduled')
 
     if (fetchError) {
@@ -169,12 +208,12 @@ serve(async (req) => {
       }
     }
 
-    // Check for classes that should end
+    // Check for classes that should end (allow catching up if a minute was missed)
     const { data: classesToEnd, error: endFetchError } = await supabase
       .from('live_classes')
       .select('live_class_id, subjects:subject_id (name)')
       .eq('scheduled_date', currentDate)
-      .eq('end_time', currentTime)
+      .lte('end_time', currentTime)
       .eq('status', 'ongoing')
 
     if (!endFetchError && classesToEnd && classesToEnd.length > 0) {
@@ -232,34 +271,28 @@ function generateMeetingId(): string {
   return result
 }
 
-// Generate a more robust meeting link with multiple platform options
-function generateMeetingLink(platform: string = 'Google Meet'): { link: string, platform: string } {
-  switch (platform.toLowerCase()) {
+// Generate a joinable meeting link without provider APIs by defaulting to Jitsi
+function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string } {
+  switch ((platform || 'Jitsi Meet').toLowerCase()) {
+    case 'jitsi':
+    case 'jitsi meet':
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
     case 'google meet':
     case 'google':
-      return {
-        link: `https://meet.google.com/${generateMeetingId()}`,
-        platform: 'Google Meet'
-      }
     case 'zoom':
-      // Generate a random Zoom meeting ID (10 digits)
-      const zoomId = Math.floor(Math.random() * 9000000000) + 1000000000
-      return {
-        link: `https://zoom.us/j/${zoomId}`,
-        platform: 'Zoom'
-      }
     case 'teams':
-      // Microsoft Teams uses a different format
-      const teamsId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      // Fallback to Jitsi unless integrated with the provider API
       return {
-        link: `https://teams.microsoft.com/l/meetup-join/${teamsId}`,
-        platform: 'Microsoft Teams'
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
       }
     default:
-      // Default to Google Meet
       return {
-        link: `https://meet.google.com/${generateMeetingId()}`,
-        platform: 'Google Meet'
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
       }
   }
 }

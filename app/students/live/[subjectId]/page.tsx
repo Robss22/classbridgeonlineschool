@@ -71,8 +71,8 @@ export default function SubjectPage() {
         <ul className="mb-4">
           {timetable.map((t) => (
             <li key={t.timetable_id} className="mb-2">
-              {t.day_of_week}, {t.start_time} - {t.end_time} {t.meeting_link && (
-                <a href={t.meeting_link} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 underline">Join Live</a>
+               {t.day_of_week}, {t.start_time} - {t.end_time} {t.meeting_link && (
+                <a href={`/students/live/join/${t.timetable_id}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 underline">Join Live</a>
               )}
             </li>
           ))}
@@ -87,7 +87,7 @@ export default function SubjectPage() {
             <li key={lc.live_class_id} className="mb-2">
               {lc.title} - {lc.scheduled_date} {lc.start_time} - {lc.end_time}
               {lc.meeting_link && (
-                <a href={lc.meeting_link} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 underline">Join Live</a>
+                <a href={`/students/live/join/${lc.live_class_id}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-blue-600 underline">Join Live</a>
               )}
             </li>
           ))}

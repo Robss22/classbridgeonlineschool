@@ -10,33 +10,28 @@ function generateMeetingId(): string {
 }
 
 // Generate a meeting link based on platform
-function generateMeetingLink(platform: string = 'Google Meet'): { link: string, platform: string } {
-  switch (platform.toLowerCase()) {
+// To ensure links are joinable without provider APIs, default to Jitsi Meet.
+function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string } {
+  switch ((platform || 'Jitsi Meet').toLowerCase()) {
+    case 'jitsi':
+    case 'jitsi meet':
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
     case 'google meet':
     case 'google':
-      return {
-        link: `https://meet.google.com/${generateMeetingId()}`,
-        platform: 'Google Meet'
-      }
     case 'zoom':
-      // Generate a random Zoom meeting ID (10 digits)
-      const zoomId = Math.floor(Math.random() * 9000000000) + 1000000000
-      return {
-        link: `https://zoom.us/j/${zoomId}`,
-        platform: 'Zoom'
-      }
     case 'teams':
-      // Microsoft Teams uses a different format
-      const teamsId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      // Fallback to Jitsi unless proper provider integration exists
       return {
-        link: `https://teams.microsoft.com/l/meetup-join/${teamsId}`,
-        platform: 'Microsoft Teams'
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
       }
     default:
-      // Default to Google Meet
       return {
-        link: `https://meet.google.com/${generateMeetingId()}`,
-        platform: 'Google Meet'
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
       }
   }
 }
@@ -44,7 +39,7 @@ function generateMeetingLink(platform: string = 'Google Meet'): { link: string, 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { live_class_id, platform = 'Google Meet' } = body;
+    const { live_class_id, platform = 'Jitsi Meet' } = body;
 
     if (!live_class_id) {
       return NextResponse.json(

@@ -361,9 +361,7 @@ export default function StudentTimetablePage() {
                               {canJoin && (
                                 <div className="mt-2">
                                   <a
-                                    href={liveClass.meeting_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                    href={`/students/live/join/${liveClass.live_class_id}`}
                                     className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded text-white transition-colors ${
                                       isLive ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
                                     }`}

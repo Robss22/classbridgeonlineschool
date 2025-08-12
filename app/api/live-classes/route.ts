@@ -2,6 +2,53 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { errorHandler } from '@/lib/errorHandler';
 
+// Generate a random meeting ID for Google Meet using 3-4-3 pattern (e.g., abc-defg-hij)
+function generateMeetingId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz';
+  const rand = (len: number) => Array.from({ length: len }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+  return `${rand(3)}-${rand(4)}-${rand(3)}`;
+}
+
+// Generate a meeting link based on platform
+// NOTE: Generating random Google Meet/Zoom/Teams codes does not create real meetings.
+// To ensure links are immediately joinable without provider APIs, we default to Jitsi Meet.
+function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string } {
+  switch ((platform || 'Jitsi Meet').toLowerCase()) {
+    case 'jitsi':
+    case 'jitsi meet':
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
+    case 'google meet':
+    case 'google':
+      // Fallback to Jitsi unless Google Meet API integration is configured
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
+    case 'zoom': {
+      // Without Zoom API, cannot create joinable meetings; fallback to Jitsi
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
+    }
+    case 'teams': {
+      // Without Teams API, cannot create joinable meetings; fallback to Jitsi
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
+    }
+    default:
+      return {
+        link: `https://meet.jit.si/${generateMeetingId()}`,
+        platform: 'Jitsi Meet'
+      }
+  }
+}
+
 interface LiveClass {
   created_at?: string | null;
   created_by?: string | null;
@@ -153,6 +200,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
       );
     }
 
+    // Auto-generate meeting link if not provided
+    const shouldGenerate = !meeting_link || String(meeting_link).trim().length === 0;
+    const generated = shouldGenerate ? generateMeetingLink(meeting_platform || 'Jitsi Meet') : null;
+
     const { data, error } = await supabase
       .from('live_classes')
       .insert([{
@@ -166,8 +217,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
         program_id,
         paper_id,
         teacher_id,
-        meeting_platform: meeting_platform || 'Google Meet',
-        meeting_link: meeting_link || '',
+        meeting_platform: generated?.platform || meeting_platform || 'Jitsi Meet',
+        meeting_link: generated?.link || meeting_link || '',
         status: status || 'scheduled'
       }])
       .select()

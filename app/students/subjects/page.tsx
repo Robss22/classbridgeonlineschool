@@ -378,9 +378,7 @@ export default function MySubjectsPage() {
             </Link>
             {nextClass && nextClass.status === 'ongoing' && nextClass.meeting_link && (
               <a
-                href={nextClass.meeting_link}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/students/live/join/${nextClass.live_class_id}`}
                 className="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
               >
                 <Play className="w-4 h-4" />

@@ -32,7 +32,7 @@ export default function AdminLiveClassModal({
     start_time: '',
     end_time: '',
     meeting_link: '',
-    meeting_platform: 'Zoom',
+    meeting_platform: 'Jitsi Meet',
     max_participants: 50,
     teacher_id: '',
     program_id: '',
@@ -272,9 +272,7 @@ export default function AdminLiveClassModal({
                 onChange={(e) => setFormData({ ...formData, meeting_platform: e.target.value })}
                 className="w-full border rounded-lg px-3 py-2"
               >
-                <option value="Zoom">Zoom</option>
-                <option value="Google Meet">Google Meet</option>
-                <option value="Teams">Teams</option>
+                <option value="Jitsi Meet">Jitsi Meet</option>
               </select>
             </div>
 

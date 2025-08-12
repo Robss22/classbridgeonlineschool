@@ -58,7 +58,7 @@ export default function AdminTimetablePage() {
   const [papers, setPapers] = useState<Array<{ paper_id: string; paper_name: string; paper_code: string; subject_id: string }>>([]);
   const [generatingLinks, setGeneratingLinks] = useState<Set<string>>(new Set());
 
-  const generateMeetingLink = async (liveClassId: string, platform: string = 'Google Meet') => {
+  const generateMeetingLink = async (liveClassId: string, platform: string = 'Jitsi Meet') => {
     try {
       setGeneratingLinks(prev => new Set(prev).add(liveClassId));
       
@@ -590,19 +590,16 @@ export default function AdminTimetablePage() {
                                {liveClass.status === 'ongoing' && !liveClass.meeting_link && (
                                  <div className="mt-2">
                                    <div className="flex items-center gap-2">
-                                     <select
-                                       className="text-xs border rounded px-1 py-1"
-                                       onChange={(e) => {
-                                         // Store the selected platform for this class
-                                         const platform = e.target.value;
-                                         generateMeetingLink(liveClass.live_class_id, platform);
-                                       }}
-                                       disabled={generatingLinks.has(liveClass.live_class_id)}
-                                     >
-                                       <option value="Google Meet">Google Meet</option>
-                                       <option value="Zoom">Zoom</option>
-                                       <option value="Teams">Microsoft Teams</option>
-                                     </select>
+                                      <select
+                                        className="text-xs border rounded px-1 py-1"
+                                        onChange={(e) => {
+                                          const platform = e.target.value;
+                                          generateMeetingLink(liveClass.live_class_id, platform);
+                                        }}
+                                        disabled={generatingLinks.has(liveClass.live_class_id)}
+                                      >
+                                        <option value="Jitsi Meet">Jitsi Meet</option>
+                                      </select>
                                      <button
                                        onClick={() => generateMeetingLink(liveClass.live_class_id)}
                                        className="text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition-colors"

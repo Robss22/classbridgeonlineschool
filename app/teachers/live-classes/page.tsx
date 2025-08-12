@@ -33,6 +33,7 @@ export default function TeacherLiveClassesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [generatingLinks, setGeneratingLinks] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -125,6 +126,30 @@ export default function TeacherLiveClassesPage() {
     }
   };
 
+  const handleGenerateMeetingLink = async (liveClassId: string) => {
+    try {
+      setGeneratingLinks(prev => new Set(prev).add(liveClassId));
+      const response = await fetch('/api/live-classes/generate-meeting-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ live_class_id: liveClassId, platform: 'Jitsi Meet' })
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result?.error || 'Failed to generate meeting link');
+      }
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to generate meeting link');
+    } finally {
+      setGeneratingLinks(prev => {
+        const next = new Set(prev);
+        next.delete(liveClassId);
+        return next;
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled': return 'bg-blue-100 text-blue-800';
@@ -204,7 +229,27 @@ export default function TeacherLiveClassesPage() {
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(liveClass.status)}`}>{liveClass.status}</span>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
+                        {liveClass.status === 'ongoing' && (
+                          liveClass.meeting_link ? (
+                            <a
+                              href={`/teachers/live/join/${liveClass.live_class_id}`}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                              title="Join Class"
+                            >
+                              <Video className="w-3.5 h-3.5" /> Join
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => handleGenerateMeetingLink(liveClass.live_class_id)}
+                              disabled={generatingLinks.has(liveClass.live_class_id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50"
+                              title="Generate meeting link"
+                            >
+                              {generatingLinks.has(liveClass.live_class_id) ? 'Generating…' : 'Generate Link'}
+                            </button>
+                          )
+                        )}
                         <button
                           onClick={() => handleDeleteLiveClass(liveClass.live_class_id)}
                           className="p-1 text-red-600 hover:text-red-800"
