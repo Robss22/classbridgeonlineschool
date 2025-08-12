@@ -624,7 +624,7 @@ export default function AdminTimetablePage() {
           </table>
         </div>
 
-        {/* Create Live Class Modal */}
+        {/* Create Live Class Modals */}
         {showCreateForm && (
           <AdminLiveClassModal
             onClose={() => setShowCreateForm(false)}
