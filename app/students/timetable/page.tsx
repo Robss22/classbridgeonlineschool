@@ -61,11 +61,29 @@ export default function StudentTimetablePage() {
         .eq('id', userId)
         .single();
       
-      const programId = userData?.curriculum;
+      const curriculumValue = userData?.curriculum as string | null | undefined;
       
-      if (!programId) {
+      if (!curriculumValue) {
         setError('No program assigned. Please contact your administrator.');
         return;
+      }
+
+      // If curriculum is not a UUID (e.g., "UNEB O-Level"), look up the corresponding program_id
+      let programId: string | null = null;
+      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+      if (uuidRegex.test(curriculumValue)) {
+        programId = curriculumValue;
+      } else {
+        const { data: programRow, error: programLookupError } = await supabase
+          .from('programs')
+          .select('program_id')
+          .eq('name', curriculumValue)
+          .single();
+        if (programLookupError || !programRow?.program_id) {
+          setError('Your program could not be resolved. Please contact your administrator.');
+          return;
+        }
+        programId = programRow.program_id as string;
       }
 
       const weekEnd = addDays(currentWeekStart, 6);
