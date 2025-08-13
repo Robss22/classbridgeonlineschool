@@ -16,10 +16,18 @@ interface StudentInfo {
   photoUrl: string;
 }
 
-const StudentContext = createContext<any>(null);
+type StudentContextValue = {
+  studentInfo: StudentInfo;
+  loadingStudent: boolean;
+  setStudentPhotoUrl: (url: string) => void;
+};
+
+const StudentContext = createContext<StudentContextValue | null>(null);
 
 export function useStudent() {
-  return useContext(StudentContext);
+  const ctx = useContext(StudentContext);
+  if (!ctx) throw new Error('useStudent must be used within StudentProvider');
+  return ctx;
 }
 
 export function StudentProvider({ children }: { children: React.ReactNode }) {
@@ -50,7 +58,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       }
       const { data, error } = await supabase
         .from('users')
-        .select('id, class, registration_number, curriculum, email, full_name, first_name, last_name')
+        .select('id, class, registration_number, curriculum, email, full_name, first_name, last_name, program_id, level_id')
         .eq('email', user.email as string)
         .single();
       if (error || !data) {
@@ -59,16 +67,28 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
+      // Try to resolve avatar from storage (list folder and use first profile.* file)
+      let photoUrl = '';
+      try {
+        const { data: fileList } = await supabase.storage.from('avatars').list(user.id, { limit: 25 });
+        const profileFile = (fileList || []).find(f => /^profile\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(f.name));
+        if (profileFile) {
+          const attemptPath = `${user.id}/${profileFile.name}`;
+          const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(attemptPath);
+          if (publicData?.publicUrl) photoUrl = `${publicData.publicUrl}?v=${Date.now()}`;
+        }
+      } catch { /* ignore */ }
+
       setStudentInfo({
         id: data.id,
         class: data.class || '',
         registration_number: data.registration_number || '',
         program: data.curriculum || '',
-        program_id: '',
-        level_id: '',
+        program_id: data.program_id || '',
+        level_id: data.level_id || '',
         name: data.full_name || `${data.first_name || ''} ${data.last_name || ''}`.trim(),
         email: data.email || '',
-        photoUrl: '',
+        photoUrl,
       });
       setLoading(false);
       console.log("Fetched user info:", data);
@@ -80,8 +100,12 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{studentError}</div>;
   }
 
+  const setStudentPhotoUrl = (url: string) => {
+    setStudentInfo((prev) => ({ ...prev, photoUrl: url }));
+  };
+
   return (
-    <StudentContext.Provider value={{ studentInfo, loadingStudent: loading }}>
+    <StudentContext.Provider value={{ studentInfo, loadingStudent: loading, setStudentPhotoUrl }}>
       {children}
     </StudentContext.Provider>
   );

@@ -8,7 +8,7 @@ import { useStudent } from '@/contexts/StudentContext';
 const statusStyles = {
   Pending: 'bg-yellow-200 text-yellow-900',
   Submitted: 'bg-green-200 text-green-900',
-  Overdue: 'bg-red-200 text-red-900',
+  Missed: 'bg-red-200 text-red-900',
 };
 
 interface Submission {
@@ -30,14 +30,14 @@ interface PaperCodesMap {
 
 type UploadingId = string | null;
 
-const tabs = ['All', 'Pending', 'Submitted', 'Overdue'];
+const tabs = ['All', 'Pending', 'Submitted', 'Missed'];
 
-function getStatus(assignment: Assignment): 'Submitted' | 'Overdue' | 'Pending' {
+function getStatus(assignment: Assignment): 'Submitted' | 'Missed' | 'Pending' {
   if (assignment.submissions && assignment.submissions.length > 0) return 'Submitted';
   if (!assignment.due_date) return 'Pending';
   const due = new Date(assignment.due_date);
   const now = new Date();
-  if (now > due) return 'Overdue';
+  if (now > due) return 'Missed';
   return 'Pending';
 }
 
@@ -118,6 +118,7 @@ export default function AssignmentsPage() {
           .eq('program_id', studentInfo.program_id)
           .eq('level_id', studentInfo.level_id)
           .in('subject_id', allSubjectIds)
+          .eq('submissions.student_id', studentInfo.id)
           .order('due_date', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false });
 
@@ -126,7 +127,7 @@ export default function AssignmentsPage() {
           .filter(isValidAssignment)
           .map(assignment => ({
             ...assignment,
-            submissions: Array.isArray(assignment.submissions) ? assignment.submissions : [],
+            submissions: Array.isArray((assignment as any).submissions) ? (assignment as any).submissions : [],
           }));
 
         setAssignments(validAssignments);        // 5. Fetch subject details for mapping
@@ -164,20 +165,46 @@ export default function AssignmentsPage() {
     setUploadingId(assignment.id);
     setUploadError('');
     try {
-      // Upload to Supabase Storage (bucket: 'submissions')
-      const filePath = `${studentInfo.registration_number || 'student'}/${assignment.id}/${file.name}`;
-      const { error } = await supabase.storage.from('submissions').upload(filePath, file, { upsert: true });
-      if (error) throw error;
-      // Save to submissions table (cast from to satisfy types if 'submissions' is missing in generated types)
-      const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
-      const publicUrl = publicUrlData?.publicUrl;
-      await (supabase as any).from('submissions').insert([{
-        assessment_id: assignment.id,
-        student_id: studentInfo.id,
-        submission_url: publicUrl,
-        submitted_at: new Date().toISOString(),
-        status: 'submitted'
-      }]);
+      // Use secure API route to upload and save
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error('Not authenticated');
+      const form = new FormData();
+      form.append('assessmentId', assignment.id);
+      form.append('file', file);
+      form.append('action', 'upload');
+      const res = await fetch('/api/student/submissions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Upload failed');
+      }
+      const uploaded = await res.json();
+
+      // Prompt confirmation
+      const confirmText = `Confirm submission of: ${uploaded.fileName || 'file'}?`;
+      const confirmed = window.confirm(confirmText);
+      if (!confirmed) {
+        const cancelFd = new FormData();
+        cancelFd.append('action', 'cancel');
+        cancelFd.append('filePath', uploaded.filePath);
+        await fetch('/api/student/submissions', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: cancelFd });
+        return;
+      }
+
+      // Persist DB row after confirmation
+      const confirmFd = new FormData();
+      confirmFd.append('action', 'confirm');
+      confirmFd.append('assessmentId', assignment.id);
+      confirmFd.append('filePath', uploaded.filePath);
+      const confirmRes = await fetch('/api/student/submissions', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: confirmFd });
+      if (!confirmRes.ok) {
+        const j = await confirmRes.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to confirm submission');
+      }
       
       // Fetch subject IDs again to refresh assignments
       const { data: compulsory } = await supabase
@@ -212,7 +239,7 @@ export default function AssignmentsPage() {
         .from('assessments')
         .select(`
           *,
-          submissions:student_submissions(
+          submissions(
             submission_url,
             submitted_at,
             status
@@ -220,7 +247,8 @@ export default function AssignmentsPage() {
         `)
         .eq('program_id', studentInfo.program_id)
         .eq('level_id', studentInfo.level_id)
-        .in('subject_id', subjectIds);
+        .in('subject_id', subjectIds)
+        .eq('submissions.student_id', studentInfo.id);
 
       if (updated) {
         const validAssignments = updated
@@ -237,6 +265,22 @@ export default function AssignmentsPage() {
     } finally {
       setUploadingId(null);
     }
+  };
+
+  const openSubmission = async (submissionPath?: string | null) => {
+    if (!submissionPath) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const res = await fetch(`/api/student/submissions?path=${encodeURIComponent(submissionPath)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      if (j?.signedUrl) {
+        window.open(j.signedUrl, '_blank');
+      }
+    } catch {}
   };
 
   const filtered = assignments.filter(a => {
@@ -315,13 +359,19 @@ export default function AssignmentsPage() {
                     )}
                   </div>
                   <div className="flex gap-2 mt-auto">
-                    {/* Download attached paper */}
+                    {/* Download attached paper (allowed only while Pending) */}
                     {assignment.file_url && (
-                      <a href={assignment.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors">
-                        <FileText className="w-4 h-4" /> Download Paper
-                      </a>
+                      getStatus(assignment) === 'Pending' ? (
+                        <a href={assignment.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors">
+                          <FileText className="w-4 h-4" /> Download Paper
+                        </a>
+                      ) : (
+                        <button disabled className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-200 text-gray-500 font-semibold cursor-not-allowed">
+                          <FileText className="w-4 h-4" /> Download Paper
+                        </button>
+                      )
                     )}
-                    {/* File upload button and preview */}
+                    {/* File upload button and preview (allowed only while Pending) */}
                     {status === 'Pending' && (
                       <>
                         <input
@@ -331,6 +381,7 @@ export default function AssignmentsPage() {
                           }}
                           className="hidden"
                           onChange={e => handleFileChange(e, assignment)}
+                           accept=".pdf,image/*"
                         />
                         <button
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors"
@@ -340,20 +391,18 @@ export default function AssignmentsPage() {
                           disabled={uploadingId === assignment.id}
                         >
                           <UploadCloud className="w-4 h-4" />
-                          {uploadingId === assignment.id ? 'Uploading...' : 'Upload'}
+                           {uploadingId === assignment.id ? 'Uploading...' : 'Upload Answer Sheet'}
                         </button>
                       </>
                     )}
                     {/* Submission preview */}
                     {assignment.submissions?.[0]?.submission_url && (
-                      <a
-                        href={assignment.submissions?.[0]?.submission_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => openSubmission(assignment.submissions?.[0]?.submission_url)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-200 text-purple-900 font-semibold hover:bg-purple-300 transition-colors"
                       >
                         <CheckCircle className="w-4 h-4" /> View Submission
-                      </a>
+                      </button>
                     )}
                     {status === 'Submitted' && !assignment.submissions?.[0]?.submission_url && (
                       <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-200 text-green-900 font-semibold">

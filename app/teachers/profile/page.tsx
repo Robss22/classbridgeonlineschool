@@ -75,16 +75,28 @@ export default function TeacherProfilePage() {
     return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view your profile.</div>;
   }
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    return await new Promise<T>((resolve, reject) => {
+      const id = setTimeout(() => reject(new Error('Upload timed out')), ms);
+      promise
+        .then((res) => { clearTimeout(id); resolve(res); })
+        .catch((err) => { clearTimeout(id); reject(err); });
+    });
+  };
+
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
     if (!file) return;
     setAvatarUploading(true);
     try {
       const ext = file.name.split(".").pop();
-      const filePath = `avatars/${user.id}/profile.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
+      const filePath = `${user.id}/profile.${ext}`;
+      const { error: uploadError } = await withTimeout(
+        supabase.storage
+          .from("avatars")
+          .upload(filePath, file, { upsert: true }),
+        20000
+      );
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage
         .from("avatars")

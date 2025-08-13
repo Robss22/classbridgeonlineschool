@@ -102,7 +102,18 @@ export default function StudentResources() {
   }
 
   function toggleCollapse(subjectId: string) {
-    setCollapsed(prev => ({ ...prev, [subjectId]: !prev[subjectId] }));
+    setCollapsed(prev => {
+      const isCurrentlyCollapsed = prev[subjectId] ?? true;
+      // If currently collapsed, open this one and close others
+      if (isCurrentlyCollapsed) {
+        const next: Record<string, boolean> = {};
+        Object.keys(prev).forEach(id => { next[id] = true; });
+        next[subjectId] = false;
+        return next;
+      }
+      // If currently open, collapse it
+      return { ...prev, [subjectId]: true };
+    });
   }
 
   // Resource preview modal
@@ -149,90 +160,98 @@ export default function StudentResources() {
         ) : subjectIds.length === 0 ? (
           <div className="p-6 text-center text-gray-500">No subjects found for your level/program.</div>
         ) : (
-          subjectIds.map(subjectId => {
-            const subject = subjectMap[subjectId];
-            const subjectResources = filterResources(resourcesBySubject[subjectId] || []);
-            const isCollapsed = collapsed[subjectId] ?? false;
-            return (
-              <div key={subjectId} className="mb-10 border rounded-lg shadow-sm">
-                <button
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-t-lg focus:outline-none"
-                  onClick={() => toggleCollapse(subjectId)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {subjectIds.map(subjectId => {
+              const subject = subjectMap[subjectId];
+              const subjectResources = filterResources(resourcesBySubject[subjectId] || []);
+              const isCollapsed = collapsed[subjectId] ?? false;
+              return (
+                <div
+                  key={subjectId}
+                  className={`border rounded-lg shadow-sm bg-white h-full flex flex-col col-span-1 ${!isCollapsed ? 'sm:col-span-2 lg:col-span-4' : ''}`}
                 >
-                  <span className="flex items-center gap-2 text-lg font-semibold">
-                    {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    <BookOpen className="w-5 h-5 text-blue-700" /> {subject?.name || 'Subject'}
-                  </span>
-                  <span className="text-xs text-gray-500">{subjectResources.length} resource{subjectResources.length !== 1 ? 's' : ''}</span>
-                </button>
-                {!isCollapsed && (
-                  <div className="overflow-x-auto rounded-b-lg border-t border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-100">
-                        {subjectResources.length === 0 ? (
+                  <button
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-t-lg focus:outline-none"
+                    onClick={() => toggleCollapse(subjectId)}
+                  >
+                    <span className="flex items-start gap-2">
+                      {isCollapsed ? <ChevronRight className="w-5 h-5 mt-1" /> : <ChevronDown className="w-5 h-5 mt-1" />}
+                      <span className="flex flex-col leading-tight">
+                        <BookOpen className="w-6 h-6 text-blue-700 mb-1" />
+                        <span className="text-lg font-semibold">{subject?.name || 'Subject'}</span>
+                        <span className="text-xs text-gray-500">{subjectResources.length} resource{subjectResources.length !== 1 ? 's' : ''}</span>
+                      </span>
+                    </span>
+                  </button>
+                  {!isCollapsed && (
+                    <div className="overflow-x-auto rounded-b-lg border-t border-gray-200">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                           <tr>
-                            <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                           </tr>
-                        ) : (
-                      subjectResources.map((resource: any) => {
-                            const type = resource.url?.endsWith('.pdf') ? 'PDF'
-                              : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
-                              : resource.url?.startsWith('http') ? 'Link'
-                              : 'File';
-                            return (
-                              <tr key={resource.resource_id}>
-                                <td className="px-4 py-2 font-medium text-gray-900 flex items-center gap-2">
-                                  {resource.title || resource.url}
-                                  {(type === 'PDF' || type === 'Video' || type === 'Link') && (
-                                    <button
-                                      className="ml-2 p-1 rounded hover:bg-blue-100 text-blue-700"
-                                      title="Preview"
-                                      onClick={() => setPreviewResource(resource)}
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {subjectResources.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
+                            </tr>
+                          ) : (
+                            subjectResources.map((resource: any) => {
+                              const type = resource.url?.endsWith('.pdf') ? 'PDF'
+                                : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
+                                : resource.url?.startsWith('http') ? 'Link'
+                                : 'File';
+                              return (
+                                <tr key={resource.resource_id}>
+                                  <td className="px-4 py-2 font-medium text-gray-900 flex items-center gap-2">
+                                    {resource.title || resource.url}
+                                    {(type === 'PDF' || type === 'Video' || type === 'Link') && (
+                                      <button
+                                        className="ml-2 p-1 rounded hover:bg-blue-100 text-blue-700"
+                                        title="Preview"
+                                        onClick={() => setPreviewResource(resource)}
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-gray-700">{type}</td>
+                                  <td className="px-4 py-2 text-gray-700">{resource.uploader?.full_name || resource.uploader?.email || resource.uploaded_by || 'Unknown'}</td>
+                                  <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at ?? '').toLocaleDateString() : '-'}</td>
+                                  <td className="px-4 py-2">
+                                    <a
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors text-xs mr-2"
                                     >
-                                      <Eye className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2 text-gray-700">{type}</td>
-                                <td className="px-4 py-2 text-gray-700">{resource.uploader?.full_name || resource.uploader?.email || resource.uploaded_by || 'Unknown'}</td>
-                                <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at ?? '').toLocaleDateString() : '-'}</td>
-                                <td className="px-4 py-2">
-                                  <a
-                                    href={resource.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors text-xs mr-2"
-                                  >
-                                    View
-                                  </a>
-                                  <a
-                                    href={resource.url}
-                                    download
-                                    className="px-3 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors text-xs"
-                                  >
-                                    Download
-                                  </a>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                                      View
+                                    </a>
+                                    <a
+                                      href={resource.url}
+                                      download
+                                      className="px-3 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors text-xs"
+                                    >
+                                      Download
+                                    </a>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
         {previewResource && <ResourcePreviewModal resource={previewResource} onClose={() => setPreviewResource(null)} />}
       </div>

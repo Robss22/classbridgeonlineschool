@@ -1,6 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useStudent } from '@/contexts/StudentContext';
+import { supabase } from '@/lib/supabaseClient';
 import { User, Mail, Hash, BookOpen, Settings, Sun, Camera, Lock } from 'lucide-react';
 import Image from 'next/image';
 
@@ -13,11 +14,29 @@ function Avatar({ name, photoUrl }: { name: string; photoUrl: string }) {
 }
 
 export default function ProfilePage() {
-  const { studentInfo } = useStudent();
+  const { studentInfo, setStudentPhotoUrl } = useStudent();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  // Profile picture upload state (placeholder)
+  // Profile picture upload state
   const [profilePic, setProfilePic] = useState(studentInfo.photoUrl);
-  // TODO: Add real upload logic
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Ensure long-running network operations can't freeze the UI
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    return await new Promise<T>((resolve, reject) => {
+      const id = setTimeout(() => reject(new Error('Upload timed out')), ms);
+      promise
+        .then((res) => {
+          clearTimeout(id);
+          resolve(res);
+        })
+        .catch((err) => {
+          clearTimeout(id);
+          reject(err);
+        });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
@@ -54,18 +73,57 @@ export default function ProfilePage() {
           <div>
             <label className="block font-medium mb-1">Profile Picture</label>
             <div className="flex items-center gap-2">
-              <input type="file" accept="image/*" className="hidden" id="profile-pic-upload" onChange={e => {
-                // TODO: Add real upload logic
-                const file = e.target.files?.[0];
-                if (file) {
-                  const url = URL.createObjectURL(file);
-                  setProfilePic(url);
-                }
-              }} />
-              <label htmlFor="profile-pic-upload" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <Camera className="w-5 h-5" /> Upload
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                id="profile-pic-upload"
+                onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadError(null);
+                  setUploading(true);
+                  try {
+                    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+                    if (sessionErr || !sessionData?.session?.user) throw new Error('Not authenticated');
+                    const authUser = sessionData.session.user;
+                    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+                    const filePath = `${authUser.id}/profile.${ext}`;
+                    const resetTimer = setTimeout(() => {
+                      // Last-resort failsafe so UI never gets stuck
+                      setUploading(false);
+                      setUploadError('Upload taking too long. Please try again or use a smaller image.');
+                    }, 30000);
+
+                    const { error: uploadError } = await withTimeout(
+                      supabase.storage
+                        .from('avatars')
+                        .upload(filePath, file, { upsert: true, contentType: file.type || 'image/jpeg' }),
+                      20000
+                    );
+                    clearTimeout(resetTimer);
+                    if (uploadError) throw uploadError;
+                    const { data: publicData } = supabase.storage
+                      .from('avatars')
+                      .getPublicUrl(filePath);
+                    const publicUrl = (publicData?.publicUrl || '') + `?v=${Date.now()}`;
+                    setProfilePic(publicUrl);
+                    setStudentPhotoUrl(publicUrl);
+                  } catch (err: any) {
+                    const msg = err?.message || err?.error_description || 'Unknown error';
+                    setUploadError('Upload failed: ' + msg);
+                  } finally {
+                    setUploading(false);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }
+                }}
+              />
+              <label htmlFor="profile-pic-upload" className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${uploading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-700 text-white hover:bg-blue-900'} font-semibold transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400`}>
+                <Camera className="w-5 h-5" /> {uploading ? 'Uploading...' : 'Upload'}
               </label>
               {profilePic && <Image src={profilePic} alt="Preview" width={48} height={48} className="w-12 h-12 rounded-full object-cover border-2 border-blue-200" />}
+              {uploadError && <span className="text-red-600 text-sm">{uploadError}</span>}
             </div>
           </div>
         </form>
