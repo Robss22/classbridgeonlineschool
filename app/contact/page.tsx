@@ -40,7 +40,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300 py-12 px-2 flex flex-col items-center justify-center">
+    <div className="bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300 py-12 px-2 flex flex-col items-center justify-center">
       <div className="w-full max-w-4xl mx-auto text-center mb-8">
         <div className="flex flex-col items-center mb-2">
           <div className="rounded-full bg-gradient-to-tr from-blue-400 to-blue-500 p-3 mb-4">

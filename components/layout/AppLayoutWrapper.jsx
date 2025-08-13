@@ -16,16 +16,16 @@ export default function AppLayoutWrapper({ children }) {
     return <AuthProvider>{children}</AuthProvider>;
   }
   return (
-    <>
+    <div className="layout-wrapper">
       <AuthProvider>
         <ClientLayout>
-          <main className="flex-grow pt-24 bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
+          <main className="flex-1 pt-32 pb-16 bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
             {children}
           </main>
         </ClientLayout>
       </AuthProvider>
-      {/* Modern Footer (unchanged) */}
-      <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-white py-12">
+      {/* Modern Footer */}
+      <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-white py-16 relative z-10 mt-auto">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
@@ -62,11 +62,11 @@ export default function AppLayoutWrapper({ children }) {
               </address>
             </div>
           </div>
-          <div className="mt-12 text-center text-gray-400 text-sm">
+          <div className="mt-16 pt-8 border-t border-gray-700 text-center text-gray-400 text-sm">
             &copy; {new Date().getFullYear()} CLASSBRIDGE Online School. All rights reserved.
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 } 

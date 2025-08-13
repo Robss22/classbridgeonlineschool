@@ -359,11 +359,10 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
       <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
-        {/* Dashboard Content Section */}
-        <hr className="my-4 border-t-2 border-gray-200" />
-        <hr className="my-4 border-t-2 border-gray-200" />
-        {/* Main Body Content starts below the line */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6 mt-12">
+        {/* Page header line to keep content below top bar */}
+        <div className="h-0.5 bg-gray-200 mb-4" />
+        {/* Main Body Content */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
           <TodaySchedule liveClasses={liveClasses} />
           <TeachersAssigned teachers={teachers} />
         </div>

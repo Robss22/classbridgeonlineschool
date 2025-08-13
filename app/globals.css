@@ -18,9 +18,21 @@
 body, html {
   margin: 0;
   padding: 0;
-  height: 100%;
+  height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
+  scroll-behavior: smooth; /* Smooth scrolling */
+}
+
+#__next {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Prevent content from going under fixed header */
+html {
+  scroll-padding-top: 80px; /* Account for fixed header height */
 }
 
 a {
@@ -57,17 +69,41 @@ a:hover, a:active {
   z-index: 1;
 }
 
+/* Fixed Header Styles */
 header {
   position: fixed;
   top: 0;
+  left: 0;
   width: 100%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  z-index: 20;
+  height: 80px; /* Fixed height for consistent spacing */
+  z-index: 1000; /* High z-index to stay above all content */
   display: flex;
   align-items: center;
   padding: 1rem 2rem;
+}
+
+/* Ensure main content doesn't overlap with fixed header */
+main {
+  padding-top: 80px; /* Match header height */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* For pages with custom layouts, ensure proper spacing */
+.page-content {
+  padding-top: 80px;
+}
+
+/* Admin layout specific styles */
+.admin-layout {
+  /* Admin pages don't use the main header, so no extra padding needed */
+  padding-top: 0;
+}
+
+.admin-layout main {
+  /* Override the global main padding for admin pages */
+  padding-top: 0;
 }
 
 .hero-content {
@@ -93,4 +129,54 @@ footer {
   color: #f1f1f1;
   padding: 1rem;
   text-align: center;
+  position: relative;
+  z-index: 20;
+}
+
+/* Ensure footer stays at bottom */
+.flex-col.min-h-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.flex-col.min-h-screen > main {
+  flex: 1;
+}
+
+.flex-col.min-h-screen > footer {
+  margin-top: auto;
+}
+
+/* Additional footer positioning */
+footer {
+  position: relative;
+  bottom: 0;
+  width: 100%;
+}
+
+/* Ensure proper layout structure */
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.layout-wrapper > main {
+  flex: 1 0 auto;
+}
+
+.layout-wrapper > footer {
+  flex-shrink: 0;
+}
+
+/* Ensure proper spacing for pages with forms */
+.form-page {
+  padding-bottom: 2rem;
+}
+
+/* Prevent content overlap with footer */
+.content-wrapper {
+  min-height: calc(100vh - 200px);
+  padding-bottom: 2rem;
 }

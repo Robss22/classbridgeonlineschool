@@ -95,9 +95,13 @@ export default function AdminLiveClassModal({
   const allPapers = useMemo(() => [...papers, ...fetchedPapers], [papers, fetchedPapers]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-4">Schedule Live Class</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold">Schedule Live Class</h3>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6">
         
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded">
@@ -105,7 +109,7 @@ export default function AdminLiveClassModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="live-class-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Title</label>
             <input
@@ -164,87 +168,91 @@ export default function AdminLiveClassModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Program</label>
-            <select
-              value={formData.program_id}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  program_id: e.target.value,
-                  level_id: '',
-                  subject_id: '',
-                  paper_id: '',
-                })
-              }
-              className="w-full border rounded-lg px-3 py-2"
-              required
-            >
-              <option value="">Select Program</option>
-              {programs.map((p: any) => (
-                <option key={p.program_id} value={p.program_id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Level</label>
-            <select
-              value={formData.level_id}
-              onChange={(e) =>
-                setFormData({ ...formData, level_id: e.target.value, subject_id: '', paper_id: '' })
-              }
-              className="w-full border rounded-lg px-3 py-2"
-              required
-            >
-              <option value="">Select Level</option>
-              {levels
-                .filter((level: any) => !formData.program_id || level.program_id === formData.program_id)
-                .map((level: any) => (
-                  <option key={level.level_id} value={level.level_id}>
-                    {level.name}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Program</label>
+              <select
+                value={formData.program_id}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    program_id: e.target.value,
+                    level_id: '',
+                    subject_id: '',
+                    paper_id: '',
+                  })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                required
+              >
+                <option value="">Select Program</option>
+                {programs.map((p: any) => (
+                  <option key={p.program_id} value={p.program_id}>
+                    {p.name}
                   </option>
                 ))}
-            </select>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Level</label>
+              <select
+                value={formData.level_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, level_id: e.target.value, subject_id: '', paper_id: '' })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                required
+              >
+                <option value="">Select Level</option>
+                {levels
+                  .filter((level: any) => !formData.program_id || level.program_id === formData.program_id)
+                  .map((level: any) => (
+                    <option key={level.level_id} value={level.level_id}>
+                      {level.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Subject</label>
-            <select
-              value={formData.subject_id}
-              onChange={(e) => setFormData({ ...formData, subject_id: e.target.value, paper_id: '' })}
-              className="w-full border rounded-lg px-3 py-2"
-              required
-              disabled={!formData.level_id}
-            >
-              <option value="">Select Subject</option>
-              {subjects.map((subject: any) => (
-                <option key={subject.subject_id} value={subject.subject_id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Paper (Optional)</label>
-            <select
-              value={formData.paper_id}
-              onChange={(e) => setFormData({ ...formData, paper_id: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2"
-              disabled={!formData.subject_id}
-            >
-              <option value="">Select Paper</option>
-              {allPapers
-                .filter((p: any) => String(p.subject_id) === String(formData.subject_id))
-                .map((p: any) => (
-                  <option key={p.paper_id} value={p.paper_id}>
-                    {p.paper_name} ({p.paper_code})
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Subject</label>
+              <select
+                value={formData.subject_id}
+                onChange={(e) => setFormData({ ...formData, subject_id: e.target.value, paper_id: '' })}
+                className="w-full border rounded-lg px-3 py-2"
+                required
+                disabled={!formData.level_id}
+              >
+                <option value="">Select Subject</option>
+                {subjects.map((subject: any) => (
+                  <option key={subject.subject_id} value={subject.subject_id}>
+                    {subject.name}
                   </option>
                 ))}
-            </select>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Paper (Optional)</label>
+              <select
+                value={formData.paper_id}
+                onChange={(e) => setFormData({ ...formData, paper_id: e.target.value })}
+                className="w-full border rounded-lg px-3 py-2"
+                disabled={!formData.subject_id}
+              >
+                <option value="">Select Paper</option>
+                {allPapers
+                  .filter((p: any) => String(p.subject_id) === String(formData.subject_id))
+                  .map((p: any) => (
+                    <option key={p.paper_id} value={p.paper_id}>
+                      {p.paper_name} ({p.paper_code})
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -302,9 +310,16 @@ export default function AdminLiveClassModal({
             />
           </div>
 
-          <div className="flex gap-4 pt-4">
+
+        </form>
+        </div>
+        
+        {/* Fixed footer for buttons */}
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex gap-4">
             <button
               type="submit"
+              form="live-class-form"
               className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
               disabled={loading}
             >
@@ -318,7 +333,7 @@ export default function AdminLiveClassModal({
               Cancel
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Plus, Video, Play, Pause, Trash2 } from 'lucide-react';
+import { Plus, Video, Play, Pause, Trash2, TrendingUp } from 'lucide-react';
 import AdminLiveClassModal from '@/components/AdminLiveClassModal';
 import { errorHandler } from '@/lib/errorHandler';
 
@@ -210,6 +210,27 @@ export default function AdminLiveClassesPage() {
     }
   };
 
+  const handleAutoStatusUpdate = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/live-classes/auto-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to update statuses');
+      }
+      
+      await fetchData(); // Refresh data
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled': return 'bg-blue-100 text-blue-800';
@@ -245,7 +266,7 @@ export default function AdminLiveClassesPage() {
         )}
 
         {/* Action Buttons */}
-        <div className="mb-6">
+        <div className="mb-6 flex gap-4">
           <button
             onClick={() => setShowCreateForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -253,6 +274,22 @@ export default function AdminLiveClassesPage() {
             <Plus className="w-4 h-4" />
             Schedule Live Class
           </button>
+          
+          <button
+            onClick={handleAutoStatusUpdate}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Update Statuses
+          </button>
+          
+          <a
+            href="/admin/live-classes/analytics"
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <TrendingUp className="w-4 h-4" />
+            View Analytics
+          </a>
         </div>
 
         {/* Live Classes Section */}

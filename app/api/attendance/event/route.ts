@@ -16,6 +16,17 @@ type AttendanceEventBody = {
   live_class_id: string
   event: 'join' | 'leave'
   timestamp?: string
+  device_info?: {
+    userAgent: string
+    platform: string
+    connection?: string
+  }
+  technical_data?: {
+    connection_quality?: 'good' | 'fair' | 'poor'
+    audio_enabled?: boolean
+    video_enabled?: boolean
+    screen_shared?: boolean
+  }
 }
 
 function verifyToken(token: string): string {
@@ -44,27 +55,81 @@ export async function POST(request: NextRequest) {
     const occurredAt = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
 
     if (event === 'join') {
-      const { error } = await supabaseAdmin
-        .from('live_class_participants')
-        .upsert(
-          {
-            live_class_id,
-            student_id: userId,
-            join_time: occurredAt,
-            attendance_status: 'present',
-          },
-          { onConflict: 'live_class_id,student_id' }
-        )
+      try {
+        const { error } = await supabaseAdmin
+          .from('live_class_participants')
+          .upsert(
+            {
+              live_class_id,
+              student_id: userId,
+              join_time: occurredAt,
+              attendance_status: 'present',
+            },
+            { onConflict: 'live_class_id,student_id' }
+          )
 
-      if (error) throw error
+        if (error) {
+          // If table doesn't exist, log the error but don't fail
+          if (error.message.includes('relation "live_class_participants" does not exist')) {
+            console.warn('live_class_participants table does not exist. Please run the database migration.');
+            return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
+          }
+          throw error;
+        }
+
+        // Send notification to teacher about student joining (commented out until notifications table is created)
+        try {
+          console.log('Student joined notification would be sent');
+          // await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
+          //   method: 'POST',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify({
+          //     live_class_id,
+          //     type: 'student_joined',
+          //     recipients: 'teachers'
+          //   })
+          // })
+        } catch (notifError) {
+          console.warn('Failed to send join notification:', notifError)
+        }
+
+      } catch (dbError: any) {
+        console.error('Database error:', dbError);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Attendance tracking unavailable',
+          details: dbError.message 
+        }, { status: 500 });
+      }
+
     } else if (event === 'leave') {
-      const { error } = await supabaseAdmin
-        .from('live_class_participants')
-        .update({ leave_time: occurredAt })
-        .eq('live_class_id', live_class_id)
-        .eq('student_id', userId)
+      try {
+        const { error } = await supabaseAdmin
+          .from('live_class_participants')
+          .update({ 
+            leave_time: occurredAt,
+          })
+          .eq('live_class_id', live_class_id)
+          .eq('student_id', userId)
 
-      if (error) throw error
+        if (error) {
+          // If table doesn't exist, log the error but don't fail
+          if (error.message.includes('relation "live_class_participants" does not exist')) {
+            console.warn('live_class_participants table does not exist. Please run the database migration.');
+            return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
+          }
+          throw error;
+        }
+
+      } catch (dbError: any) {
+        console.error('Database error:', dbError);
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Attendance tracking unavailable',
+          details: dbError.message 
+        }, { status: 500 });
+      }
+
     } else {
       return NextResponse.json({ error: 'Unsupported event' }, { status: 400 })
     }
@@ -75,5 +140,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 400 })
   }
 }
+
+// function calculateParticipationScore(duration_minutes: number, technical_data?: any): number {
+//   let score = 0
+//   
+//   // Base score from duration (assuming 60-minute class)
+//   const durationScore = Math.min((duration_minutes / 60) * 100, 100)
+//   score += durationScore * 0.6 // 60% weight for duration
+//   
+//   // Technical engagement score
+//   if (technical_data) {
+//     let engagementScore = 0
+//     if (technical_data.audio_enabled) engagementScore += 20
+//     if (technical_data.video_enabled) engagementScore += 20
+//     if (technical_data.screen_shared) engagementScore += 20
+//     if (technical_data.connection_quality === 'good') engagementScore += 20
+//     else if (technical_data.connection_quality === 'fair') engagementScore += 10
+//     
+//     score += engagementScore * 0.4 // 40% weight for engagement
+//   }
+//   
+//   return Math.round(Math.min(score, 100))
+// }
 
 

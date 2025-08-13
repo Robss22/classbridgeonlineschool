@@ -302,7 +302,7 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300 min-h-screen flex items-center justify-center py-12 px-2">
+    <div className="bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300 flex items-center justify-center py-12 px-2 pb-32">
       <div className="max-w-3xl w-full mx-auto p-6 bg-white rounded shadow">
         <h1 className="text-2xl font-bold mb-2 text-center">Student Application Form</h1>
         <p className="mb-6 text-center text-gray-600">

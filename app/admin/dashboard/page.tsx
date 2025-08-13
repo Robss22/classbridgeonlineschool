@@ -1,32 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
-import { useRouter } from 'next/navigation';
 
 export default function DashboardHome() {
-  const router = useRouter();
   return (
-    <div className="max-w-5xl mx-auto p-8">
-      <header className="flex items-center justify-between mb-6">
+    <div className="max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <div className="flex gap-2">
-          <Link href="/assessments">
-            <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
-              + Add Assessment
-            </button>
-          </Link>
-          <button
-            className="px-4 py-2 rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push('/login');
-            }}
-          >
-            Logout
+        <Link href="/assessments">
+          <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
+            + Add Assessment
           </button>
-        </div>
-      </header>
+        </Link>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {[
           { title: "Applications", href: "/admin/applications", desc: "Review and approve student applications." },

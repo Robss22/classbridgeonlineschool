@@ -49,7 +49,7 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 z-50 w-full flex justify-center items-center bg-transparent py-4">
+    <header className="fixed top-0 z-50 w-full flex justify-center items-center bg-gradient-to-r from-blue-900 via-purple-900 to-blue-900 shadow-lg border-b border-blue-200 py-4">
       <nav className="flex items-center w-full max-w-6xl px-6 py-2">
         {/* Logo */}
         <div className="flex-shrink-0 flex items-center">
@@ -137,17 +137,18 @@ export default function Header() {
                 Contact Us
               </Link>
             </li>
+
           </ul>
         </div>
 
         {/* Desktop Auth/Donate Buttons */}
         <div className="hidden lg:flex items-center gap-3 ml-6">
           {!user ? (
-            <Link href="/login" className="px-7 py-2 rounded-full border-2 border-[#A084E8] text-white font-bold bg-transparent hover:bg-[#A084E8]/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#A084E8]">
+            <Link href="/login" className="px-7 py-2 rounded-full border-2 border-white text-white font-bold bg-[#A084E8] hover:bg-[#8B6FD8] hover:border-[#8B6FD8] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white shadow-lg">
               Login
             </Link>
           ) : (
-            <button onClick={handleLogout} className="px-7 py-2 rounded-full border-2 border-[#A084E8] text-white font-bold bg-transparent hover:bg-[#A084E8]/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#A084E8]">
+            <button onClick={handleLogout} className="px-7 py-2 rounded-full border-2 border-white text-white font-bold bg-[#A084E8] hover:bg-[#8B6FD8] hover:border-[#8B6FD8] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white shadow-lg">
               Logout
             </button>
           )}
@@ -157,7 +158,7 @@ export default function Header() {
         <div className="lg:hidden ml-auto">
           <button
             onClick={toggleMobileMenu}
-            className="text-white p-2 rounded-lg hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#A084E8]"
+            className="text-white p-2 rounded-lg hover:bg-white/10 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white"
             aria-label="Toggle mobile menu"
           >
             <svg
@@ -276,6 +277,7 @@ export default function Header() {
                   Contact Us
                 </Link>
               </li>
+
             </ul>
 
             {/* Mobile Auth Button */}

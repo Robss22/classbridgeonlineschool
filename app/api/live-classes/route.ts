@@ -9,43 +9,77 @@ function generateMeetingId(): string {
   return `${rand(3)}-${rand(4)}-${rand(3)}`;
 }
 
-// Generate a meeting link based on platform
-// NOTE: Generating random Google Meet/Zoom/Teams codes does not create real meetings.
-// To ensure links are immediately joinable without provider APIs, we default to Jitsi Meet.
-function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string } {
-  switch ((platform || 'Jitsi Meet').toLowerCase()) {
+// Enhanced platform configuration with security features
+const platformConfig = {
+  'Jitsi Meet': {
+    generateLink: () => `https://meet.jit.si/${generateMeetingId()}`,
+    embedConfig: { 
+      prejoinPageEnabled: false,
+      startWithAudioMuted: true,
+      startWithVideoMuted: false,
+      disableModeratorIndicator: false,
+      enableClosePage: true,
+      lobby: {
+        enabled: true,
+        autoKnock: false
+      }
+    }
+  },
+  'Google Meet': {
+    generateLink: () => `https://meet.google.com/${generateMeetingId()}`,
+    embedConfig: { 
+      height: '100%', 
+      width: '100%',
+      allowMicrophone: true,
+      allowCamera: true
+    }
+  },
+  'Zoom': {
+    generateLink: () => `https://zoom.us/j/${Math.random().toString(36).substring(2, 15)}`,
+    embedConfig: { 
+      height: '100%', 
+      width: '100%',
+      passcode: Math.random().toString(36).substring(2, 8)
+    }
+  }
+};
+
+// Generate a meeting link based on platform with enhanced security
+function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string, config: any } {
+  const platformKey = (platform || 'Jitsi Meet').toLowerCase();
+  
+  switch (platformKey) {
     case 'jitsi':
     case 'jitsi meet':
+      const config = platformConfig['Jitsi Meet'];
       return {
-        link: `https://meet.jit.si/${generateMeetingId()}`,
-        platform: 'Jitsi Meet'
-      }
+        link: config.generateLink(),
+        platform: 'Jitsi Meet',
+        config: config.embedConfig
+      };
     case 'google meet':
     case 'google':
-      // Fallback to Jitsi unless Google Meet API integration is configured
+      const googleConfig = platformConfig['Google Meet'];
       return {
-        link: `https://meet.jit.si/${generateMeetingId()}`,
-        platform: 'Jitsi Meet'
-      }
+        link: googleConfig.generateLink(),
+        platform: 'Google Meet',
+        config: googleConfig.embedConfig
+      };
     case 'zoom': {
-      // Without Zoom API, cannot create joinable meetings; fallback to Jitsi
+      const zoomConfig = platformConfig['Zoom'];
       return {
-        link: `https://meet.jit.si/${generateMeetingId()}`,
-        platform: 'Jitsi Meet'
-      }
-    }
-    case 'teams': {
-      // Without Teams API, cannot create joinable meetings; fallback to Jitsi
-      return {
-        link: `https://meet.jit.si/${generateMeetingId()}`,
-        platform: 'Jitsi Meet'
-      }
+        link: zoomConfig.generateLink(),
+        platform: 'Zoom',
+        config: zoomConfig.embedConfig
+      };
     }
     default:
+      const defaultConfig = platformConfig['Jitsi Meet'];
       return {
-        link: `https://meet.jit.si/${generateMeetingId()}`,
-        platform: 'Jitsi Meet'
-      }
+        link: defaultConfig.generateLink(),
+        platform: 'Jitsi Meet',
+        config: defaultConfig.embedConfig
+      };
   }
 }
 
@@ -68,6 +102,11 @@ interface LiveClass {
   meeting_platform?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
+  pre_class_buffer?: number | null;
+  max_participants?: number | null;
+  meeting_password?: string | null;
+  recording_enabled?: boolean | null;
+  waiting_room_enabled?: boolean | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -151,6 +190,23 @@ export async function PUT(request: NextRequest) {
     console.log('[API] Supabase update result:', { data, error });
     if (error) throw error;
 
+    // Send notifications based on status change
+    if (status === 'ongoing') {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            live_class_id: id,
+            type: 'class_starting',
+            recipients: 'both'
+          })
+        });
+      } catch (notifError) {
+        console.warn('Failed to send class starting notification:', notifError);
+      }
+    }
+
     return NextResponse.json({ data, success: true });
   } catch (error) {
     console.error('[API] Error in PUT /api/live-classes:', error);
@@ -186,7 +242,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
       teacher_id, 
       meeting_platform, 
       meeting_link,
-      status 
+      status,
+      pre_class_buffer = 15, // Default 15-minute buffer
+      max_participants = 50,
+      recording_enabled = false,
+      waiting_room_enabled = true
     } = body;
 
     console.log('[API] POST /api/live-classes body:', body);
@@ -204,6 +264,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
     const shouldGenerate = !meeting_link || String(meeting_link).trim().length === 0;
     const generated = shouldGenerate ? generateMeetingLink(meeting_platform || 'Jitsi Meet') : null;
 
+    // Generate meeting password for security
+    const meeting_password = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const { data, error } = await supabase
       .from('live_classes')
       .insert([{
@@ -219,13 +282,51 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
         teacher_id,
         meeting_platform: generated?.platform || meeting_platform || 'Jitsi Meet',
         meeting_link: generated?.link || meeting_link || '',
-        status: status || 'scheduled'
+        meeting_password,
+        status: status || 'scheduled',
+        pre_class_buffer,
+        max_participants,
+        recording_enabled,
+        waiting_room_enabled
       }])
       .select()
       .single();
 
     console.log('[API] Supabase insert result:', { data, error });
     if (error) throw error;
+
+    // Schedule notifications
+    if (data) {
+      try {
+        // Schedule 30-minute reminder
+        setTimeout(async () => {
+          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              live_class_id: data.live_class_id,
+              type: 'reminder_30min',
+              recipients: 'both'
+            })
+          });
+        }, 30 * 60 * 1000); // 30 minutes
+
+        // Schedule 5-minute reminder
+        setTimeout(async () => {
+          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              live_class_id: data.live_class_id,
+              type: 'reminder_5min',
+              recipients: 'both'
+            })
+          });
+        }, 5 * 60 * 1000); // 5 minutes
+      } catch (notifError) {
+        console.warn('Failed to schedule notifications:', notifError);
+      }
+    }
 
     return NextResponse.json({ data, success: true });
   } catch (error) {

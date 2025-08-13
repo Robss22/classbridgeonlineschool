@@ -250,12 +250,13 @@ const Login: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
       <div style={{
         backgroundColor: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        maxWidth: '400px',
+        padding: '48px 40px',
+        borderRadius: '16px',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+        maxWidth: '420px',
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        border: '1px solid rgba(160, 132, 232, 0.1)'
       }}>
         {showWelcome ? (
           <div>
@@ -278,16 +279,16 @@ const Login: React.FC = () => {
           </div>
         ) : (
           <>
-            <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '24px', color: '#1a1a1a', fontSize: '24px', fontWeight: 'bold' }}>
               Welcome to Class Bridge Online School
             </h2>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {offline && (
                 <div style={{ color: 'red', textAlign: 'center', marginBottom: '10px' }}>
                   You are offline. Please check your internet connection.
                 </div>
               )}
-              <label style={{ display: 'flex', flexDirection: 'column', color: '#555' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', color: '#374151', fontWeight: '500' }}>
                 Email:
                 <input
                   type="email"
@@ -296,16 +297,20 @@ const Login: React.FC = () => {
                   disabled={!!loading}
                   required
                   style={{
-                    padding: '10px',
-                    marginTop: '5px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    marginTop: '6px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
                     fontSize: '16px',
-                    opacity: loading ? 0.6 : 1
+                    opacity: loading ? 0.6 : 1,
+                    transition: 'border-color 0.3s ease',
+                    outline: 'none'
                   }}
+                  onFocus={(e) => e.target.style.borderColor = '#A084E8'}
+                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                 />
               </label>
-              <label style={{ display: 'flex', flexDirection: 'column', color: '#555' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', color: '#374151', fontWeight: '500' }}>
                 Password:
                 <input
                   type="password"
@@ -314,33 +319,40 @@ const Login: React.FC = () => {
                   disabled={!!loading}
                   required
                   style={{
-                    padding: '10px',
-                    marginTop: '5px',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    marginTop: '6px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '8px',
                     fontSize: '16px',
-                    opacity: loading ? 0.6 : 1
+                    opacity: loading ? 0.6 : 1,
+                    transition: 'border-color 0.3s ease',
+                    outline: 'none'
                   }}
+                  onFocus={(e) => e.target.style.borderColor = '#A084E8'}
+                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
                 />
               </label>
               <button
                 type="submit"
                 style={{
-                  padding: '12px 20px',
-                  backgroundColor: loading ? '#b3c6e6' : '#0070f3',
+                  padding: '14px 24px',
+                  backgroundColor: loading ? '#b3c6e6' : '#A084E8',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '8px',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   fontSize: '16px',
-                  marginTop: '10px',
-                  transition: 'background-color 0.3s ease',
+                  fontWeight: 'bold',
+                  marginTop: '15px',
+                  width: '100%',
+                  transition: 'all 0.3s ease',
                   position: 'relative',
-                  opacity: loading ? 0.7 : 1
+                  opacity: loading ? 0.7 : 1,
+                  boxShadow: '0 4px 6px rgba(160, 132, 232, 0.2)'
                 }}
                 disabled={!!loading}
-                onMouseOver={e => { if (!loading) e.currentTarget.style.backgroundColor = '#005bb5'; }}
-                onMouseOut={e => { if (!loading) e.currentTarget.style.backgroundColor = '#0070f3'; }}
+                onMouseOver={e => { if (!loading) e.currentTarget.style.backgroundColor = '#8B6FD8'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(160, 132, 232, 0.3)'; }}
+                onMouseOut={e => { if (!loading) e.currentTarget.style.backgroundColor = '#A084E8'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(160, 132, 232, 0.2)'; }}
               >
                 {loading ? (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

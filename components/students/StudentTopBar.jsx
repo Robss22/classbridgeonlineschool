@@ -26,7 +26,7 @@ export default function StudentTopBar() {
   const { program, class: className, registration_number, email, photoUrl } = studentInfo;
 
   return (
-    <header className="bg-white shadow border-b">
+    <header className="bg-white shadow border-b sticky top-0 z-30">
       <div className="max-w-5xl mx-auto flex flex-row items-center px-3 sm:px-6 py-3 sm:py-4">
         <div className="flex flex-col flex-1 text-left gap-y-1">
           <h1 className="text-xl sm:text-2xl font-bold whitespace-nowrap">
