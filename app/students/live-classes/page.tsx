@@ -320,7 +320,9 @@ export default function StudentLiveClassesPage() {
                   <div className="mt-auto pt-4">
                     {canJoin ? (
                       <a
-                        href={`/students/live/join/${liveClass.live_class_id}`}
+                        href={liveClass.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className={`w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-semibold text-white transition-colors ${
                           isLive 
                             ? 'bg-green-600 hover:bg-green-700 shadow-lg' 

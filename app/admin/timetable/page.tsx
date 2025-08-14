@@ -577,14 +577,14 @@ export default function AdminTimetablePage() {
                                <div className="text-xs text-gray-600">
                                  {liveClass.levels?.name} {liveClass.programs?.name}
                                </div>
-                               {liveClass.status === 'ongoing' && liveClass.meeting_link && (
+                                {liveClass.status === 'ongoing' && liveClass.meeting_link && (
                                  <div className="mt-2">
-                                   <a
-                                     href={liveClass.meeting_link}
-                                     target="_blank"
-                                     rel="noopener noreferrer"
-                                     className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors"
-                                   >
+                                    <a
+                                      href={liveClass.meeting_link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors"
+                                    >
                                      Join Class
                                    </a>
                                  </div>

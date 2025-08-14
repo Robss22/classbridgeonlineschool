@@ -364,16 +364,20 @@ export default function AdminLiveClassesPage() {
                             {liveClass.meeting_link ? (
                               <div className="flex gap-1">
                                 <a
-                                  href={`/teachers/live/join/${liveClass.live_class_id}`}
+                                  href={liveClass.meeting_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
-                                  title="Join as Teacher"
+                                  title="Join as Teacher (opens in new tab)"
                                 >
                                   <Video className="w-3.5 h-3.5" /> Join
                                 </a>
                                 <a
-                                  href={`/students/live/join/${liveClass.live_class_id}`}
+                                  href={liveClass.meeting_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
-                                  title="Join as Student"
+                                  title="Join as Student (opens in new tab)"
                                 >
                                   <Video className="w-3.5 h-3.5" /> Student
                                 </a>
