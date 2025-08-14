@@ -95,13 +95,13 @@ export default function AdminLiveClassModal({
   const allPapers = useMemo(() => [...papers, ...fetchedPapers], [papers, fetchedPapers]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+      <div className="bg-white rounded-lg w-[92vw] sm:w-full max-w-lg sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden mt-4 sm:mt-8">
+        <div className="px-6 py-5 sm:py-6 border-b border-gray-200">
           <h3 className="text-lg font-semibold">Schedule Live Class</h3>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-28">
         
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded">
@@ -131,7 +131,7 @@ export default function AdminLiveClassModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Date</label>
               <input
@@ -144,7 +144,7 @@ export default function AdminLiveClassModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Start Time</label>
               <input
@@ -168,7 +168,7 @@ export default function AdminLiveClassModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Program</label>
               <select
@@ -216,7 +216,7 @@ export default function AdminLiveClassModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Subject</label>
               <select

@@ -3,18 +3,19 @@
 
 Write-Host "🚀 Setting up automatic class starting system on Windows..." -ForegroundColor Green
 
-# Check if running as administrator
-if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+# 1. Check if running as administrator
+if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Host "❌ Error: This script must be run as Administrator" -ForegroundColor Red
     Write-Host "Please right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
     exit 1
 }
 
-# Get the current directory
+# 2. Get script and project directory
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PROJECT_DIR = Split-Path -Parent $SCRIPT_DIR
 
-# Check if .env.local file exists
+# 3. Check if .env.local exists
 $envFile = Join-Path $PROJECT_DIR ".env.local"
 if (-not (Test-Path $envFile)) {
     Write-Host "❌ Error: .env.local file not found" -ForegroundColor Red
@@ -22,7 +23,7 @@ if (-not (Test-Path $envFile)) {
     exit 1
 }
 
-# Load environment variables
+# 4. Load environment variables
 Get-Content $envFile | ForEach-Object {
     if ($_ -match '^([^=]+)=(.*)$') {
         $name = $matches[1]
@@ -31,36 +32,39 @@ Get-Content $envFile | ForEach-Object {
     }
 }
 
-# Check required environment variables
+# 5. Check required env vars
 if (-not $NEXT_PUBLIC_SUPABASE_URL -or -not $SUPABASE_SERVICE_ROLE_KEY) {
     Write-Host "❌ Error: Missing required environment variables" -ForegroundColor Red
     Write-Host "Please ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in .env.local" -ForegroundColor Yellow
     exit 1
 }
 
-# Create the PowerShell script that will be executed by the task
-$taskScript = @"
+# 6. Script that will be run every minute
+$taskScript = @'
 # Auto-start classes script
-`$supabaseUrl = "$NEXT_PUBLIC_SUPABASE_URL"
-`$serviceKey = "$SUPABASE_SERVICE_ROLE_KEY"
+$supabaseUrl = "__SUPABASE_URL__"
+$serviceKey = "__SERVICE_KEY__"
 
 try {
-    `$headers = @{
-        'Authorization' = "Bearer `$serviceKey"
+    $headers = @{
+        Authorization = "Bearer $serviceKey"
         'Content-Type' = 'application/json'
     }
-    
-    `$response = Invoke-RestMethod -Uri "`$supabaseUrl/functions/v1/auto-start-classes" -Method POST -Headers `$headers
-    Write-Host "Auto-start triggered successfully at $(Get-Date): `$(`$response.message)" -ForegroundColor Green
+    $response = Invoke-RestMethod -Uri "$supabaseUrl/functions/v1/auto-start-classes" -Method POST -Headers $headers
+    Write-Host "Auto-start triggered successfully at $(Get-Date): $($response.message)" -ForegroundColor Green
 } catch {
-    Write-Host "Error triggering auto-start at $(Get-Date): `$(`$_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error triggering auto-start at $(Get-Date): $($_.Exception.Message)" -ForegroundColor Red
 }
-"@
+'@
 
+# Inject env values
+$taskScript = $taskScript.Replace('__SUPABASE_URL__', $NEXT_PUBLIC_SUPABASE_URL).Replace('__SERVICE_KEY__', $SUPABASE_SERVICE_ROLE_KEY)
+
+# Save it to file
 $taskScriptPath = Join-Path $PROJECT_DIR "scripts\auto-start-classes.ps1"
 $taskScript | Out-File -FilePath $taskScriptPath -Encoding UTF8
 
-# Create the scheduled task
+# 7. Create the scheduled task
 $taskName = "ClassBridge-AutoStartClasses"
 $taskDescription = "Automatically start and end live classes based on schedule"
 
@@ -71,29 +75,31 @@ try {
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
     }
 
-    # Create the action
+    # Create action
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$taskScriptPath`""
 
-    # Create the trigger (every minute)
-    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration (New-TimeSpan -Days 365)
+    # Create trigger (every minute)
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+        -RepetitionInterval (New-TimeSpan -Minutes 1) `
+        -RepetitionDuration (New-TimeSpan -Days 365)
 
-    # Create the task settings
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+    # Settings
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries -StartWhenAvailable
 
-    # Create the task
+    # Build and register
     $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Description $taskDescription
-
-    # Register the task
     Register-ScheduledTask -TaskName $taskName -InputObject $task -User "SYSTEM" -RunLevel Highest
 
     Write-Host "✅ Scheduled task created successfully!" -ForegroundColor Green
     Write-Host "📅 The system will now check for classes to start every minute" -ForegroundColor Green
-    
+
 } catch {
     Write-Host "❌ Error creating scheduled task: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
+# 8. Info
 Write-Host ""
 Write-Host "🎯 Next steps:" -ForegroundColor Cyan
 Write-Host "1. Deploy the Edge Function to Supabase:" -ForegroundColor White

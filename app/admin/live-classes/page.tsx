@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Plus, Video, Play, Pause, Trash2, TrendingUp } from 'lucide-react';
 import AdminLiveClassModal from '@/components/AdminLiveClassModal';
@@ -16,6 +16,8 @@ interface LiveClass {
   meeting_link: string;
   meeting_platform: string;
   status: string;
+  started_at?: string | null;
+  ended_at?: string | null;
   teacher_id: string;
   program_id: string;
   level_id: string;
@@ -43,13 +45,9 @@ export default function AdminLiveClassesPage() {
 
   // form state handled inside AdminLiveClassModal
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       // Fetch reference data first
       const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes] = await Promise.all([
@@ -115,6 +113,8 @@ export default function AdminLiveClassesPage() {
         meeting_link: row.meeting_link ?? '',
         meeting_platform: row.meeting_platform ?? 'Zoom',
         status: row.status ?? 'scheduled',
+        started_at: row.started_at ?? null,
+        ended_at: row.ended_at ?? null,
         max_participants: typeof row.max_participants === 'number' ? row.max_participants : 0,
         teacher_id: row.teacher_id ?? '',
         level_id: row.level_id ?? '',
@@ -134,9 +134,9 @@ export default function AdminLiveClassesPage() {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_admin_live_classes', 'admin');
       setError(appError.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   // creation handled inside AdminLiveClassModal
 
@@ -210,9 +210,8 @@ export default function AdminLiveClassesPage() {
     }
   };
 
-  const handleAutoStatusUpdate = async () => {
+  const handleAutoStatusUpdate = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/live-classes/auto-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -223,13 +222,27 @@ export default function AdminLiveClassesPage() {
         throw new Error(result.error || 'Failed to update statuses');
       }
       
-      await fetchData(); // Refresh data
+      await fetchData(true); // silent refresh to avoid disrupting forms
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      setLoading(false);
+      // keep UI state as-is during background refresh
     }
-  };
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchData();
+    
+    // Set up automatic status checking every 30 seconds
+    const interval = setInterval(() => {
+      // Do not auto-refresh while the scheduling modal is open
+      if (!showCreateForm) {
+        handleAutoStatusUpdate();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchData, handleAutoStatusUpdate, showCreateForm]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -349,13 +362,22 @@ export default function AdminLiveClassesPage() {
                         {liveClass.status === 'ongoing' && (
                           <>
                             {liveClass.meeting_link ? (
-                              <a
-                                href={`/teachers/live/join/${liveClass.live_class_id}`}
-                                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
-                                title="Join Class"
-                              >
-                                <Video className="w-3.5 h-3.5" /> Join
-                              </a>
+                              <div className="flex gap-1">
+                                <a
+                                  href={`/teachers/live/join/${liveClass.live_class_id}`}
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700"
+                                  title="Join as Teacher"
+                                >
+                                  <Video className="w-3.5 h-3.5" /> Join
+                                </a>
+                                <a
+                                  href={`/students/live/join/${liveClass.live_class_id}`}
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700"
+                                  title="Join as Student"
+                                >
+                                  <Video className="w-3.5 h-3.5" /> Student
+                                </a>
+                              </div>
                             ) : (
                               <button
                                 onClick={() => handleGenerateMeetingLink(liveClass.live_class_id)}
@@ -374,6 +396,14 @@ export default function AdminLiveClassesPage() {
                               <Pause className="w-4 h-4" />
                             </button>
                           </>
+                        )}
+                        {liveClass.status === 'completed' && (
+                          <div className="text-xs text-gray-500">
+                            {liveClass.ended_at ? 
+                              `Ended at ${new Date(liveClass.ended_at).toLocaleTimeString()}` : 
+                              'Completed'
+                            }
+                          </div>
                         )}
                         <button
                           onClick={() => handleDeleteLiveClass(liveClass.live_class_id)}

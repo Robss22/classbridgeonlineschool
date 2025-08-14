@@ -211,22 +211,24 @@ export default function AdminTimetablePage() {
   const checkClassesStatus = useCallback(async () => {
     try {
       setAutoStartStatus('checking');
-      // Call the auto-start Edge Function
-      const response = await fetch('/api/admin/trigger-auto-start', {
+      // Use the in-app auto-status endpoint (no Edge Function required)
+      const response = await fetch('/api/live-classes/auto-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (response.ok) {
-        const result = await response.json();
-        if (result.classesStarted > 0 || result.classesEnded > 0) {
+        const result = await response.json().catch(() => ({}));
+        if (result?.success) {
           setAutoStartStatus('updated');
           // Refresh the timetable to show new status
           fetchLiveClasses();
           // Reset status after 3 seconds
           setTimeout(() => setAutoStartStatus('idle'), 3000);
+          return;
         }
       }
+      setAutoStartStatus('idle');
     } catch (error) {
       console.error('Error checking classes status:', error);
       setAutoStartStatus('error');
@@ -366,7 +368,7 @@ export default function AdminTimetablePage() {
 
   return (
     <div className="flex-1">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto overflow-visible">
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -501,7 +503,7 @@ export default function AdminTimetablePage() {
         )}
 
         {/* Main Timetable Grid */}
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <div className="bg-white rounded-lg shadow overflow-x-auto overflow-y-visible">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

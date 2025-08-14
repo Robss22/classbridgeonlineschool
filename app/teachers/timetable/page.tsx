@@ -125,14 +125,14 @@ export default function TeacherTimetablePage() {
   const checkClassesStatus = useCallback(async () => {
     try {
       setAutoStartStatus('checking');
-      // Reuse the admin trigger to prompt the Edge Function to process classes
-      const response = await fetch('/api/admin/trigger-auto-start', {
+      // Use the same auto-status endpoint used across the app
+      const response = await fetch('/api/live-classes/auto-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       if (response.ok) {
-        const result = await response.json();
-        if (result.classesStarted > 0 || result.classesEnded > 0) {
+        const result = await response.json().catch(() => ({}));
+        if (result?.success) {
           setAutoStartStatus('updated');
           fetchLiveClasses();
           setTimeout(() => setAutoStartStatus('idle'), 3000);

@@ -295,34 +295,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
     console.log('[API] Supabase insert result:', { data, error });
     if (error) throw error;
 
-    // Schedule notifications
-    if (data) {
+    // Schedule notifications (only if app URL is configured)
+    if (data && process.env.NEXT_PUBLIC_APP_URL) {
       try {
-        // Schedule 30-minute reminder
-        setTimeout(async () => {
-          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              live_class_id: data.live_class_id,
-              type: 'reminder_30min',
-              recipients: 'both'
-            })
-          });
-        }, 30 * 60 * 1000); // 30 minutes
+        const notify = async (delayMs: number, type: string) => {
+          setTimeout(async () => {
+            try {
+              await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  live_class_id: data.live_class_id,
+                  type,
+                  recipients: 'both'
+                })
+              });
+            } catch (e) {
+              // avoid crashing server on missing URL in dev
+              console.warn('Notification request failed:', e);
+            }
+          }, delayMs);
+        };
 
-        // Schedule 5-minute reminder
-        setTimeout(async () => {
-          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              live_class_id: data.live_class_id,
-              type: 'reminder_5min',
-              recipients: 'both'
-            })
-          });
-        }, 5 * 60 * 1000); // 5 minutes
+        await notify(30 * 60 * 1000, 'reminder_30min');
+        await notify(5 * 60 * 1000, 'reminder_5min');
       } catch (notifError) {
         console.warn('Failed to schedule notifications:', notifError);
       }

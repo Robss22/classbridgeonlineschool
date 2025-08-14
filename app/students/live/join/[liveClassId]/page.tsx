@@ -63,18 +63,33 @@ export default function JoinLiveClassPage() {
           }
         })
 
-        // Resolve meeting link for this live class
+        // Resolve or ensure meeting link for this live class
         const { data, error } = await supabase
           .from('live_classes')
           .select('meeting_link, title')
           .eq('live_class_id', liveClassId)
           .single()
 
-        if (error || !data?.meeting_link) {
+        let link = data?.meeting_link || ''
+        if (!error && (!link || link.trim().length === 0)) {
+          try {
+            const resp = await fetch('/api/live-classes/generate-meeting-link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ live_class_id: liveClassId, platform: 'Jitsi Meet' })
+            })
+            const json = await resp.json().catch(() => ({}))
+            if (resp.ok && json?.meeting_link) {
+              link = json.meeting_link
+            }
+          } catch (_) {}
+        }
+
+        if (!link) {
           setError('Live class not found or meeting link not available')
           return
         }
-        setMeetingLink(data.meeting_link)
+        setMeetingLink(link)
 
         // Force: do not use JaaS for students to avoid lobby/knock – rely on public Jitsi link
         setJaas(null)
@@ -116,8 +131,10 @@ export default function JoinLiveClassPage() {
 
           // Extract room name from the Jitsi link or use JaaS room
           const url = new URL(meetingLink)
-          const domain = url.hostname || 'meet.jit.si'
-          const room = url.pathname.replace(/^\//, '') || 'ClassBridgeRoom'
+          // Force domain to public meet.jit.si to avoid lobby/auth on custom domains
+          const domain = 'meet.jit.si'
+          let room = url.pathname.replace(/^\//, '') || `ClassBridge-${liveClassId}`
+          room = room.replace(/[^A-Za-z0-9_-]/g, '') || `ClassBridge-${liveClassId}`
 
           const api = new window.JitsiMeetExternalAPI(domain, {
             roomName: room,
@@ -129,10 +146,7 @@ export default function JoinLiveClassPage() {
               startWithVideoMuted: false,
               disableModeratorIndicator: false,
               enableClosePage: true,
-              lobby: {
-                enabled: false,
-                autoKnock: false
-              }
+              lobby: { enabled: false, autoKnock: false }
             },
             interfaceConfigOverwrite: {
               // Hide Security/Invite to avoid adding passwords or sharing links externally
@@ -184,9 +198,15 @@ export default function JoinLiveClassPage() {
             sendAttendance('join')
           })
 
+          let hasJoined = false
+          api.addListener('videoConferenceJoined', () => {
+            hasJoined = true
+            sendAttendance('join')
+          })
+
           api.addListener('videoConferenceLeft', () => {
             sendAttendance('leave')
-            router.push('/students/live-classes')
+            if (hasJoined) router.push('/students/live-classes')
           })
 
           // Monitor connection quality

@@ -38,8 +38,11 @@ export default function TeacherLiveClassesPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
+      // If auth context hasn't provided a user yet, exit quietly and try again on next effect
       if (!user || !user.id) {
-        throw new Error('User not authenticated');
+        setLoading(false);
+        return;
       }
 
       // Get teacher_id from user
@@ -50,7 +53,9 @@ export default function TeacherLiveClassesPage() {
         .single();
 
       if (teacherError || !teacherData) {
-        throw new Error('Teacher profile not found');
+        setError('Teacher profile not found');
+        setLoading(false);
+        return;
       }
 
       // Fetch teacher's live classes
@@ -102,6 +107,20 @@ export default function TeacherLiveClassesPage() {
 
   useEffect(() => {
     fetchData();
+    
+    // Set up automatic status checking every 30 seconds
+    const interval = setInterval(() => {
+      // Trigger auto status update
+      fetch('/api/live-classes/auto-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(() => {
+        // Refresh data after status update
+        fetchData();
+      }).catch(console.error);
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
   }, [fetchData]);
 
 

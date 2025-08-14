@@ -2,22 +2,25 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { normalizeForInsert as normalizeInsertStrict } from '@/utils/normalizeForInsert';
+import { normalizeForInsert as normalizeInsertLoose } from '@/utils/db';
 
 // Reusable Dropdown menu for actions
 function ActionsDropdown({ onEdit, onDelete, onManageOfferings, onAddOffering }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown if clicked outside
+  // Close dropdown if clicked outside (use 'click' instead of 'mousedown' so the menu
+  // doesn't disappear the moment you press on the scrollbar to start scrolling)
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside, true);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside, true);
     };
   }, [dropdownRef]);
 
@@ -33,7 +36,7 @@ function ActionsDropdown({ onEdit, onDelete, onManageOfferings, onAddOffering })
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-md z-10 py-1"
+            className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded shadow-md z-10 py-1 max-h-60 overflow-y-auto"
           role="menu"
         >
           <button
@@ -155,14 +158,14 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
         // Edit existing offering
         const { error: updateError } = await supabase
           .from('subject_offerings')
-          .update(normalizeForInsert(dataToSave))
+          .update(normalizeInsertLoose(dataToSave))
           .eq('id', offeringItem.id);
         if (updateError) throw updateError;
       } else {
         // Add new offering
         const { error: insertError } = await supabase
           .from('subject_offerings')
-          .insert([normalizeForInsert(dataToSave)]);
+          .insert([normalizeInsertLoose(dataToSave)]);
         if (insertError) throw insertError;
       }
       onSave();
@@ -529,14 +532,14 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
         // Edit existing subject
         const { error: updateError } = await supabase
           .from('subjects')
-          .update(normalizeForInsert(dataToSave))
+          .update(normalizeInsertLoose(dataToSave))
           .eq('subject_id', subjectItem.subject_id);
         if (updateError) throw updateError;
       } else {
         // Add new subject
         const { error: insertError } = await supabase
           .from('subjects')
-          .insert([normalizeForInsert(dataToSave)]);
+          .insert([normalizeInsertLoose(dataToSave)]);
         if (insertError) throw insertError;
       }
       onSave();

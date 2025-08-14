@@ -27,18 +27,35 @@ export default function TeacherJoinLiveClassPage() {
       const fullName = userData?.user?.user_metadata?.full_name || userData?.user?.email || 'Teacher'
       setDisplayName(fullName)
 
-      // Resolve meeting link
+      // Resolve or generate meeting link
       const { data, error } = await supabase
         .from('live_classes')
         .select('meeting_link, title')
         .eq('live_class_id', liveClassId)
         .single()
 
-      if (error || !data?.meeting_link) {
+      let link = data?.meeting_link || ''
+
+      // If no link, generate one via API (avoids falling back to a shared room)
+      if (!error && (!link || link.trim().length === 0)) {
+        try {
+          const resp = await fetch('/api/live-classes/generate-meeting-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ live_class_id: liveClassId, platform: 'Jitsi Meet' })
+          })
+          const json = await resp.json().catch(() => ({}))
+          if (resp.ok && json?.meeting_link) {
+            link = json.meeting_link
+          }
+        } catch (_) {}
+      }
+
+      if (!link) {
         router.push('/teachers/live-classes')
         return
       }
-      setMeetingLink(data.meeting_link)
+      setMeetingLink(link)
 
       // Load Jitsi script
       if (!document.getElementById('jitsi-script')) {
@@ -56,21 +73,19 @@ export default function TeacherJoinLiveClassPage() {
       function initJitsi() {
         if (!window.JitsiMeetExternalAPI || !containerRef.current) return
 
-        // If the meeting link is a Jitsi room, embed it. Otherwise redirect to the external provider.
+        // Normalize meeting link to a room on meet.jit.si
         let domain = 'meet.jit.si'
-        let room = 'ClassBridgeRoom'
+        let room = ''
         try {
           const url = new URL(meetingLink)
-          if (url.hostname.includes('jit.si')) {
-            domain = url.hostname
-            room = url.pathname.replace(/^\//, '') || room
-          } else {
-            window.location.href = meetingLink
-            return
-          }
+          // Always force to public Jitsi to avoid auth/lobby on custom/self-hosted domains
+          room = url.pathname.replace(/^\//, '') || `ClassBridge-${liveClassId}`
         } catch {
-          // Fallback to default Jitsi
+          // Fallback to unique room on meet.jit.si
+          room = `ClassBridge-${liveClassId}`
         }
+        // Sanitize room name (avoid spaces/special chars that may trigger auth flows)
+        room = room.replace(/[^A-Za-z0-9_-]/g, '') || `ClassBridge-${liveClassId}`
 
         const api = new window.JitsiMeetExternalAPI(domain, {
           roomName: room,
@@ -78,6 +93,7 @@ export default function TeacherJoinLiveClassPage() {
           userInfo: { displayName },
           configOverwrite: {
             prejoinPageEnabled: false,
+            lobby: { enabled: false, autoKnock: false },
           },
           interfaceConfigOverwrite: {
             TOOLBAR_BUTTONS: [
@@ -99,8 +115,12 @@ export default function TeacherJoinLiveClassPage() {
           }
         } catch (_) {}
 
+        let hasJoined = false
+        api.addListener('videoConferenceJoined', () => {
+          hasJoined = true
+        })
         api.addListener('videoConferenceLeft', () => {
-          router.push('/teachers/live-classes')
+          if (hasJoined) router.push('/teachers/live-classes')
         })
       }
     }
