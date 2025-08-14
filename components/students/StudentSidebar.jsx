@@ -45,8 +45,8 @@ export default function StudentSidebar({ className = "" }) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-20 left-4 z-50">
+      {/* Mobile Menu Button - position relative to top bar */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={toggleMobileMenu}
           className="bg-blue-700 text-white p-3 rounded-lg shadow-lg hover:bg-blue-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
