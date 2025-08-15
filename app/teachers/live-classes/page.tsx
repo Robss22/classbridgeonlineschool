@@ -191,7 +191,7 @@ export default function TeacherLiveClassesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">My Live Classes</h1>
@@ -214,41 +214,41 @@ export default function TeacherLiveClassesPage() {
   {/* Action Buttons removed for teachers */}
 
         {/* Live Classes Section */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Video className="w-5 h-5" />
             My Live Classes
           </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 text-sm sm:text-base">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-2"></th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Title</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Start</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">End</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Level</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Subject</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Program</th>
+                  <th className="px-3 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                  <th className="px-3 sm:px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {liveClasses.map((liveClass) => (
-                  <tr key={liveClass.live_class_id}>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.title}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.scheduled_date}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.start_time}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.end_time}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.levels?.name || ''}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.subjects?.name || ''}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">{liveClass.programs?.name || ''}</td>
-                    <td className="px-4 py-2 whitespace-nowrap">
+                  <tr key={liveClass.live_class_id} className="hover:bg-gray-50">
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.title}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.scheduled_date}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.start_time}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.end_time}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.levels?.name || ''}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.subjects?.name || ''}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">{liveClass.programs?.name || ''}</td>
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(liveClass.status)}`}>{liveClass.status}</span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="flex gap-2 items-center">
+                    <td className="px-3 sm:px-4 py-2 whitespace-nowrap">
+                      <div className="flex gap-2 items-center flex-wrap">
                         {liveClass.status === 'ongoing' && (
                           liveClass.meeting_link ? (
                             <a

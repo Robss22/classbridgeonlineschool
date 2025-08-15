@@ -51,20 +51,7 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
   
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={toggleMobileMenu}
-          className="bg-blue-600 text-white p-3 rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          aria-label="Toggle mobile menu"
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </button>
-      </div>
+      {/* Mobile Menu Button moved into header for visibility - removed fixed button */}
 
       {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
@@ -161,9 +148,18 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col lg:ml-0">
-        <header className="h-16 bg-white shadow flex items-center px-8 justify-between">
-          <div className="font-semibold text-lg">
-            Welcome, {user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher'}
+        <header className="h-16 bg-white shadow flex items-center px-4 sm:px-8 justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleMobileMenu}
+              className="lg:hidden inline-flex items-center justify-center p-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="Toggle mobile menu"
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <div className="font-semibold text-lg">
+              Welcome, {user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher'}
+            </div>
           </div>
           {/* Placeholder for notifications, profile, logout */}
           <div className="flex items-center gap-4">

@@ -73,11 +73,11 @@ export default function TeacherStudentsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6">
       <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
         <Users className="w-6 h-6 text-blue-700" /> Students Viewer
       </h1>
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-4 flex-wrap">
         <label className="font-medium">Select Class:</label>
         <select
           value={selectedClass}
@@ -89,15 +89,15 @@ export default function TeacherStudentsPage() {
           ))}
         </select>
       </div>
-      <div className="overflow-x-auto bg-white rounded-xl shadow-md">
-        <table className="min-w-full">
+      <div className="overflow-x-auto bg-white rounded-xl shadow-md border border-gray-200">
+        <table className="min-w-full text-sm sm:text-base">
           <thead>
             <tr className="bg-blue-50">
-              <th className="p-3 text-left font-semibold">Name</th>
-              <th className="p-3 text-left font-semibold">Email</th>
-              <th className="p-3 text-left font-semibold">Registration No.</th>
-              <th className="p-3 text-left font-semibold">Contact</th>
-              <th className="p-3 text-left font-semibold">Action</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Name</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Email</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Registration No.</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Contact</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Action</th>
             </tr>
           </thead>
           <tbody>

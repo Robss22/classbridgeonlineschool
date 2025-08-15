@@ -39,26 +39,18 @@ export default function StudentSidebar({ className = "" }) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isMobileMenuOpen]);
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const toggleMobileMenu = () => setIsMobileMenuOpen(v => !v);
+
+  // Listen for header toggle event
+  useEffect(() => {
+    const handler = () => setIsMobileMenuOpen(v => !v);
+    window.addEventListener('student-sidebar-toggle', handler);
+    return () => window.removeEventListener('student-sidebar-toggle', handler);
+  }, []);
 
   return (
     <>
-      {/* Mobile Menu Button - position relative to top bar */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={toggleMobileMenu}
-          className="bg-blue-700 text-white p-3 rounded-lg shadow-lg hover:bg-blue-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          aria-label="Toggle mobile menu"
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </button>
-      </div>
+      {/* Toggled via 'student-sidebar-toggle' event from StudentTopBar */}
 
       {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>

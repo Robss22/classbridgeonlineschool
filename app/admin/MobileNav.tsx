@@ -28,10 +28,10 @@ export default function MobileNav() {
 
   return (
     <div className="lg:hidden">
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - styled like teacher hamburger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        className="inline-flex items-center justify-center p-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
         aria-label="Toggle mobile menu"
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

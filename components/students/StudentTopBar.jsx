@@ -1,11 +1,13 @@
 'use client';
 import { useStudent } from '@/contexts/StudentContext';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, Menu, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import StudentNotifications from './StudentNotifications';
+import { useState } from 'react';
 
 export default function StudentTopBar() {
   const { studentInfo, loadingStudent } = useStudent();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (loadingStudent) {
     return (
@@ -26,8 +28,17 @@ export default function StudentTopBar() {
   const { program, class: className, registration_number, email, photoUrl } = studentInfo;
 
   return (
-    <header className="bg-white shadow border-b sticky top-0 z-30">
+    <header className="bg-white shadow border-b sticky top-0 z-50">
       <div className="max-w-5xl mx-auto flex flex-row items-center px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center gap-3 mr-3">
+          <button
+            onClick={() => { setIsMobileMenuOpen(v => !v); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('student-sidebar-toggle')); }}
+            className="lg:hidden inline-flex items-center justify-center p-2 rounded-md text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
         <div className="flex flex-col flex-1 text-left gap-y-1">
           <h1 className="text-xl sm:text-2xl font-bold whitespace-nowrap">
             Welcome, <span className="text-green-800 font-extrabold">{displayName}</span> 👋

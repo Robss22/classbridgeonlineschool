@@ -213,16 +213,16 @@ export default function TeacherResourcesPage() {
       </div>
 
       {/* Resource Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-xl shadow-md">
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full bg-white rounded-xl shadow-md text-sm sm:text-base">
           <thead>
             <tr className="bg-blue-50">
-              <th className="p-3 text-left font-semibold">File</th>
-              <th className="p-3 text-left font-semibold">Subject</th>
-              <th className="p-3 text-left font-semibold">Level</th>
-              <th className="p-3 text-left font-semibold">Type</th>
-              <th className="p-3 text-left font-semibold">Uploaded</th>
-              <th className="p-3 text-left font-semibold">Actions</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">File</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Subject</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Level</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Type</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Uploaded</th>
+              <th className="px-3 sm:px-4 py-2 text-left font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody>
