@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Bell, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
-import MobileNav from './MobileNav';
 
 export default function AdminTopBar() {
   const { user } = useAuth();
@@ -26,6 +25,9 @@ export default function AdminTopBar() {
   return (
     <header className="bg-white shadow border-b sticky top-0 z-30">
       <div className="max-w-7xl mx-auto flex flex-row items-center px-3 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center gap-3 mr-3">
+          {/* Mobile hamburger button will be rendered from the sidebar component */}
+        </div>
         <div className="flex flex-col flex-1 text-left gap-y-1">
           <h1 className="text-xl sm:text-2xl font-bold whitespace-nowrap">
             Welcome, <span className="text-blue-800 font-extrabold">{displayName}</span> 👋
@@ -43,9 +45,6 @@ export default function AdminTopBar() {
           </div>
         </div>
         <div className="flex items-center gap-4 ml-6">
-          {/* Mobile Navigation */}
-          <MobileNav />
-          
           {/* Notifications placeholder */}
           <div className="relative">
             <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">

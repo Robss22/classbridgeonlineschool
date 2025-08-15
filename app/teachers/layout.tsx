@@ -63,25 +63,27 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
         
         {/* Mobile Menu Content */}
         <div className={`absolute top-0 left-0 w-80 h-full bg-white shadow-2xl transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-6 h-full flex flex-col">
-            {/* Mobile Menu Header */}
-            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-800">Teacher Portal</h2>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
-              >
-                <X className="h-6 w-6" />
-              </button>
+          <div className="h-full flex flex-col">
+            {/* Mobile Menu Header - Fixed */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-800">Teacher Portal</h2>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-all duration-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
             </div>
 
-            {/* Mobile Navigation */}
-            <nav className="flex-1 flex flex-col gap-2">
+            {/* Mobile Navigation - Scrollable */}
+            <nav className="flex-1 overflow-y-auto p-6 space-y-2">
               {navItems.map((item) => (
-                <Link 
-                  key={item.href} 
-                  href={item.href} 
-                  className={`px-3 py-3 rounded font-medium transition-colors
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`block px-3 py-3 rounded font-medium transition-colors
                     ${pathname === item.href 
                       ? 'bg-blue-700 text-white' 
                       : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -93,8 +95,8 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
 
-            {/* Mobile Logout Section */}
-            <div className="border-t border-gray-200 pt-4">
+            {/* Mobile Logout Section - Fixed at Bottom */}
+            <div className="p-6 border-t border-gray-200 bg-white">
               <button
                 className="flex items-center gap-2 w-full justify-center px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold shadow transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
                 aria-label="Logout"
@@ -113,14 +115,19 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-white shadow-lg p-6 flex-col gap-4 relative">
-        <div className="text-2xl font-bold mb-8">Teacher Portal</div>
-        <nav className="flex flex-col gap-2">
+      <aside className="hidden lg:flex w-64 bg-white shadow-lg flex-col min-h-screen">
+        {/* Header - Fixed */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="text-2xl font-bold">Teacher Portal</div>
+        </div>
+        
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto p-6 space-y-2">
           {navItems.map((item) => (
             <Link 
               key={item.href} 
               href={item.href} 
-              className={`px-3 py-2 rounded font-medium transition-colors
+              className={`block px-3 py-2 rounded font-medium transition-colors
                 ${pathname === item.href 
                   ? 'bg-blue-700 text-white' 
                   : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -131,9 +138,11 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="sticky bottom-0 left-0 w-full bg-white pt-4 pb-2 border-t border-gray-200 flex flex-col items-center mt-auto">
+        
+        {/* Logout Section - Fixed at Bottom */}
+        <div className="p-6 border-t border-gray-200 bg-white">
           <button
-            className="flex items-center gap-2 w-11/12 justify-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold shadow transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+            className="flex items-center gap-2 w-full justify-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold shadow transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
             aria-label="Logout"
             onClick={async () => {
               await supabase.auth.signOut();
