@@ -50,6 +50,12 @@ export default function AdminLiveClassesPage() {
     try {
       if (!silent) setLoading(true);
 
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
       // Fetch reference data first
       const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes] = await Promise.all([
         supabase.from('levels').select('*'),
@@ -132,8 +138,19 @@ export default function AdminLiveClassesPage() {
       setLiveClasses(normalizedLiveClasses);
 
     } catch (error) {
-      const appError = errorHandler.handleSupabaseError(error, 'fetch_admin_live_classes', 'admin');
-      setError(appError.message);
+      console.error('Error fetching data:', error);
+      
+      // Handle authentication errors specifically
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        setError('Your session has expired. Please log in again.');
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+      } else {
+        const appError = errorHandler.handleSupabaseError(error, 'fetch_admin_live_classes', 'admin');
+        setError(appError.message);
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -214,6 +231,12 @@ export default function AdminLiveClassesPage() {
   }, [fetchData]);
 
   const handleAutoStatusUpdate = useCallback(async () => {
+    // Don't run if there's already an error
+    if (error) {
+      console.log('[handleAutoStatusUpdate] Skipping due to existing error:', error);
+      return;
+    }
+
     try {
       const response = await fetch('/api/live-classes/auto-status', {
         method: 'POST',
@@ -227,11 +250,15 @@ export default function AdminLiveClassesPage() {
       
       await fetchData(true); // silent refresh to avoid disrupting forms
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error('[handleAutoStatusUpdate] Error:', error);
+      // Only set error if it's not an authentication issue
+      if (error instanceof Error && !error.message.includes('Authentication required')) {
+        setError(error.message || 'An error occurred during status update');
+      }
     } finally {
       // keep UI state as-is during background refresh
     }
-  }, [fetchData]);
+  }, [fetchData, error]);
 
   // Auto-join functionality
   const handleAutoJoin = useCallback(async (liveClass: LiveClass) => {
@@ -287,12 +314,15 @@ export default function AdminLiveClassesPage() {
   }, [liveClasses]);
 
   useEffect(() => {
-    fetchData();
+    // Only fetch data if we don't have an error
+    if (!error) {
+      fetchData();
+    }
     
     // Set up automatic status checking every 30 seconds
     const interval = setInterval(() => {
-      // Do not auto-refresh while the scheduling modal is open
-      if (!showCreateForm) {
+      // Do not auto-refresh while the scheduling modal is open or if there's an error
+      if (!showCreateForm && !error) {
         handleAutoStatusUpdate();
       }
     }, 30000); // Check every 30 seconds
@@ -306,7 +336,7 @@ export default function AdminLiveClassesPage() {
       clearInterval(interval);
       clearInterval(countdownInterval);
     };
-  }, [fetchData, handleAutoStatusUpdate, showCreateForm, calculateCountdown]);
+  }, [fetchData, handleAutoStatusUpdate, showCreateForm, calculateCountdown, error]);
 
   // Update countdown when liveClasses change - separate effect to avoid circular dependency
   useEffect(() => {
@@ -372,7 +402,18 @@ export default function AdminLiveClassesPage() {
         {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              <button
+                onClick={() => {
+                  setError('');
+                  fetchData();
+                }}
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
 

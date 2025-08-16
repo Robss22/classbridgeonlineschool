@@ -9,6 +9,7 @@ import { LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { TeacherProvider } from '@/contexts/TeacherContext';
+import AdminAuthGuard from '@/components/admin/AdminAuthGuard';
 
 const links = [
   { name: 'Dashboard Home', href: '/admin/dashboard' },
@@ -34,7 +35,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <TeacherProvider>
-      <div className="flex min-h-screen bg-gray-100 admin-layout">
+      <AdminAuthGuard>
+        <div className="flex min-h-screen bg-gray-100 admin-layout">
       {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
         {/* Backdrop */}
@@ -121,6 +123,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <section className="flex-1 p-6">{children}</section>
       </main>
       </div>
+        </AdminAuthGuard>
     </TeacherProvider>
   );
 }
