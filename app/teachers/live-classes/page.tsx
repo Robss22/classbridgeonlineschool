@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Video, Trash2, Play, Clock, Users, Bell } from 'lucide-react';
+import { Video, Trash2, Play, Clock, Users, Bell, AlertCircle } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -214,85 +214,72 @@ export default function TeacherLiveClassesPage() {
     }
   }, [fetchData]);
 
+  // Memoized countdown calculation function
+  const calculateNextClassCountdown = useCallback(() => {
+    if (liveClasses.length === 0) return;
+    
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentTime = now.toTimeString().split(' ')[0];
+    
+    const nextClass = liveClasses.find(lc => {
+      if (lc.status !== 'scheduled') return false;
+      if (lc.scheduled_date !== today) return false;
+      return lc.start_time > currentTime;
+    });
+    
+    if (nextClass) {
+      const [hours, minutes] = nextClass.start_time.split(':');
+      const classTime = new Date();
+      classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const diffMs = classTime.getTime() - now.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      
+      if (diffMinutes > 0) {
+        setNextClassCountdown(diffMinutes);
+      } else {
+        setNextClassCountdown(null);
+      }
+    } else {
+      setNextClassCountdown(null);
+    }
+  }, [liveClasses]);
+
+  // Initial data fetch - only run once on mount
   useEffect(() => {
     fetchData();
-    
-    // Set up automatic status checking every 30 seconds
+  }, [fetchData]); // Include fetchData to satisfy ESLint
+
+  // Set up automatic status checking every 30 seconds
+  useEffect(() => {
     const interval = setInterval(() => {
       handleAutoStatusUpdate();
     }, 30000); // Check every 30 seconds
 
-    // Set up countdown timer every minute
+    return () => clearInterval(interval);
+  }, [handleAutoStatusUpdate]);
+
+  // Set up countdown timer every minute
+  useEffect(() => {
     const countdownInterval = setInterval(() => {
-      // Calculate countdown directly here instead of calling the function
       if (liveClasses.length > 0) {
-        const now = new Date();
-        const today = now.toISOString().split('T')[0];
-        const currentTime = now.toTimeString().split(' ')[0];
-        
-        const nextClass = liveClasses.find(lc => {
-          if (lc.status !== 'scheduled') return false;
-          if (lc.scheduled_date !== today) return false;
-          return lc.start_time > currentTime;
-        });
-        
-        if (nextClass) {
-          const [hours, minutes] = nextClass.start_time.split(':');
-          const classTime = new Date();
-          classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-          
-          const diffMs = classTime.getTime() - now.getTime();
-          const diffMinutes = Math.floor(diffMs / (1000 * 60));
-          
-          if (diffMinutes > 0) {
-            setNextClassCountdown(diffMinutes);
-          } else {
-            setNextClassCountdown(null);
-          }
-        } else {
-          setNextClassCountdown(null);
-        }
+        calculateNextClassCountdown();
       }
     }, 60000); // Update every minute
 
-    return () => {
-      clearInterval(interval);
-      clearInterval(countdownInterval);
-    };
-  }, [fetchData, handleAutoStatusUpdate, liveClasses]); // Added liveClasses to dependencies
+    return () => clearInterval(countdownInterval);
+  }, [liveClasses.length, calculateNextClassCountdown]);
 
-  // Update countdown when liveClasses change - separate effect to avoid circular dependency
+  // Update countdown when liveClasses change
   useEffect(() => {
-    if (liveClasses.length > 0) {
-      // Calculate countdown directly here instead of calling the function
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const currentTime = now.toTimeString().split(' ')[0];
-      
-      const nextClass = liveClasses.find(lc => {
-        if (lc.status !== 'scheduled') return false;
-        if (lc.scheduled_date !== today) return false;
-        return lc.start_time > currentTime;
-      });
-      
-      if (nextClass) {
-        const [hours, minutes] = nextClass.start_time.split(':');
-        const classTime = new Date();
-        classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        const diffMs = classTime.getTime() - now.getTime();
-        const diffMinutes = Math.floor(diffMs / (1000 * 60));
-        
-        if (diffMinutes > 0) {
-          setNextClassCountdown(diffMinutes);
-        } else {
-          setNextClassCountdown(null);
-        }
-      } else {
-        setNextClassCountdown(null);
-      }
-    }
-  }, [liveClasses]); // Only depend on liveClasses
+    calculateNextClassCountdown();
+  }, [calculateNextClassCountdown]);
+
+  // Update countdown when liveClasses change
+  useEffect(() => {
+    calculateNextClassCountdown();
+  }, [calculateNextClassCountdown]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -324,7 +311,11 @@ export default function TeacherLiveClassesPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading your live classes...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-lg text-gray-700">Loading your live classes...</div>
+          <div className="text-sm text-gray-500 mt-2">Please wait while we fetch your schedule</div>
+        </div>
       </div>
     );
   }
@@ -361,7 +352,29 @@ export default function TeacherLiveClassesPage() {
         {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setError('');
+                    fetchData();
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => setError('')}
+                  className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

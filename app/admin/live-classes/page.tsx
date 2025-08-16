@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Plus, Video, Play, Pause, Trash2, TrendingUp, Clock, Users, Bell } from 'lucide-react';
+import { Plus, Video, Play, Pause, Trash2, TrendingUp, Clock, Users, Bell, AlertCircle } from 'lucide-react';
 import AdminLiveClassModal from '@/components/AdminLiveClassModal';
 import { errorHandler } from '@/lib/errorHandler';
 
@@ -231,9 +231,9 @@ export default function AdminLiveClassesPage() {
   }, [fetchData]);
 
   const handleAutoStatusUpdate = useCallback(async () => {
-    // Don't run if there's already an error
-    if (error) {
-      console.log('[handleAutoStatusUpdate] Skipping due to existing error:', error);
+    // Don't run if there's already an error or if we're loading
+    if (error || loading) {
+      console.log('[handleAutoStatusUpdate] Skipping due to error or loading state:', { error, loading });
       return;
     }
 
@@ -248,6 +248,7 @@ export default function AdminLiveClassesPage() {
         throw new Error(result.error || 'Failed to update statuses');
       }
       
+      // Only refresh if successful and no error
       await fetchData(true); // silent refresh to avoid disrupting forms
     } catch (error) {
       console.error('[handleAutoStatusUpdate] Error:', error);
@@ -255,10 +256,8 @@ export default function AdminLiveClassesPage() {
       if (error instanceof Error && !error.message.includes('Authentication required')) {
         setError(error.message || 'An error occurred during status update');
       }
-    } finally {
-      // keep UI state as-is during background refresh
     }
-  }, [fetchData, error]);
+  }, [fetchData, error, loading]);
 
   // Auto-join functionality
   const handleAutoJoin = useCallback(async (liveClass: LiveClass) => {
@@ -313,35 +312,35 @@ export default function AdminLiveClassesPage() {
     }
   }, [liveClasses]);
 
+  // Initial data fetch - only run once on mount
   useEffect(() => {
-    // Only fetch data if we don't have an error
-    if (!error) {
-      fetchData();
-    }
+    fetchData();
+  }, [fetchData]); // Include fetchData to satisfy ESLint
+
+  // Set up automatic status checking every 30 seconds
+  useEffect(() => {
+    if (showCreateForm || error) return; // Don't run if modal is open or there's an error
     
-    // Set up automatic status checking every 30 seconds
     const interval = setInterval(() => {
-      // Do not auto-refresh while the scheduling modal is open or if there's an error
-      if (!showCreateForm && !error) {
-        handleAutoStatusUpdate();
-      }
+      handleAutoStatusUpdate();
     }, 30000); // Check every 30 seconds
 
-    // Set up countdown timer every minute
+    return () => clearInterval(interval);
+  }, [showCreateForm, error, handleAutoStatusUpdate]);
+
+  // Set up countdown timer every minute
+  useEffect(() => {
     const countdownInterval = setInterval(() => {
       calculateCountdown();
     }, 60000); // Update every minute
 
-    return () => {
-      clearInterval(interval);
-      clearInterval(countdownInterval);
-    };
-  }, [fetchData, handleAutoStatusUpdate, showCreateForm, calculateCountdown, error]);
+    return () => clearInterval(countdownInterval);
+  }, [calculateCountdown]);
 
-  // Update countdown when liveClasses change - separate effect to avoid circular dependency
+  // Update countdown when liveClasses change
   useEffect(() => {
     calculateCountdown();
-  }, [calculateCountdown]);
+  }, [liveClasses, calculateCountdown]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -373,7 +372,11 @@ export default function AdminLiveClassesPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading live classes...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="text-lg text-gray-700">Loading live classes...</div>
+          <div className="text-sm text-gray-500 mt-2">Please wait while we fetch your data</div>
+        </div>
       </div>
     );
   }
@@ -403,16 +406,28 @@ export default function AdminLiveClassesPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
             <div className="flex items-center justify-between">
-              <span>{error}</span>
-              <button
-                onClick={() => {
-                  setError('');
-                  fetchData();
-                }}
-                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-              >
-                Retry
-              </button>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>{error}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setError('');
+                    setLoading(true);
+                    fetchData();
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={() => setError('')}
+                  className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           </div>
         )}
