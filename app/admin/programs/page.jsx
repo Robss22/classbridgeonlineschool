@@ -64,7 +64,10 @@ export default function ProgramsPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Programs</h1>
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Programs Management</h1>
+        <p className="text-lg text-gray-600">Create and manage educational programs and curricula</p>
+      </div>
 
       {/* Program Add Form */}
       <form onSubmit={handleAddProgram} className="mb-6 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">

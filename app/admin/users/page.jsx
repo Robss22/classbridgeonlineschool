@@ -383,21 +383,26 @@ export default function TeachersPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-xl font-inter">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-blue-700">Users</h1>
-        <div className="flex gap-4">
-          <button
-            onClick={() => router.push('/admin/register-new-user')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition"
-          >
-            + Add New User
-          </button>
-          <button
-            onClick={() => { setShowAssignModal(true); setSelectedTeacher(null); }}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 transition"
-          >
-            Assign Teacher Class/Subject
-          </button>
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Users Management</h1>
+            <p className="text-lg text-gray-600">Manage teacher and admin accounts and assignments</p>
+          </div>
+          <div className="flex gap-4">
+            <button
+              onClick={() => router.push('/admin/register-new-user')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition"
+            >
+              + Add New User
+            </button>
+            <button
+              onClick={() => { setShowAssignModal(true); setSelectedTeacher(null); }}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 transition"
+            >
+              Assign Teacher Class/Subject
+            </button>
+          </div>
         </div>
       </div>
       {/* Admins Section - Collapsible */}

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Clock, Users, Video, AlertCircle, CheckCircle, Play } from 'lucide-react';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { Calendar, Clock, Users, Video, AlertCircle, CheckCircle, Play, Bell } from 'lucide-react';
+import { format, parseISO, isAfter } from 'date-fns';
 
 interface LiveClass {
   live_class_id: string;
@@ -16,6 +16,8 @@ interface LiveClass {
   meeting_link: string;
   meeting_platform: string;
   status: string;
+  started_at?: string | null;
+  ended_at?: string | null;
   subject_id: string;
   subjects?: { name: string };
   teachers?: { 
@@ -32,326 +34,489 @@ interface LiveClass {
 export default function StudentLiveClassesPage() {
   const { user, loading: authLoading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'ongoing' | 'completed'>('all');
   const [attendanceMap, setAttendanceMap] = useState<Record<string, boolean>>({});
+  const [autoJoinEnabled, setAutoJoinEnabled] = useState(false);
+  const [nextClassCountdown, setNextClassCountdown] = useState<number | null>(null);
 
-  useEffect(() => {
+  const fetchLiveClasses = useCallback(async () => {
     if (!user) return;
     
-    const fetchLiveClasses = async () => {
-      try {
-        setLoading(true);
-        
-        // Get student's enrolled subjects
-        const { data: authUser } = await supabase.auth.getUser();
-        if (!authUser?.user?.id) return;
-        
-        const userId = authUser.user.id;
-        
-        // Get student's program (UUID) and level
-        const { data: userData } = await supabase
-          .from('users')
-          .select('program_id, level_id')
-          .eq('id', userId)
-          .single();
-        
-        const programId = (userData as any)?.program_id as string | undefined;
-        const levelId = (userData as any)?.level_id as string | undefined;
-        
-        if (!programId) {
-          setError('No program assigned. Please contact your administrator.');
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch live classes for the student's program (and level if available)
-        let query = supabase
-          .from('live_classes')
-          .select(`
-            *,
-            subjects:subject_id (name),
-            teachers:teacher_id (
-              teacher_id,
-              users:user_id (first_name, last_name)
-            ),
-            levels:level_id (name),
-            programs:program_id (name)
-          `)
-          .eq('program_id', programId);
-
-        if (levelId) {
-          query = query.eq('level_id', levelId);
-        }
-
-        const { data, error: fetchError } = await query
-          .order('scheduled_date', { ascending: true })
-          .order('start_time', { ascending: true });
-        
-        if (fetchError) throw fetchError;
-        
-        const processedClasses: LiveClass[] = (data || []).map((item: any) => ({
-          ...item,
-          meeting_platform: item.meeting_platform || 'Google Meet',
-          status: item.status || 'scheduled',
-          title: item.title || 'Live Class',
-          description: item.description || ''
-        }));
-        
-        setLiveClasses(processedClasses);
-
-        // Fetch attendance for this student for these classes
-        const classIds = processedClasses.map(c => c.live_class_id);
-        // Fetch attendance via RPC or skip if table not typed in client types
-        if (classIds.length > 0) {
-          let attendanceRows: any[] | null = null;
-          try {
-            const { data } = await (supabase as any)
-              .from('live_class_participants' as any)
-              .select('live_class_id, attendance_status, join_time')
-              .eq('student_id', userId)
-              .in('live_class_id', classIds);
-            attendanceRows = data as any[] | null;
-          } catch (_) {
-            attendanceRows = null;
-          }
-
-          const map: Record<string, boolean> = {};
-          classIds.forEach(id => { map[id] = false; });
-          (attendanceRows || []).forEach((row: any) => {
-            if (!row?.live_class_id) return;
-            const attended = row.attendance_status === 'present' || !!row.join_time;
-            if (attended) map[row.live_class_id] = true;
-          });
-          setAttendanceMap(map);
-        } else {
-          setAttendanceMap({});
-        }
-      } catch (err: any) {
-        console.error('Error fetching live classes:', err);
-        setError(err.message || 'Failed to fetch live classes');
-      } finally {
-        setLoading(false);
+    try {
+      // Get student's enrolled subjects
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser?.user?.id) return;
+      
+      const userId = authUser.user.id;
+      
+      // Get student's program (UUID) and level
+      const { data: userData } = await supabase
+        .from('users')
+        .select('program_id, level_id')
+        .eq('id', userId)
+        .single();
+      
+      const programId = (userData as any)?.program_id as string | undefined;
+      const levelId = (userData as any)?.level_id as string | undefined;
+      
+      if (!programId) {
+        setError('No program assigned. Please contact your administrator.');
+        return;
       }
-    };
-    
-    fetchLiveClasses();
+      
+      // Fetch live classes for the student's program (and level if available)
+      let query = supabase
+        .from('live_classes')
+        .select(`
+          *,
+          subjects:subject_id (name),
+          teachers:teacher_id (
+            teacher_id,
+            users:user_id (first_name, last_name)
+          ),
+          levels:level_id (name),
+          programs:program_id (name)
+        `)
+        .eq('program_id', programId);
+
+      if (levelId) {
+        query = query.eq('level_id', levelId);
+      }
+
+      const { data, error: fetchError } = await query
+        .order('scheduled_date', { ascending: true })
+        .order('start_time', { ascending: true });
+      
+      if (fetchError) throw fetchError;
+      
+      const processedClasses: LiveClass[] = (data || []).map((item: any) => ({
+        ...item,
+        meeting_platform: item.meeting_platform || 'Google Meet',
+        status: item.status || 'scheduled',
+        title: item.title || 'Live Class',
+        description: item.description || '',
+        started_at: item.started_at || null,
+        ended_at: item.ended_at || null
+      }));
+
+      setLiveClasses(processedClasses);
+      
+      // Note: Attendance tracking is disabled until live_class_participants table is properly migrated
+      // For now, we'll set empty attendance map
+      setAttendanceMap({});
+      
+    } catch (error: any) {
+      console.error('Error fetching live classes:', error);
+      setError(error.message || 'Failed to fetch live classes');
+    } finally {
+      // setLoading(false); // This line was removed as per the edit hint
+    }
   }, [user]);
+
+
+
+  // Auto-join functionality
+  const handleAutoJoin = useCallback(async (liveClass: LiveClass) => {
+    if (!liveClass.meeting_link) {
+      setError('No meeting link available for this class. Please contact your teacher.');
+      return;
+    }
+
+    // Open meeting in new tab
+    window.open(liveClass.meeting_link, '_blank');
+    
+    // Note: Attendance tracking is disabled until live_class_participants table is properly migrated
+    // For now, we'll just open the meeting without tracking attendance
+    
+  }, []);
+
+  const handleAutoStatusUpdate = useCallback(async () => {
+    try {
+      const response = await fetch('/api/live-classes/auto-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to update statuses');
+      }
+      
+      await fetchLiveClasses(); // Refresh data
+    } catch (error) {
+      console.error('Error updating statuses:', error);
+    }
+  }, [fetchLiveClasses]);
+
+  useEffect(() => {
+    fetchLiveClasses();
+    
+    // Set up automatic status checking every 30 seconds
+    const interval = setInterval(() => {
+      handleAutoStatusUpdate();
+    }, 30000); // Check every 30 seconds
+
+    // Set up countdown timer every minute
+    const countdownInterval = setInterval(() => {
+      // Calculate countdown directly here instead of calling the function
+      if (liveClasses.length > 0) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const currentTime = now.toTimeString().split(' ')[0];
+        
+        const nextClass = liveClasses.find(lc => {
+          if (lc.status !== 'scheduled') return false;
+          if (lc.scheduled_date !== today) return false;
+          return lc.start_time > currentTime;
+        });
+        
+        if (nextClass) {
+          const [hours, minutes] = nextClass.start_time.split(':');
+          const classTime = new Date();
+          classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          
+          const diffMs = classTime.getTime() - now.getTime();
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          
+          if (diffMinutes > 0) {
+            setNextClassCountdown(diffMinutes);
+          } else {
+            setNextClassCountdown(null);
+          }
+        } else {
+          setNextClassCountdown(null);
+        }
+      }
+    }, 60000); // Update every minute
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(countdownInterval);
+    };
+  }, [fetchLiveClasses, handleAutoStatusUpdate, liveClasses]); // Added liveClasses to dependencies
+
+  // Update countdown when liveClasses change - separate effect to avoid circular dependency
+  useEffect(() => {
+    if (liveClasses.length > 0) {
+      // Calculate countdown directly here instead of calling the function
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const currentTime = now.toTimeString().split(' ')[0];
+      
+      const nextClass = liveClasses.find(lc => {
+        if (lc.status !== 'scheduled') return false;
+        if (lc.scheduled_date !== today) return false;
+        return lc.start_time > currentTime;
+      });
+      
+      if (nextClass) {
+        const [hours, minutes] = nextClass.start_time.split(':');
+        const classTime = new Date();
+        classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        
+        const diffMs = classTime.getTime() - now.getTime();
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        
+        if (diffMinutes > 0) {
+          setNextClassCountdown(diffMinutes);
+        } else {
+          setNextClassCountdown(null);
+        }
+      } else {
+        setNextClassCountdown(null);
+      }
+    }
+  }, [liveClasses]); // Only depend on liveClasses
 
   const getClassStatus = (liveClass: LiveClass) => {
     const now = new Date();
-    // Removed unused classDate
-    const startTime = new Date(`${liveClass.scheduled_date}T${liveClass.start_time}`);
-    const endTime = new Date(`${liveClass.scheduled_date}T${liveClass.end_time}`);
+    const classDate = parseISO(liveClass.scheduled_date);
+    const [startHour, startMinute] = liveClass.start_time.split(':').map(Number);
+    const [endHour, endMinute] = liveClass.end_time.split(':').map(Number);
     
-    if (liveClass.status === 'cancelled') return 'cancelled';
+    const startTime = new Date(classDate);
+    startTime.setHours(startHour, startMinute, 0, 0);
+    
+    const endTime = new Date(classDate);
+    endTime.setHours(endHour, endMinute, 0, 0);
+    
     if (liveClass.status === 'completed') return 'completed';
+    if (liveClass.status === 'cancelled') return 'cancelled';
     if (liveClass.status === 'ongoing') return 'ongoing';
     
-    if (isAfter(now, endTime)) return 'completed';
-    if (isAfter(now, startTime) && isBefore(now, endTime)) return 'ongoing';
-    if (isAfter(now, startTime)) return 'upcoming';
-    
+    if (isAfter(now, endTime)) return 'missed';
+    if (isAfter(now, startTime)) return 'live';
     return 'scheduled';
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ongoing': return 'bg-green-100 text-green-800 border-green-300';
-      case 'upcoming': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'scheduled': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'completed': return 'bg-gray-100 text-gray-800 border-gray-300';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
+  const getTimeUntilClass = (scheduledDate: string, startTime: string) => {
+    const now = new Date();
+    const classDate = new Date(scheduledDate);
+    const [hours, minutes] = startTime.split(':');
+    classDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    
+    const diffMs = classDate.getTime() - now.getTime();
+    if (diffMs <= 0) return 'Starting now';
+    
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    if (diffMinutes < 60) return `in ${diffMinutes} min`;
+    
+    const diffHours = Math.floor(diffMinutes / 60);
+    const remainingMinutes = diffMinutes % 60;
+    return `in ${diffHours}h ${remainingMinutes}m`;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ongoing': return <Play className="w-4 h-4" />;
-      case 'upcoming': return <Clock className="w-4 h-4" />;
-      case 'scheduled': return <Calendar className="w-4 h-4" />;
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      case 'cancelled': return <AlertCircle className="w-4 h-4" />;
-      default: return <Calendar className="w-4 h-4" />;
-    }
+  const getFilteredClasses = () => {
+    const now = new Date();
+    const today = format(now, 'yyyy-MM-dd');
+    
+    return liveClasses.filter(liveClass => {
+      const status = getClassStatus(liveClass);
+      
+      switch (filter) {
+        case 'today':
+          return liveClass.scheduled_date === today;
+        case 'upcoming':
+          return status === 'scheduled' && liveClass.scheduled_date >= today;
+        case 'ongoing':
+          return status === 'live' || status === 'ongoing';
+        case 'completed':
+          return status === 'completed' || status === 'missed';
+        default:
+          return true;
+      }
+    });
   };
 
-  const filteredClasses = liveClasses.filter(liveClass => {
-    const status = getClassStatus(liveClass);
-    switch (filter) {
-      case 'today':
-        return format(parseISO(liveClass.scheduled_date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-      case 'upcoming':
-        return ['scheduled', 'upcoming'].includes(status);
-      case 'ongoing':
-        return status === 'ongoing';
-      case 'completed':
-        return status === 'completed';
-      default:
-        return true;
-    }
-  });
-
-  const canJoinClass = (liveClass: LiveClass) => {
-    const status = getClassStatus(liveClass);
-    return (status === 'ongoing' || status === 'upcoming') && liveClass.meeting_link;
-  };
+  const filteredClasses = getFilteredClasses();
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-lg text-gray-600">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">Please log in to view live classes.</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">
+        Please log in to view live classes.
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
-      <div className="w-full max-w-6xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Live Classes</h1>
-          <p className="text-gray-600">Join your scheduled live classes and never miss a session</p>
+          <p className="text-gray-600">Join your scheduled live class sessions</p>
+          
+          {/* Next Class Countdown */}
+          {nextClassCountdown !== null && nextClassCountdown > 0 && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800">
+                <Clock className="w-5 h-5" />
+                <span className="font-semibold">
+                  Your next class starts in {nextClassCountdown} minutes
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {[
-            { key: 'all', label: 'All Classes', count: liveClasses.length },
-            { key: 'today', label: 'Today', count: liveClasses.filter(c => format(parseISO(c.scheduled_date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length },
-            { key: 'upcoming', label: 'Upcoming', count: liveClasses.filter(c => ['scheduled', 'upcoming'].includes(getClassStatus(c))).length },
-            { key: 'ongoing', label: 'Live Now', count: liveClasses.filter(c => getClassStatus(c) === 'ongoing').length },
-            { key: 'completed', label: 'Completed', count: liveClasses.filter(c => getClassStatus(c) === 'completed').length }
-          ].map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key as any)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-              }`}
-            >
-              {label} ({count})
-            </button>
-          ))}
-        </div>
-
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-gray-600">Loading live classes...</div>
-          </div>
-        ) : filteredClasses.length === 0 ? (
-          <div className="text-center py-12">
-            <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No live classes found</h3>
-            <p className="text-gray-600">
-              {filter === 'today' ? 'No classes scheduled for today.' :
-               filter === 'upcoming' ? 'No upcoming classes scheduled.' :
-               filter === 'ongoing' ? 'No classes are currently live.' :
-               filter === 'completed' ? 'No completed classes found.' :
-               'No live classes have been scheduled yet.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filteredClasses.map((liveClass) => {
-              const status = getClassStatus(liveClass);
-              const isLive = status === 'ongoing';
-              const canJoin = canJoinClass(liveClass);
-              const isMissed = status === 'completed' && !attendanceMap[liveClass.live_class_id];
-              
-              return (
-                <div
-                  key={liveClass.live_class_id}
-                  className={`bg-white rounded-lg shadow-sm border-2 p-6 transition-all hover:shadow-md h-full flex flex-col ${
-                    isLive ? 'border-green-300 bg-green-50' : 'border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="pr-2">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                        {liveClass.title}
-                      </h3>
-                      <p className="text-gray-600 mb-2">
-                        {liveClass.description || 'No description available'}
-                      </p>
-                    </div>
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(status)}`}>
-                      {getStatusIcon(status)}
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </div>
-                  </div>
+        {/* Action Buttons */}
+        <div className="mb-6 flex gap-4 flex-wrap">
+          <button
+            onClick={handleAutoStatusUpdate}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Update Statuses
+          </button>
+          
+          <button
+            onClick={() => setAutoJoinEnabled(!autoJoinEnabled)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              autoJoinEnabled 
+                ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                : 'bg-gray-600 text-white hover:bg-gray-700'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            {autoJoinEnabled ? 'Auto-Join Enabled' : 'Enable Auto-Join'}
+          </button>
+        </div>
 
-                  <div className="flex flex-col gap-2 text-sm text-left">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700">
-                        {format(parseISO(liveClass.scheduled_date), 'MMM dd, yyyy')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700">
-                        {liveClass.start_time} - {liveClass.end_time}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700">
-                        {liveClass.teachers?.users?.first_name} {liveClass.teachers?.users?.last_name || 'TBA'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Video className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700">
-                        {liveClass.subjects?.name || 'Unknown Subject'}
-                      </span>
-                    </div>
-                  </div>
+        {/* Filter Buttons */}
+        <div className="mb-6 flex gap-2 flex-wrap">
+          {(['all', 'today', 'upcoming', 'ongoing', 'completed'] as const).map((filterType) => (
+            <button
+              key={filterType}
+              onClick={() => setFilter(filterType)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === filterType
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+            </button>
+          ))}
+        </div>
 
-                  <div className="mt-auto pt-4">
-                    {canJoin ? (
-                      <a
-                        href={liveClass.meeting_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-semibold text-white transition-colors ${
-                          isLive 
-                            ? 'bg-green-600 hover:bg-green-700 shadow-lg' 
-                            : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
-                      >
-                        <Play className="w-4 h-4" />
-                        {isLive ? 'Attend Class' : 'Join Class'}
-                      </a>
-                    ) : (
-                      <div
-                        className={`w-full text-sm text-center px-5 py-2.5 border rounded-md ${
-                          isMissed ? 'text-red-600 border-red-300 bg-red-50' : 'text-gray-500'
-                        }`}
-                      >
-                        {status === 'completed'
-                          ? (isMissed ? 'Missed' : 'Class ended')
-                          : status === 'cancelled'
-                            ? 'Class cancelled'
-                            : 'Not yet started'}
+        {/* Live Classes Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Video className="w-5 h-5" />
+            Available Classes
+          </h2>
+          
+          {filteredClasses.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Video className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg">No classes available for the selected filter.</p>
+              <p className="text-sm">Try changing the filter or check back later.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredClasses.map((liveClass) => {
+                const status = getClassStatus(liveClass);
+                const isLive = status === 'live' || status === 'ongoing';
+                const canJoin = isLive && liveClass.meeting_link;
+                const isMissed = status === 'missed';
+                const timeUntilClass = getTimeUntilClass(liveClass.scheduled_date, liveClass.start_time);
+                const isStartingSoon = status === 'scheduled' && timeUntilClass.includes('Starting now');
+
+                return (
+                  <div key={liveClass.live_class_id} className={`bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow ${
+                    isStartingSoon ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'
+                  }`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">{liveClass.title}</h3>
+                        <p className="text-sm text-gray-600 mb-2">{liveClass.description}</p>
+                        
+                        {isStartingSoon && (
+                          <div className="text-xs text-yellow-600 font-medium mb-2">
+                            ⚡ Starting now!
+                          </div>
+                        )}
                       </div>
-                    )}
-                      {/* Platform label removed as requested */}
+                      
+                      <div className="flex items-center gap-2">
+                        {status === 'live' || status === 'ongoing' ? (
+                          <div className="flex items-center gap-1 text-green-600">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-xs font-medium">LIVE</span>
+                          </div>
+                        ) : status === 'completed' ? (
+                          <CheckCircle className="w-5 h-5 text-gray-500" />
+                        ) : status === 'missed' ? (
+                          <AlertCircle className="w-5 h-5 text-red-500" />
+                        ) : (
+                          <Clock className="w-5 h-5 text-blue-500" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>{format(parseISO(liveClass.scheduled_date), 'MMM dd, yyyy')}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{liveClass.start_time} - {liveClass.end_time}</span>
+                        {status === 'scheduled' && (
+                          <span className="text-xs text-blue-600 font-medium ml-2">
+                            {timeUntilClass}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Users className="w-4 h-4" />
+                        <span>{liveClass.subjects?.name || 'Unknown Subject'}</span>
+                        <span className="text-gray-400">•</span>
+                        <span>{liveClass.levels?.name || 'Unknown Level'}</span>
+                      </div>
+                      
+                      {liveClass.teachers?.users && (
+                        <div className="text-sm text-gray-600">
+                          Teacher: {liveClass.teachers.users.first_name} {liveClass.teachers.users.last_name}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-4">
+                      {canJoin ? (
+                        <div className="flex gap-2">
+                          <a
+                            href={liveClass.meeting_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-semibold text-white transition-colors ${
+                              isLive 
+                                ? 'bg-green-600 hover:bg-green-700 shadow-lg' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                          >
+                            <Play className="w-4 h-4" />
+                            {isLive ? 'Attend Class' : 'Join Class'}
+                          </a>
+                          
+                          {autoJoinEnabled && isStartingSoon && (
+                            <button
+                              onClick={() => handleAutoJoin(liveClass)}
+                              className="inline-flex items-center gap-1 px-3 py-2.5 text-xs rounded bg-purple-600 text-white hover:bg-purple-700"
+                              title="Auto-Join Class"
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={`w-full text-sm text-center px-5 py-2.5 border rounded-md ${
+                            isMissed ? 'text-red-600 border-red-300 bg-red-50' : 'text-gray-500'
+                          }`}
+                        >
+                          {status === 'completed'
+                            ? (isMissed ? 'Missed' : 'Class ended')
+                            : status === 'cancelled'
+                              ? 'Class cancelled'
+                              : 'Not yet started'}
+                        </div>
+                      )}
+                      
+                      {/* Attendance indicator */}
+                      {attendanceMap[liveClass.live_class_id] && (
+                        <div className="mt-2 text-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                            <CheckCircle className="w-3 h-3" />
+                            Attended
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

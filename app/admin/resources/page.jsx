@@ -314,25 +314,40 @@ export default function ResourcesPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage Resources</h1>
+    <div className="max-w-5xl mx-auto p-6 bg-white min-h-screen">
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Manage Resources</h1>
+        <p className="text-lg text-gray-600">Add, edit, and organize educational resources for your programs</p>
+      </div>
       {/* Program Tabs Row */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {programs.map(tab => (
-          <button
-            key={tab.program_id}
-            onClick={() => {
-              setSelectedProgram(tab.program_id);
-              setFilterLevel('');
-              setFilterSubject('');
-              setCurrentPage(1); // Reset page on program change
-            }}
-            className={`px-4 py-2 rounded-t-lg font-semibold border-b-2 transition-all whitespace-nowrap
-              ${selectedProgram === tab.program_id ? 'bg-blue-100 border-blue-600 text-blue-800' : 'bg-gray-100 border-transparent text-gray-500 hover:bg-blue-50'}`}
-          >
-            {tab.name}
-          </button>
-        ))}
+      <div className="mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-2 bg-gradient-to-r from-gray-50 to-blue-50 p-3 rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex gap-2 min-w-max">
+            {programs.map(tab => (
+              <button
+                key={tab.program_id}
+                onClick={() => {
+                  setSelectedProgram(tab.program_id);
+                  setFilterLevel('');
+                  setFilterSubject('');
+                  setCurrentPage(1); // Reset page on program change
+                }}
+                className={`px-4 py-2 rounded-md font-semibold text-xs border-2 transition-all duration-200 whitespace-nowrap shadow-sm
+                  ${selectedProgram === tab.program_id 
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md transform scale-105' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
+                  }`}
+              >
+                {tab.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        {programs.length > 4 && (
+          <div className="text-center text-xs text-gray-500 mt-2">
+            ← Scroll to see more programs →
+          </div>
+        )}
       </div>
       {/* Filters + Add Button Row */}
       <div className="flex flex-wrap gap-3 items-center mb-6 p-4 bg-gray-50 rounded-lg shadow-sm">
@@ -368,7 +383,7 @@ export default function ResourcesPage() {
       {loading ? <p className="text-center py-8 text-gray-500">Loading resources...</p> : (
         <>
           {showAdd && (
-            <div className="bg-white rounded-xl shadow-md p-6 mb-8 relative max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8 relative max-w-2xl mx-auto border border-gray-200">
               <button
                 type="button"
                 onClick={() => setShowAdd(false)}
@@ -381,7 +396,7 @@ export default function ResourcesPage() {
             </div>
           )}
           {editResource && (
-            <div className="bg-white rounded-xl shadow-md p-6 mb-8 relative max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8 relative max-w-2xl mx-auto border border-gray-200">
               <button
                 type="button"
                 onClick={() => setEditResource(null)}
@@ -396,7 +411,7 @@ export default function ResourcesPage() {
           {previewUrl && <PreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />}
           
           {resources.length > 0 ? (
-            <div className="overflow-x-auto rounded-xl shadow border border-gray-100 bg-white">
+            <div className="overflow-x-auto rounded-xl shadow-lg border border-gray-200 bg-white">
               <table className="min-w-full divide-y divide-gray-200 align-middle">
                 <thead className="bg-gray-50">
                   <tr>

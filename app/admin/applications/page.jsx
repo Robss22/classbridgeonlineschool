@@ -186,7 +186,10 @@ export default function ApplicationsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-xl font-inter">
-      <h1 className="text-3xl font-bold mb-8 text-center text-blue-700">Student Applications Dashboard</h1>
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2 text-center">Student Applications Dashboard</h1>
+        <p className="text-lg text-gray-600 text-center">Review and manage student applications for enrollment</p>
+      </div>
 
       {/* Success Message Overlay */}
       {showSuccessMessage && (

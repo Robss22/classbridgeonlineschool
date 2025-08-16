@@ -5,13 +5,18 @@ import Link from 'next/link';
 export default function DashboardHome() {
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Link href="/admin/assessments">
-          <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
-            + Add Assessment
-          </button>
-        </Link>
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Admin Dashboard</h1>
+            <p className="text-lg text-gray-600">Manage your educational platform and monitor all activities</p>
+          </div>
+          <Link href="/admin/assessments">
+            <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
+              + Add Assessment
+            </button>
+          </Link>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {[

@@ -298,24 +298,24 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
   if (!hydrated) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 mb-8 relative max-w-2xl mx-auto mt-8 flex flex-col" style={{height: '90vh', maxHeight: '90vh', minHeight: '60vh', overflow: 'hidden'}}>
-      <div className="flex-1 overflow-y-auto pr-2" style={{scrollbarWidth: 'thin'}}>
+    <div className="bg-white rounded-xl shadow-md p-6 mb-8 relative max-w-2xl mx-auto mt-8 flex flex-col" style={{maxHeight: '90vh', minHeight: '60vh'}}>
+      <div className="flex-1 overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', maxHeight: 'calc(90vh - 120px)'}}>
         <h2 className="text-2xl font-bold mb-6 text-center col-span-2">{resource ? 'Edit Resource' : 'Add Resource'}</h2>
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold" title="Close">&times;</button>
         <form onSubmit={handleSubmit} className="space-y-4 col-span-2">
           {/* Type & Program Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Resource Type</label>
-              <select value={resourceType} onChange={e => setResourceType(e.target.value)} className="w-full border rounded px-3 py-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Resource Type</label>
+              <select value={resourceType} onChange={e => setResourceType(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 {resourceTypes.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Program</label>
-              <select value={selectedProgram} onChange={e => { setSelectedProgram(e.target.value); setSelectedLevel(''); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setSelectedPaper(''); }} required className="w-full border rounded px-3 py-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Program</label>
+              <select value={selectedProgram} onChange={e => { setSelectedProgram(e.target.value); setSelectedLevel(''); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setSelectedPaper(''); }} required className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 <option value="">Select Program</option>
                 {programs.map(p => <option key={p.program_id} value={p.program_id}>{p.name}</option>)}
               </select>
@@ -325,8 +325,8 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {currentProgramIsAcademic && (
               <div>
-                <label className="block text-sm font-medium mb-1">Level</label>
-                <select value={selectedLevel} onChange={e => { setSelectedLevel(e.target.value); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setSelectedPaper(''); }} required className="w-full border rounded px-3 py-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Level</label>
+                <select value={selectedLevel} onChange={e => { setSelectedLevel(e.target.value); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setSelectedPaper(''); }} required className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                   <option value="">Select Level</option>
                   {levels.map(l => <option key={l.level_id} value={l.level_id}>{l.name}</option>)}
                 </select>
@@ -334,7 +334,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
             )}
             {(currentProgramIsAcademic && selectedLevel) || (!currentProgramIsAcademic && selectedProgram) ? (
               <div>
-                <label className="block text-sm font-medium mb-1">Subject</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Subject</label>
                 <div className="relative" ref={subjectDropdownRef}>
                   <input
                     type="text"
@@ -349,7 +349,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
                       }
                     }}
                     placeholder="Search subject..."
-                    className="w-full border rounded px-3 py-2 mb-1"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 mb-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={currentProgramIsAcademic && !selectedLevel}
                     onFocus={() => setSubjectDropdownOpen(true)}
                     onClick={() => setSubjectDropdownOpen(true)}
@@ -383,11 +383,11 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
             )}
             {selectedSubjectOfferingId && papersForDropdown.length > 0 && (
               <div>
-                <label className="block text-sm font-medium mb-1">Paper (Optional)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Paper (Optional)</label>
                 <select
                   value={selectedPaper}
                   onChange={e => setSelectedPaper(e.target.value)}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select Paper</option>
                   {papersForDropdown.map(p => (
@@ -402,18 +402,18 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
           {/* Title & Description */}
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Title</label>
-              <input value={title} onChange={e => setTitle(e.target.value)} required className="w-full border rounded px-3 py-2" />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+              <input value={title} onChange={e => setTitle(e.target.value)} required className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full border rounded px-3 py-2" />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
           <div className="flex items-center justify-center my-2 text-gray-400 text-xs font-semibold">──────── OR ────────</div>
           <div className="grid grid-cols-1 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">File Upload (optional)</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">File Upload (optional)</label>
               <FileUpload
                 bucket="resources"
                 folder={selectedProgram ? `program_${selectedProgram}` : ""}
@@ -426,8 +426,8 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Resource URL (optional)</label>
-              <input value={url} onChange={e => setUrl(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="https://..." 
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Resource URL (optional)</label>
+              <input value={url} onChange={e => setUrl(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="https://..." 
                 disabled={!!resource}
               />
             </div>

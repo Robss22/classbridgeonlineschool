@@ -661,7 +661,10 @@ export default function SubjectsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Manage Subjects</h1>
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Manage Subjects</h1>
+        <p className="text-lg text-gray-600">Create and organize subjects for different educational programs</p>
+      </div>
 
       <div className="flex flex-wrap gap-3 items-center mb-6 p-4 bg-gray-50 rounded-lg shadow-sm">
         <input

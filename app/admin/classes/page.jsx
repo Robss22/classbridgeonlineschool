@@ -262,7 +262,10 @@ export default function LevelsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Manage Levels</h1> 
+      <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Manage Levels</h1>
+        <p className="text-lg text-gray-600">Create and organize educational levels for different programs</p>
+      </div> 
 
       {/* Add Level Form */}
       <form onSubmit={handleAddLevel} className="mb-8 p-4 bg-blue-50 rounded-lg shadow-sm flex flex-wrap gap-3 items-center">

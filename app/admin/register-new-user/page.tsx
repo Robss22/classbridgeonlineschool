@@ -69,7 +69,10 @@ export default function AdminRegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form onSubmit={handleRegister} className="bg-white p-6 rounded shadow-md w-full max-w-md">
-        <h1 className="text-xl font-bold mb-4">Register New User</h1>
+        <div className="mb-6 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Register New User</h1>
+          <p className="text-sm text-gray-600">Create new user accounts for your educational platform</p>
+        </div>
         <input
           type="text"
           placeholder="First Name"
