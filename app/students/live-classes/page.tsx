@@ -50,15 +50,38 @@ export default function StudentLiveClassesPage() {
       
       const userId = authUser.user.id;
       
-      // Get student's program (UUID) and level
+      // Get student's program and level
       const { data: userData } = await supabase
         .from('users')
         .select('program_id, level_id')
         .eq('id', userId)
         .single();
       
-      const programId = (userData as any)?.program_id as string | undefined;
+      let programId = (userData as any)?.program_id as string | undefined;
       const levelId = (userData as any)?.level_id as string | undefined;
+      
+      // Handle case where program_id might be a string name instead of UUID
+      if (programId && !programId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.log('Program ID is not a UUID, looking up by name:', programId);
+        // program_id is not a UUID, so it's likely a program name
+        // Look up the actual program UUID by name
+        const { data: programData, error: programError } = await supabase
+          .from('programs')
+          .select('program_id')
+          .eq('name', programId)
+          .single();
+        
+        if (programError || !programData) {
+          console.warn('Could not find program UUID for name:', programId);
+          setError('Program configuration error. Please contact your administrator.');
+          return;
+        }
+        
+        console.log('Found program UUID:', programData.program_id, 'for name:', programId);
+        programId = programData.program_id;
+      }
+      
+      console.log('Using program ID for query:', programId);
       
       if (!programId) {
         setError('No program assigned. Please contact your administrator.');
@@ -108,7 +131,15 @@ export default function StudentLiveClassesPage() {
       
     } catch (error: any) {
       console.error('Error fetching live classes:', error);
-      setError(error.message || 'Failed to fetch live classes');
+      
+      // Handle specific Supabase errors
+      if (error.code === 'PGRST116') {
+        setError('Database query error. Please contact your administrator.');
+      } else if (error.message && error.message.includes('400')) {
+        setError('Invalid query parameters. Please contact your administrator.');
+      } else {
+        setError(error.message || 'Failed to fetch live classes');
+      }
     } finally {
       // setLoading(false); // This line was removed as per the edit hint
     }
