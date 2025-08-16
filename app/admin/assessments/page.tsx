@@ -55,7 +55,7 @@ export default function AdminAssessmentsPage() {
     }
   }, []);
 
-  // Load data on mount and when filters change
+  // Load data on mount and when filter change
   useEffect(() => {
     if (user) {
       fetchAssessments();
