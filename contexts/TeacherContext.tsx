@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './AuthContext';
 
@@ -24,7 +24,7 @@ interface TeacherContextType {
 
 const TeacherContext = createContext<TeacherContextType | undefined>(undefined);
 
-export function TeacherProvider({ children }: { children: ReactNode }) {
+export function TeacherProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
@@ -33,104 +33,89 @@ export function TeacherProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAssignments = async () => {
-    if (!user || user.role !== 'teacher' && user.role !== 'class_tutor') {
-      console.log('🔍 [TeacherContext] User is not a teacher:', user?.role);
-      setAssignments([]);
-      setSubjects([]);
-      setLevels([]);
-      setPrograms([]);
-      return;
-    }
-
-    console.log('🔍 [TeacherContext] Fetching assignments for teacher:', user.id);
-    setLoading(true);
-    setError(null);
+  const fetchAssignments = useCallback(async () => {
+    if (!user) return;
 
     try {
-      // First, get the teacher_id from the teachers table
-      console.log('🔍 [TeacherContext] Getting teacher_id for user:', user.id);
-      const { data: teacherRecord, error: teacherRecordError } = await supabase
+      setLoading(true);
+      setError(null);
+
+      // Get teacher record to find their assigned programs
+      const { data: teacherRecord, error: teacherError } = await supabase
         .from('teachers')
         .select(`
           teacher_id,
-          program_id,
           programs:program_id (name)
         `)
-        .eq('user_id', user?.id ?? '')
+        .eq('user_id', user.id)
         .single();
 
-      console.log('🔍 [TeacherContext] Teacher record:', teacherRecord, 'Error:', teacherRecordError);
+      if (teacherError) {
+        console.error('Error fetching teacher record:', teacherError);
+        setError('Failed to fetch teacher information');
+        return;
+      }
 
-      if (teacherRecordError) {
-        console.warn('Error fetching teacher record:', teacherRecordError);
+      if (!teacherRecord) {
+        console.log('No teacher record found for user:', user.id);
         setAssignments([]);
         setSubjects([]);
         setLevels([]);
         setPrograms([]);
-        setLoading(false);
         return;
       }
 
-      // Fetch teacher assignments using teacher_id
-      console.log('🔍 [TeacherContext] Fetching teacher assignments for teacher_id:', teacherRecord.teacher_id);
-      const { data: teacherAssignments, error: assignmentError } = await supabase
+      console.log('🔍 [TeacherContext] Teacher record:', teacherRecord);
+
+      // Fetch assignments for this teacher
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('teacher_assignments')
         .select(`
           subject_id,
           level_id,
-          program_id,
           subjects:subject_id (name),
           levels:level_id (name),
           programs:program_id (name)
         `)
         .eq('teacher_id', teacherRecord.teacher_id);
 
-      console.log('🔍 [TeacherContext] Teacher assignments:', teacherAssignments, 'Error:', assignmentError);
-
-      if (assignmentError) {
-        console.warn('Error fetching teacher assignments:', assignmentError);
+      if (assignmentsError) {
+        console.error('Error fetching assignments:', assignmentsError);
+        setError('Failed to fetch assignments');
+        return;
       }
 
-      // Process assignments
-      const processedAssignments: TeacherAssignment[] = [];
+      console.log('🔍 [TeacherContext] Raw assignments data:', assignmentsData);
+
+      // Helper functions to extract names from joined data
+      const getSubjectName = (subjects: any): string | undefined => {
+        if (Array.isArray(subjects) && subjects.length > 0) {
+          return subjects[0]?.name;
+        }
+        return subjects?.name;
+      };
+      
+      const getLevelName = (levels: any): string | undefined => {
+        if (Array.isArray(levels) && levels.length > 0) {
+          return levels[0]?.name;
+        }
+        return levels?.name;
+      };
+      
+      const getProgramName = (programs: any): string | undefined => {
+        if (Array.isArray(programs) && programs.length > 0) {
+          return programs[0]?.name;
+        }
+        return programs?.name;
+      };
+
+      // Process assignments to extract unique subjects, levels, and programs
+      const processedAssignments: any[] = [];
       const uniqueSubjects = new Set<string>();
       const uniqueLevels = new Set<string>();
       const uniquePrograms = new Set<string>();
 
-      // Add teacher's program
-      if ((teacherRecord?.programs as any)?.name) {
-        uniquePrograms.add((teacherRecord.programs as any).name);
-        console.log('🔍 [TeacherContext] Added program:', (teacherRecord.programs as any).name);
-      }
-
-      // Process teacher assignments
-      console.log('🔍 [TeacherContext] Processing', teacherAssignments?.length || 0, 'teacher assignments');
-      (teacherAssignments || []).forEach((assignment: any, index: number) => {
-        console.log(`🔍 [TeacherContext] Processing assignment ${index}:`, assignment);
-        
-        // Handle joined data with explicit type checking
-        const getSubjectName = (subjects: any): string | undefined => {
-          if (Array.isArray(subjects) && subjects.length > 0) {
-            return subjects[0]?.name;
-          }
-          return subjects?.name;
-        };
-        
-        const getLevelName = (levels: any): string | undefined => {
-          if (Array.isArray(levels) && levels.length > 0) {
-            return levels[0]?.name;
-          }
-          return levels?.name;
-        };
-        
-        const getProgramName = (programs: any): string | undefined => {
-          if (Array.isArray(programs) && programs.length > 0) {
-            return programs[0]?.name;
-          }
-          return programs?.name;
-        };
-        
+      (assignmentsData || []).forEach((assignment: any, index: number) => {
         const subjectName = getSubjectName(assignment.subjects);
         const levelName = getLevelName(assignment.levels);
         const programName = getProgramName(assignment.programs);
@@ -176,17 +161,28 @@ export function TeacherProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const refreshAssignments = async () => {
-    await fetchAssignments();
-  };
-
-  useEffect(() => {
-    fetchAssignments();
   }, [user]);
 
-  const value: TeacherContextType = {
+  const refreshAssignments = useCallback(async () => {
+    await fetchAssignments();
+  }, [fetchAssignments]);
+
+  useEffect(() => {
+    if (user && (user.role === 'teacher' || user.role === 'class_tutor')) {
+      fetchAssignments();
+    } else if (user) {
+      // For non-teacher users (like admins), set empty arrays and skip API calls
+      setAssignments([]);
+      setSubjects([]);
+      setLevels([]);
+      setPrograms([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [user, fetchAssignments]);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const memoizedValue = useMemo(() => ({
     assignments,
     subjects,
     levels,
@@ -194,10 +190,18 @@ export function TeacherProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     refreshAssignments,
-  };
+  }), [
+    assignments,
+    subjects,
+    levels,
+    programs,
+    loading,
+    error,
+    refreshAssignments,
+  ]);
 
   return (
-    <TeacherContext.Provider value={value}>
+    <TeacherContext.Provider value={memoizedValue}>
       {children}
     </TeacherContext.Provider>
   );

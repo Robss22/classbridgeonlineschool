@@ -22,7 +22,7 @@ export default function Sidebar({ onMobileMenuToggle, isMobileMenuOpen }: Sideba
 
   const links = [
     { name: 'Dashboard Home', href: '/admin/dashboard' },
-    { name: 'Assessments', href: '/assessments' },
+    { name: 'Assessments', href: '/admin/assessments' },
     { name: 'Applications', href: '/admin/applications' },
     { name: 'Classes', href: '/admin/classes' },
     { name: 'Live Classes', href: '/admin/live-classes' },

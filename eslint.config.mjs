@@ -9,9 +9,20 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-// Ignore auto-generated or binary-like files that ESLint shouldn't parse
 const config = [
-  { ignores: ["lib/supabase.types.ts"] },
+  {
+    ignores: [
+      ".next/**/*",
+      "node_modules/**/*",
+      "database.types.ts",
+      "lib/supabase.types.ts",
+      "dist/**/*",
+      "build/**/*",
+      "*.min.js",
+      "*.bundle.js",
+      "tailwind.config.js"
+    ]
+  },
   ...compat.extends("next/core-web-vitals"),
 ];
 

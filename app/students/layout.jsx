@@ -58,24 +58,25 @@ export default function StudentLayout({ children }) {
                 </div>
               </div>
 
-              {/* Mobile Navigation - Scrollable */}
-              <nav className="flex-1 overflow-y-auto p-6 space-y-2">
-                {links.map(({ name, href, icon: Icon }) => (
-                  <Link
-                    key={name}
-                    href={href}
-                    className={`px-3 py-3 rounded font-medium transition-colors flex items-center gap-3
-                      ${pathname === href 
-                        ? 'bg-blue-700 text-white' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }
-                    `}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {name}
-                  </Link>
-                ))}
-              </nav>
+                          {/* Mobile Navigation - Scrollable */}
+            <nav className="flex-1 overflow-y-auto p-6 space-y-2">
+              {links.map(({ name, href, icon: Icon }) => (
+                <Link
+                  key={name}
+                  href={href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`px-3 py-3 rounded font-medium transition-colors flex items-center gap-3
+                    ${pathname === href 
+                      ? 'bg-blue-700 text-white' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }
+                  `}
+                >
+                  <Icon className="h-5 w-5" />
+                  {name}
+                </Link>
+              ))}
+            </nav>
 
               {/* Mobile Logout Section - Fixed at Bottom */}
               <div className="p-6 border-t border-gray-200 bg-white">

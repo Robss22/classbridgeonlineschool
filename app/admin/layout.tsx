@@ -8,10 +8,11 @@ import { usePathname } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import { TeacherProvider } from '@/contexts/TeacherContext';
 
 const links = [
   { name: 'Dashboard Home', href: '/admin/dashboard' },
-  { name: 'Assessments', href: '/assessments' },
+  { name: 'Assessments', href: '/admin/assessments' },
   { name: 'Applications', href: '/admin/applications' },
   { name: 'Classes', href: '/admin/classes' },
   { name: 'Live Classes', href: '/admin/live-classes' },
@@ -32,7 +33,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-100 admin-layout">
+    <TeacherProvider>
+      <div className="flex min-h-screen bg-gray-100 admin-layout">
       {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
         {/* Backdrop */}
@@ -55,23 +57,24 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            {/* Mobile Navigation */}
-            <nav className="flex-1 flex flex-col gap-2">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-3 rounded font-medium transition-colors
-                    ${pathname === link.href 
-                      ? 'bg-blue-700 text-white' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }
-                  `}
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </nav>
+                         {/* Mobile Navigation */}
+             <nav className="flex-1 flex flex-col gap-2">
+               {links.map((link) => (
+                 <Link
+                   key={link.href}
+                   href={link.href}
+                   onClick={() => setIsMobileMenuOpen(false)}
+                   className={`px-3 py-3 rounded font-medium transition-colors
+                     ${pathname === link.href 
+                       ? 'bg-blue-700 text-white' 
+                       : 'bg-blue-600 text-white hover:bg-blue-700'
+                     }
+                   `}
+                 >
+                   {link.name}
+                 </Link>
+               ))}
+             </nav>
 
             {/* Mobile Logout Section */}
             <div className="border-t border-gray-200 pt-4">
@@ -92,7 +95,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <Sidebar onMobileMenuToggle={toggleMobileMenu} isMobileMenuOpen={isMobileMenuOpen} />
+      {/* Desktop Sidebar - only visible on large screens */}
+      <div className="hidden lg:block">
+        <Sidebar onMobileMenuToggle={toggleMobileMenu} isMobileMenuOpen={isMobileMenuOpen} />
+      </div>
       <main className="flex-1 flex flex-col lg:ml-0">
         <header className="h-16 bg-white shadow flex items-center px-4 sm:px-8 justify-between">
           <div className="flex items-center gap-3">
@@ -114,6 +120,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </header>
         <section className="flex-1 p-6">{children}</section>
       </main>
-    </div>
+      </div>
+    </TeacherProvider>
   );
 }

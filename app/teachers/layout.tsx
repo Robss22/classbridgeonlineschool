@@ -15,7 +15,7 @@ const navItems = [
   { name: 'My Timetable', href: '/teachers/timetable' },
   { name: 'Live Classes', href: '/teachers/live-classes' },
   { name: 'Resources', href: '/teachers/resources' },
-  { name: 'My Assessments', href: '/assessments' },
+  { name: 'My Assessments', href: '/teachers/assessments' },
   { name: 'Messages', href: '/teachers/messages' },
   { name: 'Students', href: '/teachers/students' },
   { name: 'Profile', href: '/teachers/profile' },
@@ -83,6 +83,7 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className={`block px-3 py-3 rounded font-medium transition-colors
                     ${pathname === item.href 
                       ? 'bg-blue-700 text-white' 

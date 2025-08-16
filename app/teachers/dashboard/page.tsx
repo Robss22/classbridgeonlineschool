@@ -194,7 +194,7 @@ export default function TeacherDashboardPage() {
           <div className="text-gray-600 text-sm">Assigned Levels: <span className="font-medium">{levels.length ? levels.join(", ") : "None assigned"}</span></div>
         </div>
         <div className="flex gap-2 mt-2 md:mt-0">
-          <Link href="/assessments">
+          <Link href="/teachers/assessments">
             <button className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors">
               + Add Assessment
             </button>
@@ -206,7 +206,7 @@ export default function TeacherDashboardPage() {
       </div>
       {/* Dashboard Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
-        <DashboardCard title="Assessments" href="/assessments" desc="Create and manage assessments for your classes and programs." />
+        <DashboardCard title="Assessments" href="/teachers/assessments" desc="Create and manage assessments for your classes and programs." />
         <DashboardCard title="Resources" href="/teachers/resources" desc="Upload and manage teaching resources." />
         <DashboardCard title="Classes" href="/teachers/classes" desc="View and manage your assigned classes." />
         <DashboardCard title="Messages" href="/teachers/messages" desc="Send and receive messages and announcements." />

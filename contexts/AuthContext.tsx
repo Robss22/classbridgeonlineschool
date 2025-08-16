@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 // Define types for the auth context
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Change password function that updates both Supabase Auth and database
-  const changePassword = async ({ newPassword }: { newPassword: string }) => {
+  const changePassword = useCallback(async ({ newPassword }: { newPassword: string }) => {
     console.log('🔐 [changePassword] Function called with:', { newPassword: '***' });
     
     try {
@@ -133,69 +133,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .from('users')
           .update({ password_changed: true })
           .eq('auth_user_id', user.id);
-          
-        const result1 = await Promise.race([updatePromise1, dbTimeoutPromise]) as { error: any };
-        const error1 = result1.error;
         
-        if (error1) {
-          console.log('🔐 [changePassword] First attempt failed, trying by email:', error1);
+        // Race between update and timeout
+        const result1 = await Promise.race([updatePromise1, dbTimeoutPromise]) as { data: any; error: any };
+        updateDbError = result1.error;
+        
+        if (updateDbError) {
+          console.log('🔐 [changePassword] First attempt failed, trying by email...');
+          
           // Second try: Update by email with timeout
           const updatePromise2 = supabase
             .from('users')
             .update({ password_changed: true })
             .eq('email', user.email);
-            
-          const result2 = await Promise.race([updatePromise2, dbTimeoutPromise]) as { error: any };
-          const error2 = result2.error;
           
-          if (error2) {
-            console.log('🔐 [changePassword] Second attempt failed, trying by id:', error2);
+          const result2 = await Promise.race([updatePromise2, dbTimeoutPromise]) as { data: any; error: any };
+          updateDbError = result2.error;
+          
+          if (updateDbError) {
+            console.log('🔐 [changePassword] Second attempt failed, trying by id...');
+            
             // Third try: Update by id with timeout
             const updatePromise3 = supabase
               .from('users')
               .update({ password_changed: true })
               .eq('id', user.id);
-              
-            const result3 = await Promise.race([updatePromise3, dbTimeoutPromise]) as { error: any };
+            
+            const result3 = await Promise.race([updatePromise3, dbTimeoutPromise]) as { data: any; error: any };
             updateDbError = result3.error;
           }
         }
       } catch (dbException: any) {
-        console.error('❌ [changePassword] Exception during database update:', dbException);
-        
-        if (dbException.message?.includes('timeout')) {
-          console.log('⚠️ [changePassword] Database timeout detected, skipping database update');
-          // If database is hanging, skip it but still consider password change successful
-          updateDbError = null;
-        } else {
-          updateDbError = dbException;
-        }
+        console.error('❌ [changePassword] Database update exception:', dbException);
+        updateDbError = dbException;
       }
-
+      
       if (updateDbError) {
-        console.error('❌ [changePassword] All database update attempts failed:', updateDbError);
-        // Password was changed in auth but flag update failed - still consider it a success
-        // but warn the user they might need to contact support
-        return { 
-          success: true, 
-          warning: 'Password updated successfully, but there was an issue updating your profile. If you experience login issues, please contact support.' 
-        };
+        console.error('❌ [changePassword] Database update failed:', updateDbError);
+        // Don't fail the entire operation if database update fails
+        // The password was already changed in Supabase Auth
+        console.log('⚠️ [changePassword] Database update failed, but password was changed in Auth');
       }
       
-      console.log('✅ [changePassword] Password and database updated successfully');
+      console.log('🔐 [changePassword] Step 2 completed');
+      console.log('✅ [changePassword] Password change completed successfully');
       
-      // Step 3: Update the user object in context to reflect the change immediately
-      console.log('🔐 [changePassword] Step 3: Updating user context');
-      setUser(prevUser => (prevUser ? { ...prevUser, password_changed: true } : null));
-      
-      console.log('✅ [changePassword] All steps completed successfully');
       return { success: true };
     } catch (error: any) {
       console.error('❌ [changePassword] Unexpected error:', error);
-      console.error('❌ [changePassword] Error stack:', error?.stack);
-      return { success: false, error: 'An unexpected error occurred: ' + (error?.message || 'Unknown') };
+      return { success: false, error: 'An unexpected error occurred: ' + error.message };
     }
-  };
+  }, [user]);
 
   // Fetch user profile (including role) from your users table
   async function fetchUserProfile(authUser: any): Promise<User | null> {
@@ -294,10 +282,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isHydrated]);
 
-  if (authError) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{authError}</div>;
-  }
-
+  // Move useMemo before the early return
   const value = useMemo(() => ({
     user,
     setUser,
@@ -309,6 +294,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsHydrated,
     changePassword,
   }), [user, loading, authError, isHydrated, changePassword]);
+
+  if (authError) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{authError}</div>;
+  }
 
   return (
     <AuthContext.Provider value={value}>

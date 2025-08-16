@@ -12,7 +12,7 @@ const links = [
   { name: 'Live Classes', href: '/students/live-classes', icon: Video },
   { name: 'Resources', href: '/students/resources', icon: BookOpen },
   { name: 'Timetable', href: '/students/timetable', icon: Calendar },
-  { name: 'Assignments', href: '/students/assignments', icon: FileText }, // Optional, can be hidden if not implemented
+  { name: 'Assignments', href: '/students/assignments', icon: FileText },
   { name: 'Messages', href: '/students/messages', icon: MessageCircle },
   { name: 'Profile / Settings', href: '/students/profile', icon: Settings },
 ];
@@ -92,6 +92,13 @@ export default function StudentSidebar({ className = "", isMobileMenuOpen, onMob
                 <Link
                   key={name}
                   href={href}
+                  onClick={() => {
+                    if (onMobileMenuToggle) {
+                      onMobileMenuToggle();
+                    } else {
+                      setIsInternalMobileMenuOpen(false);
+                    }
+                  }}
                   className={`px-3 py-3 rounded font-medium transition-colors flex items-center gap-3
                     ${pathname === href 
                       ? 'bg-blue-700 text-white' 

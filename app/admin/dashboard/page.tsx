@@ -7,7 +7,7 @@ export default function DashboardHome() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-        <Link href="/assessments">
+        <Link href="/admin/assessments">
           <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
             + Add Assessment
           </button>
@@ -17,7 +17,7 @@ export default function DashboardHome() {
         {[
           { title: "Applications", href: "/admin/applications", desc: "Review and approve student applications." },
           { title: "Assignments", href: "/admin/assignments", desc: "Manage and review assignments for all classes and programs." },
-          { title: "Assessments", href: "/assessments", desc: "Create and manage assessments for all programs and classes." },
+          { title: "Assessments", href: "/admin/assessments", desc: "Create and manage assessments for all programs and classes." },
           { title: "Classes", href: "/admin/classes", desc: "Manage classes and their program assignments." },
           { title: "Live Classes", href: "/admin/live-classes", desc: "Schedule and manage live class sessions and attendance." },
           { title: "Messages", href: "/admin/messages", desc: "Send and review messages and announcements." },
