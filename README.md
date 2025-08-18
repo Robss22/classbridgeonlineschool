@@ -85,6 +85,17 @@ npm run test:coverage
 npm run test:e2e
 ```
 
+## 🕒 Scheduled Tasks
+
+- Session cleanup API: `POST /api/sessions/cleanup`
+- Windows scheduler helper: `scripts/setup-session-cleanup.ps1` (usage: `./scripts/setup-session-cleanup.ps1 -AppBaseUrl "https://your-app"`)
+
+## 🔒 Live Class Attendance
+
+- Join/leave events are posted to `/api/attendance/event` with bearer token
+- Students/Teachers join via `app/students/live/join/[liveClassId]` and `app/teachers/live/join/[liveClassId]`
+- Pre-join checks ensure time window and basic enrollment (soft)
+
 ## 🚀 Deployment
 
 ### Vercel (Recommended)

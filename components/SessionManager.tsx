@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSessionManagement } from '@/hooks/useSessionManagement';
 import { SessionInfo } from '@/lib/services/sessionManager';
 import { Monitor, Smartphone, Tablet, MonitorSmartphone, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import { useToast } from '@/components/ui/ToastProvider';
 
 interface SessionManagerProps {
   showDeviceInfo?: boolean;
@@ -16,11 +18,14 @@ export default function SessionManager({
   allowForceLogout = true,
   className = ''
 }: SessionManagerProps) {
+  const { toast } = useToast();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [currentSession, setCurrentSession] = useState<SessionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [forceLogoutConfirm, setForceLogoutConfirm] = useState(false);
+  const [endSessionConfirm, setEndSessionConfirm] = useState(false);
 
   const {
     getCurrentSession,
@@ -64,29 +69,31 @@ export default function SessionManager({
   };
 
   const handleForceLogoutOthers = async () => {
-    if (!confirm('Are you sure you want to log out from all other devices? This will end all other active sessions.')) {
-      return;
-    }
+    setForceLogoutConfirm(true);
+  };
 
+  const confirmForceLogoutOthers = async () => {
     try {
       const success = await forceLogoutOtherDevices();
       if (success) {
-        alert('Successfully logged out from all other devices!');
+        toast({ title: 'Success', description: 'Successfully logged out from all other devices!', variant: 'success' });
         await loadSessions(); // Refresh the list
       } else {
-        alert('Failed to log out from other devices. Please try again.');
+        toast({ title: 'Error', description: 'Failed to log out from other devices. Please try again.', variant: 'error' });
       }
     } catch (error) {
       console.error('Error force logging out other devices:', error);
-      alert('An error occurred while logging out from other devices.');
+      toast({ title: 'Error', description: 'An error occurred while logging out from other devices.', variant: 'error' });
+    } finally {
+      setForceLogoutConfirm(false);
     }
   };
 
   const handleEndCurrentSession = async () => {
-    if (!confirm('Are you sure you want to end your current session? You will be logged out immediately.')) {
-      return;
-    }
+    setEndSessionConfirm(true);
+  };
 
+  const confirmEndCurrentSession = async () => {
     try {
       const success = await endCurrentSession();
       if (success) {
@@ -95,7 +102,8 @@ export default function SessionManager({
       }
     } catch (error) {
       console.error('Error ending current session:', error);
-      alert('An error occurred while ending the session.');
+      toast({ title: 'Error', description: 'An error occurred while ending the session.', variant: 'error' });
+      setEndSessionConfirm(false);
     }
   };
 
@@ -103,14 +111,14 @@ export default function SessionManager({
     try {
       const success = await extendSession(2.5); // Extend by 2.5 hours
       if (success) {
-        alert('Session extended successfully!');
+        toast({ title: 'Success', description: 'Session extended successfully!', variant: 'success' });
         await loadSessions(); // Refresh the list
       } else {
-        alert('Failed to extend session. Please try again.');
+        toast({ title: 'Error', description: 'Failed to extend session. Please try again.', variant: 'error' });
       }
     } catch (error) {
       console.error('Error extending session:', error);
-      alert('An error occurred while extending the session.');
+      toast({ title: 'Error', description: 'An error occurred while extending the session.', variant: 'error' });
     }
   };
 
@@ -313,6 +321,29 @@ export default function SessionManager({
           </span>
         </div>
       </div>
+
+      {/* Confirm Modals */}
+      <ConfirmModal
+        isOpen={forceLogoutConfirm}
+        onClose={() => setForceLogoutConfirm(false)}
+        onConfirm={confirmForceLogoutOthers}
+        title="Logout All Other Devices"
+        message="Are you sure you want to log out from all other devices? This will end all other active sessions."
+        confirmText="Logout All"
+        cancelText="Cancel"
+        variant="warning"
+      />
+
+      <ConfirmModal
+        isOpen={endSessionConfirm}
+        onClose={() => setEndSessionConfirm(false)}
+        onConfirm={confirmEndCurrentSession}
+        title="End Current Session"
+        message="Are you sure you want to end your current session? You will be logged out immediately."
+        confirmText="End Session"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

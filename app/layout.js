@@ -1,6 +1,11 @@
+// Optional Sentry init for client-side
+// import { initSentry } from '@/lib/sentry';
+// if (typeof window !== 'undefined') initSentry();
 import './globals.css';
 import { Inter } from 'next/font/google';
 import GlobalAutoLogout from '@/components/GlobalAutoLogout';
+import { ToastProvider } from '@/components/ui/ToastProvider';
+import ReactQueryProvider from '@/components/providers/ReactQueryProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,7 +31,11 @@ export default function RootLayout({ children }) {
             '/timetable'
           ]}
         />
-        {children}
+        <ReactQueryProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </ReactQueryProvider>
       </body>
     </html>
   );

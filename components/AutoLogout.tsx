@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface AutoLogoutProps {
   timeoutMinutes?: number; // Default: 2 hours 30 minutes
@@ -21,6 +22,7 @@ export default function AutoLogout({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const warningRef = useRef<NodeJS.Timeout>();
   const lastActivityRef = useRef<number>(Date.now());
+  const [showWarning, setShowWarning] = useState(false);
 
   // Reset timers on user activity
   const resetTimers = useCallback(() => {
@@ -37,9 +39,7 @@ export default function AutoLogout({
         onWarning();
       } else {
         // Default warning behavior
-        if (confirm('You will be logged out in 5 minutes due to inactivity. Click OK to stay logged in.')) {
-          resetTimers(); // Reset if user confirms
-        }
+        setShowWarning(true);
       }
     }, warningTime);
 
@@ -116,5 +116,19 @@ export default function AutoLogout({
     return () => clearInterval(authCheckInterval);
   }, [router]);
 
-  return null; // This component doesn't render anything
+  return (
+    <ConfirmModal
+      isOpen={showWarning}
+      onClose={() => setShowWarning(false)}
+      onConfirm={() => {
+        setShowWarning(false);
+        resetTimers(); // Reset if user confirms
+      }}
+      title="Session Timeout Warning"
+      message="You will be logged out in 5 minutes due to inactivity. Click 'Stay Logged In' to continue your session."
+      confirmText="Stay Logged In"
+      cancelText="Logout Now"
+      variant="warning"
+    />
+  );
 }

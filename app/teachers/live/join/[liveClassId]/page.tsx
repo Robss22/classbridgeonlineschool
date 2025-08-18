@@ -17,6 +17,7 @@ export default function TeacherJoinLiveClassPage() {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [meetingLink, setMeetingLink] = useState<string>('')
   const [displayName, setDisplayName] = useState<string>('')
+  const [error, setError] = useState<string>('')
 
   useEffect(() => {
     const load = async () => {
@@ -26,6 +27,29 @@ export default function TeacherJoinLiveClassPage() {
       const { data: userData } = await supabase.auth.getUser()
       const fullName = userData?.user?.user_metadata?.full_name || userData?.user?.email || 'Teacher'
       setDisplayName(fullName)
+
+      // Pre-join: teacher can start within allowed window
+      try {
+        const { data: lc } = await supabase
+          .from('live_classes')
+          .select('status, scheduled_date, start_time, end_time')
+          .eq('live_class_id', liveClassId)
+          .single()
+        if (lc) {
+          const now = new Date()
+          const start = new Date(`${lc.scheduled_date}T${lc.start_time}`)
+          const end = new Date(`${lc.scheduled_date}T${lc.end_time}`)
+          const earlyMs = 30 * 60 * 1000
+          if (now.getTime() < start.getTime() - earlyMs) {
+            setError('Too early to start this class')
+            return
+          }
+          if (now.getTime() > end.getTime()) {
+            setError('This class has already ended')
+            return
+          }
+        }
+      } catch {}
 
       // Resolve or generate meeting link
       const { data, error } = await supabase
@@ -51,10 +75,7 @@ export default function TeacherJoinLiveClassPage() {
         } catch (_) {}
       }
 
-      if (!link) {
-        router.push('/teachers/live-classes')
-        return
-      }
+      if (!link) { setError('No meeting link available'); return }
       setMeetingLink(link)
 
       // Load Jitsi script
@@ -128,6 +149,17 @@ export default function TeacherJoinLiveClassPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveClassId])
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button onClick={() => router.push('/teachers/live-classes')} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Back</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-black">

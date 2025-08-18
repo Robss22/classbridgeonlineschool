@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState, useRef } from 'react';
-import type { Database } from '../../../database.types';
+import type { Database } from '@/lib/supabase.types';
 import { supabase } from '../../../lib/supabaseClient';
 import { BookOpen, FileText, UploadCloud, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useStudent } from '@/contexts/StudentContext';

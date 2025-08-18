@@ -5,6 +5,8 @@ import TeacherResourceForm from "@/components/TeacherResourceForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { BookOpen, FileText, Video, Link2, Edit, Trash2, Plus } from "lucide-react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const fileTypeIcons = {
   pdf: FileText,
@@ -22,6 +24,7 @@ const fileTypeTags = {
 
 export default function TeacherResourcesPage() {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   type ResourceRow = {
     resource_id: string;
@@ -37,6 +40,7 @@ export default function TeacherResourcesPage() {
   const [filters, setFilters] = useState({ subject: "", class: "", date: "" });
   const [showForm, setShowForm] = useState(false);
   const [editingResource, setEditingResource] = useState<ResourceRow | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; resourceId: string | null }>({ isOpen: false, resourceId: null });
 
   const fetchResources = useCallback(async () => {
     if (!user) return;
@@ -107,13 +111,20 @@ export default function TeacherResourcesPage() {
   }
 
   const handleDelete = async (resource_id: string) => {
-    if (!window.confirm("Are you sure you want to delete this resource?")) return;
+    setDeleteConfirm({ isOpen: true, resourceId: resource_id });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.resourceId) return;
     try {
-      await supabase.from("resources").delete().eq("resource_id", resource_id);
-      setResources((prev) => prev.filter((r) => r.resource_id !== resource_id));
+      await supabase.from("resources").delete().eq("resource_id", deleteConfirm.resourceId);
+      setResources((prev) => prev.filter((r) => r.resource_id !== deleteConfirm.resourceId));
+      toast({ title: 'Success', description: 'Resource deleted successfully', variant: 'success' });
     } catch (error) {
       console.error("Error deleting resource:", error);
-      alert("Failed to delete resource");
+      toast({ title: 'Error', description: 'Failed to delete resource', variant: 'error' });
+    } finally {
+      setDeleteConfirm({ isOpen: false, resourceId: null });
     }
   };
 
@@ -297,6 +308,17 @@ export default function TeacherResourcesPage() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, resourceId: null })}
+        onConfirm={confirmDelete}
+        title="Delete Resource"
+        message="Are you sure you want to delete this resource? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

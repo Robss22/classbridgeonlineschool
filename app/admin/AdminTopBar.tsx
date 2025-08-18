@@ -1,8 +1,9 @@
 'use client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import NotificationsBell from '@/components/NotificationsBell';
 
 export default function AdminTopBar() {
   const { user } = useAuth();
@@ -45,12 +46,8 @@ export default function AdminTopBar() {
           </div>
         </div>
         <div className="flex items-center gap-4 ml-6">
-          {/* Notifications placeholder */}
-          <div className="relative">
-            <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
-              <Bell className="h-5 w-5" />
-            </button>
-          </div>
+          {/* Notifications Bell */}
+          <NotificationsBell />
           
           {/* Profile section */}
           <div className="flex items-center gap-3">

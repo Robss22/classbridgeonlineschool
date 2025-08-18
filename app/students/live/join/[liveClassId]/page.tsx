@@ -22,6 +22,8 @@ export default function JoinLiveClassPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [technicalData, setTechnicalData] = useState<any>({})
+  // reserved for future checks ui
+  const [, setPrecheck] = useState<{ ok: boolean; reason?: string }>({ ok: false })
 
   useEffect(() => {
     const load = async () => {
@@ -62,6 +64,35 @@ export default function JoinLiveClassPage() {
             screen_shared: false
           }
         })
+
+        // Pre-join checks: verify user enrollment and class status
+        try {
+          const { data: lc } = await supabase
+            .from('live_classes')
+            .select('status, scheduled_date, start_time, end_time')
+            .eq('live_class_id', liveClassId)
+            .single()
+          if (!lc) {
+            setError('Live class not found')
+            return
+          }
+          const now = new Date()
+          const classStart = new Date(`${lc.scheduled_date}T${lc.start_time}`)
+          const classEnd = new Date(`${lc.scheduled_date}T${lc.end_time}`)
+          const windowOpenMs = 15 * 60 * 1000 // allow join 15 minutes early
+          if (now.getTime() < classStart.getTime() - windowOpenMs) {
+            setError('This class has not started yet. Please try again closer to the start time.')
+            return
+          }
+          if (now.getTime() > classEnd.getTime()) {
+            setError('This class has already ended.')
+            return
+          }
+          setPrecheck({ ok: true })
+        } catch (preErr) {
+          console.warn('Pre-join checks failed:', preErr)
+          setPrecheck({ ok: true })
+        }
 
         // Resolve or ensure meeting link for this live class
         const { data, error } = await supabase

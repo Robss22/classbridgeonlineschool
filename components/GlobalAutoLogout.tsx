@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { AUTO_LOGOUT_CONFIG } from '@/config/autoLogout';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface GlobalAutoLogoutProps {
   timeoutMinutes?: number;
@@ -21,6 +22,7 @@ export default function GlobalAutoLogout({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const warningRef = useRef<NodeJS.Timeout>();
   const lastActivityRef = useRef<number>(Date.now());
+  const [showWarning, setShowWarning] = useState(false);
 
   // Check if current path should be excluded from auto-logout
   const isExcludedPath = excludedPaths.some(path => pathname.startsWith(path));
@@ -39,9 +41,7 @@ export default function GlobalAutoLogout({
     const warningTime = (timeoutMinutes - warningMinutes) * 60 * 1000; // Convert to milliseconds
     warningRef.current = setTimeout(() => {
       // Show warning dialog
-      if (confirm(AUTO_LOGOUT_CONFIG.WARNING_MESSAGE)) {
-        resetTimers(); // Reset if user confirms
-      }
+      setShowWarning(true);
     }, warningTime);
 
     // Set logout timer
@@ -111,5 +111,19 @@ export default function GlobalAutoLogout({
     resetTimers();
   }, [pathname, resetTimers]);
 
-  return null; // This component doesn't render anything
+  return (
+    <ConfirmModal
+      isOpen={showWarning}
+      onClose={() => setShowWarning(false)}
+      onConfirm={() => {
+        setShowWarning(false);
+        resetTimers(); // Reset if user confirms
+      }}
+      title="Session Timeout Warning"
+      message={AUTO_LOGOUT_CONFIG.WARNING_MESSAGE}
+      confirmText="Stay Logged In"
+      cancelText="Logout Now"
+      variant="warning"
+    />
+  );
 }

@@ -9,6 +9,8 @@ import AutoLogout from '@/components/AutoLogout';
 import { supabase } from '@/lib/supabaseClient';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import NotificationsBell from '@/components/NotificationsBell';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 
 const navItems = [
   { name: 'Dashboard', href: '/teachers/dashboard' },
@@ -173,8 +175,9 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
               Welcome, {user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Teacher'}
             </div>
           </div>
-          {/* Placeholder for notifications, profile, logout */}
+          {/* Notifications and Profile */}
           <div className="flex items-center gap-4">
+            <NotificationsBell />
             <div className="w-8 h-8 bg-gray-200 rounded-full" />
             <button
               className="text-sm text-gray-500 hover:text-gray-700"
@@ -208,9 +211,11 @@ export default function TeacherLayout({
                 timeoutMinutes={150} // 2 hours 30 minutes
                 warningMinutes={5}   // Show warning 5 minutes before
               />
-              <TeachersLayoutContent>
-                {children}
-              </TeachersLayoutContent>
+              <ToastProvider>
+                <TeachersLayoutContent>
+                  {children}
+                </TeachersLayoutContent>
+              </ToastProvider>
             </>
           )}
         </TeacherAuthGuard>

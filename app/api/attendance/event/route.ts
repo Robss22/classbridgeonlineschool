@@ -19,7 +19,7 @@ type AttendanceEventBody = {
   device_info?: {
     userAgent: string
     platform: string
-    connection?: string
+    connection?: any
   }
   technical_data?: {
     connection_quality?: 'good' | 'fair' | 'poor'
@@ -64,13 +64,19 @@ export async function POST(request: NextRequest) {
               student_id: userId,
               join_time: occurredAt,
               attendance_status: 'present',
+              // Optional fields if columns exist
+              connection_quality: body.technical_data?.connection_quality,
+              audio_enabled: body.technical_data?.audio_enabled,
+              video_enabled: body.technical_data?.video_enabled,
+              screen_shared: body.technical_data?.screen_shared
             },
             { onConflict: 'live_class_id,student_id' }
           )
 
         if (error) {
-          // If table doesn't exist, log the error but don't fail
-          if (error.message.includes('relation "live_class_participants" does not exist')) {
+          // If table/columns don't exist yet, log the error but don't fail
+          const msg = (error as any)?.message || ''
+          if (msg.includes('relation "live_class_participants" does not exist') || msg.includes('column') || msg.includes('does not exist')) {
             console.warn('live_class_participants table does not exist. Please run the database migration.');
             return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
           }
@@ -104,17 +110,38 @@ export async function POST(request: NextRequest) {
 
     } else if (event === 'leave') {
       try {
+        // Compute duration if possible
+        let durationMinutes: number | undefined = undefined
+        try {
+          const { data: existing } = await supabaseAdmin
+            .from('live_class_participants')
+            .select('join_time')
+            .eq('live_class_id', live_class_id)
+            .eq('student_id', userId)
+            .single()
+          if (existing?.join_time) {
+            const start = new Date(existing.join_time).getTime()
+            const end = new Date(occurredAt).getTime()
+            if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+              durationMinutes = Math.round((end - start) / 60000)
+            }
+          }
+        } catch {}
+
         const { error } = await supabaseAdmin
           .from('live_class_participants')
           .update({ 
             leave_time: occurredAt,
+            // Optional if column exists
+            duration_minutes: durationMinutes
           })
           .eq('live_class_id', live_class_id)
           .eq('student_id', userId)
 
         if (error) {
-          // If table doesn't exist, log the error but don't fail
-          if (error.message.includes('relation "live_class_participants" does not exist')) {
+          // If table/columns don't exist, log the error but don't fail
+          const msg = (error as any)?.message || ''
+          if (msg.includes('relation "live_class_participants" does not exist') || msg.includes('column') || msg.includes('does not exist')) {
             console.warn('live_class_participants table does not exist. Please run the database migration.');
             return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
           }

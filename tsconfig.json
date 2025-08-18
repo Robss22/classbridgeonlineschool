@@ -22,8 +22,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "exactOptionalPropertyTypes": true
   },
   "include": [
     "next-env.d.ts",

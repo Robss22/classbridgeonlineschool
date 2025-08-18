@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { normalizeForInsert } from '../../../utils/normalizeForInsert';
-import type { TablesInsert } from '../../../database.types';
+import type { TablesInsert } from '@/lib/supabase.types';
 import { supabase } from '@/lib/supabaseClient';
 import FileUpload from '@/components/FileUpload';
 import { useAuth } from '@/contexts/AuthContext';

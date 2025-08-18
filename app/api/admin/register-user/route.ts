@@ -1,85 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-interface CreateUserRequest {
-  email: string;
-  password: string;
-  first_name: string;
-  last_name: string;
-  gender: 'Male' | 'Female';
-  role: 'admin' | 'teacher' | 'student';
-  phone: string;
-  department: string;
-}
-
-// Simple email format validation
-function validateEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import supabaseAdmin from '@/lib/supabaseAdmin';
+import { requireAdmin, requireAuthUserIdFromBearer } from '@/lib/auth/apiAuth';
+import { createUserSchema } from '@/lib/validation/admin';
 
 // Validate and sanitize incoming request data
-function validateRequest(data: any): CreateUserRequest {
-  const {
-    email, password, first_name, last_name,
-    gender, role, phone, department,
-  } = data;
-
-  if (
-    !email || !password || !first_name || !last_name ||
-    !gender || !role || !phone || !department
-  ) throw new Error('Missing required fields');
-
-  if (!validateEmail(email)) throw new Error('Invalid email format');
-  if (!['Male', 'Female'].includes(gender)) throw new Error('Invalid gender');
-  if (!['admin', 'teacher', 'student'].includes(role)) throw new Error('Invalid role');
-
+function validateRequest(data: any) {
+  const parsed = createUserSchema.parse(data);
   return {
-    email: email.toLowerCase().trim(),
-    password,
-    first_name: first_name.trim(),
-    last_name: last_name.trim(),
-    gender,
-    role,
-    phone: phone.trim(),
-    department: department.trim(),
+    ...parsed,
+    email: parsed.email.toLowerCase().trim(),
+    first_name: parsed.first_name.trim(),
+    last_name: parsed.last_name.trim(),
+    phone: parsed.phone.trim(),
+    department: parsed.department.trim(),
   };
 }
 
-// Check if user has admin role in 'users' table
-async function checkIsAdmin(userId: string): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from('users')
-    .select('role')
-    .eq('id', userId)
-    .single();
-
-  if (error || !data) throw new Error('User not found');
-  return data.role === 'admin';
-}
 
 export async function POST(request: NextRequest) {
   try {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: 'Server is not configured' }, { status: 500 });
-    }
     // === 1. Authenticate request ===
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Missing authorization header' }, { status: 401 });
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: tokenUser, error: tokenError } = await supabaseAdmin.auth.getUser(token);
-    if (tokenError || !tokenUser?.user?.id) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
-    }
-    const userId = tokenUser.user.id;
+    const userId = await requireAuthUserIdFromBearer(request as unknown as Request);
 
-    const isAdmin = await checkIsAdmin(userId);
-    if (!isAdmin) return NextResponse.json({ error: 'Insufficient privileges' }, { status: 403 });
+    try {
+      await requireAdmin(userId);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message || 'Insufficient privileges' }, { status: 403 });
+    }
 
     // === 2. Validate input data ===
     const data = await request.json();

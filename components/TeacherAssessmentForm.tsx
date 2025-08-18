@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import TeacherAccessControl from './TeacherAccessControl';
 
 import { normalizeForInsert } from '../utils/normalizeForInsert';
-import type { TablesInsert } from '../database.types';
+import type { TablesInsert } from '@/lib/supabase.types';
 
 interface TeacherAssessmentFormProps {
   onClose: () => void;

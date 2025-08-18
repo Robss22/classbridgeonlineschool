@@ -18,6 +18,7 @@ const config = [
       "lib/supabase.types.ts",
       "dist/**/*",
       "build/**/*",
+      "coverage/**/*",
       "*.min.js",
       "*.bundle.js",
       "tailwind.config.js"
