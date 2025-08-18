@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { TeacherProvider } from '@/contexts/TeacherContext';
+import TeacherAuthGuard from '@/components/TeacherAccessControl';
+import AutoLogout from '@/components/AutoLogout';
 import { supabase } from '@/lib/supabaseClient';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -191,11 +193,27 @@ function TeachersLayoutContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function TeachersLayout({ children }: { children: React.ReactNode }) {
+export default function TeacherLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <AuthProvider>
       <TeacherProvider>
-        <TeachersLayoutContent>{children}</TeachersLayoutContent>
+        <TeacherAuthGuard>
+          {() => (
+            <>
+              <AutoLogout 
+                timeoutMinutes={150} // 2 hours 30 minutes
+                warningMinutes={5}   // Show warning 5 minutes before
+              />
+              <TeachersLayoutContent>
+                {children}
+              </TeachersLayoutContent>
+            </>
+          )}
+        </TeacherAuthGuard>
       </TeacherProvider>
     </AuthProvider>
   );

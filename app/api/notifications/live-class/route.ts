@@ -6,12 +6,13 @@ interface NotificationData {
   live_class_id: string;
   type: 'reminder_30min' | 'reminder_5min' | 'class_starting' | 'class_ended';
   recipients: 'teachers' | 'students' | 'both';
+  message?: string; // Optional custom message for class_ended notifications
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: NotificationData = await request.json();
-    const { live_class_id, type, recipients } = body;
+    const { live_class_id, type, recipients, message } = body;
 
     // Get live class details
     const { data: liveClass, error: classError } = await supabase
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
             user_id: student.id,
             type: 'live_class_notification',
             title: getNotificationTitle(type),
-            message: getNotificationMessage(type, liveClass),
+            message: getNotificationMessage(type, liveClass, message),
             data: {
               live_class_id,
               notification_type: type,
@@ -112,7 +113,7 @@ function getNotificationTitle(type: string): string {
   }
 }
 
-function getNotificationMessage(type: string, liveClass: any): string {
+function getNotificationMessage(type: string, liveClass: any, customMessage?: string): string {
   const subject = liveClass.subjects?.name || 'Subject';
   const level = liveClass.levels?.name || 'Level';
   
@@ -124,7 +125,7 @@ function getNotificationMessage(type: string, liveClass: any): string {
     case 'class_starting': 
       return `Your ${subject} class for ${level} is starting now. Click to join!`;
     case 'class_ended': 
-      return `Your ${subject} class for ${level} has ended. Check for any assignments or recordings.`;
+      return customMessage || `Your ${subject} class for ${level} has ended. Check for any assignments or recordings.`;
     default: 
       return `Update for your ${subject} class: ${liveClass.title}`;
   }

@@ -207,6 +207,33 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // If class is being completed, terminate the meeting
+    if (status === 'completed') {
+      try {
+        console.log(`[API] Class completed, terminating meeting for live class: ${id}`);
+        
+        // Terminate the meeting
+        const terminationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/live-classes/terminate-meeting`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            live_class_id: id,
+            force_disconnect: true // Force disconnect all participants
+          })
+        });
+
+        if (terminationResponse.ok) {
+          const terminationResult = await terminationResponse.json();
+          console.log(`[API] Meeting terminated successfully:`, terminationResult.message);
+        } else {
+          console.warn('[API] Failed to terminate meeting:', await terminationResponse.text());
+        }
+      } catch (terminationError) {
+        console.warn('Failed to terminate meeting:', terminationError);
+        // Don't fail the entire request if meeting termination fails
+      }
+    }
+
     return NextResponse.json({ data, success: true });
   } catch (error) {
     console.error('[API] Error in PUT /api/live-classes:', error);

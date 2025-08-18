@@ -1,39 +1,82 @@
 'use client';
 
 import Link from 'next/link';
+import SessionManager from '@/components/SessionManager';
 
-export default function DashboardHome() {
+export default function AdminDashboard() {
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="space-y-6">
       <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Admin Dashboard</h1>
             <p className="text-lg text-gray-600">Manage your educational platform and monitor all activities</p>
           </div>
-          <Link href="/admin/assessments">
+          <Link href="/admin/applications">
             <button className="px-4 py-2 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
               + Add Assessment
             </button>
           </Link>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {[
-          { title: "Applications", href: "/admin/applications", desc: "Review and approve student applications." },
-          { title: "Assignments", href: "/admin/assignments", desc: "Manage and review assignments for all classes and programs." },
-          { title: "Assessments", href: "/admin/assessments", desc: "Create and manage assessments for all programs and classes." },
-          { title: "Classes", href: "/admin/classes", desc: "Manage classes and their program assignments." },
-          { title: "Live Classes", href: "/admin/live-classes", desc: "Schedule and manage live class sessions and attendance." },
-          { title: "Messages", href: "/admin/messages", desc: "Send and review messages and announcements." },
-          { title: "Programs", href: "/admin/programs", desc: "View and edit academic programs." },
-          { title: "Resources", href: "/admin/resources", desc: "Manage learning resources, upload files, and assign to classes/programs." },
-          { title: "Subjects", href: "/admin/subjects", desc: "Manage subjects for each program/class." },
-          { title: "Timetable", href: "/timetable", desc: "Schedule and view live classes, manage class schedules, and monitor student attendance." },
-          { title: "Users", href: "/admin/users", desc: "Manage teacher and admin accounts and assignments." },
-        ].sort((a, b) => a.title.localeCompare(b.title)).map(card => (
-          <DashboardCard key={card.title} title={card.title} href={card.href} desc={card.desc} />
-        ))}
+
+      {/* Session Management Test */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Management</h2>
+        <SessionManager 
+          showDeviceInfo={true}
+          allowForceLogout={true}
+          className="mb-6"
+        />
+      </div>
+
+      {/* Dashboard Content */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <DashboardCard 
+          title="Applications" 
+          href="/admin/applications" 
+          desc="Review and approve student applications"
+        />
+        <DashboardCard 
+          title="Assessments" 
+          href="/admin/assessments" 
+          desc="Create and manage assessments"
+        />
+        <DashboardCard 
+          title="Classes" 
+          href="/admin/classes" 
+          desc="Manage classes and schedules"
+        />
+        <DashboardCard 
+          title="Live Classes" 
+          href="/admin/live-classes" 
+          desc="Schedule and manage live sessions"
+        />
+        <DashboardCard 
+          title="Subjects" 
+          href="/admin/subjects" 
+          desc="Manage academic subjects"
+        />
+        <DashboardCard 
+          title="Timetable" 
+          href="/admin/timetable" 
+          desc="Manage class timetables"
+        />
+        <DashboardCard 
+          title="Users" 
+          href="/admin/users" 
+          desc="Manage teacher and admin accounts"
+        />
+        <DashboardCard 
+          title="Programs" 
+          href="/admin/programs" 
+          desc="Manage educational programs"
+        />
+        <DashboardCard 
+          title="Resources" 
+          href="/admin/resources" 
+          desc="Manage learning resources"
+        />
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { TeacherProvider } from '@/contexts/TeacherContext';
 import AdminAuthGuard from '@/components/admin/AdminAuthGuard';
+import AutoLogout from '@/components/AutoLogout';
+import { useSessionManagement } from '@/hooks/useSessionManagement';
 
 const links = [
   { name: 'Dashboard Home', href: '/admin/dashboard' },
@@ -29,6 +31,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Initialize session management for single-device login
+  useSessionManagement({
+    checkInterval: 5, // Check every 5 minutes
+    autoLogout: true,
+    redirectOnInvalid: '/login'
+  });
+
   const toggleMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(prev => !prev);
   }, []);
@@ -36,6 +45,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <TeacherProvider>
       <AdminAuthGuard>
+        <AutoLogout 
+          timeoutMinutes={150} // 2 hours 30 minutes
+          warningMinutes={5}   // Show warning 5 minutes before
+        />
         <div className="flex min-h-screen bg-gray-100 admin-layout">
       {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>

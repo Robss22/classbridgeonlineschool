@@ -50,47 +50,82 @@ export default function ApplyPage() {
 
     async function fetchProgramsAndClasses() {
       console.log('fetchProgramsAndClasses: Fetching programs from Supabase...');
-      let { data: programs, error: programsError } = await supabase
-        .from('programs')
-        .select('program_id, name')
-        .order('name');
+      
+      // Add more detailed logging for the programs query
+      try {
+        let { data: programs, error: programsError } = await supabase
+          .from('programs')
+          .select('program_id, name')
+          .order('name');
 
-      if (programsError) {
-        console.error('fetchProgramsAndClasses: Error fetching programs:', programsError);
-        return; // Exit if programs cannot be fetched
+        console.log('fetchProgramsAndClasses: Raw programs response:', { programs, programsError });
+
+        if (programsError) {
+          console.error('fetchProgramsAndClasses: Error fetching programs:', programsError);
+          console.error('fetchProgramsAndClasses: Error details:', {
+            message: programsError.message,
+            details: programsError.details,
+            hint: programsError.hint,
+            code: programsError.code
+          });
+          return; // Exit if programs cannot be fetched
+        }
+        
+        console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs?.length || 0);
+        console.log('fetchProgramsAndClasses: Programs data:', programs);
+        
+        if (!programs || programs.length === 0) {
+          console.warn('fetchProgramsAndClasses: No programs found in database');
+        }
+        
+        setCurricula(programs || []); // Store as array of objects
+
+        console.log('fetchProgramsAndClasses: Fetching levels from Supabase...');
+        let { data: levels, error: levelsError } = await supabase
+          .from('levels')
+          .select('name, program_id')
+          .order('name');
+
+        console.log('fetchProgramsAndClasses: Raw levels response:', { levels, levelsError });
+
+        if (levelsError) {
+          console.error('fetchProgramsAndClasses: Error fetching levels:', levelsError);
+          console.error('fetchProgramsAndClasses: Levels error details:', {
+            message: levelsError.message,
+            details: levelsError.details,
+            hint: levelsError.hint,
+            code: levelsError.code
+          });
+          return; // Exit if levels cannot be fetched
+        }
+        console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels?.length || 0);
+        console.log('fetchProgramsAndClasses: Levels data:', levels);
+
+        const programIdToName: { [key: string]: string } = {};
+        (programs || []).forEach((p) => {
+          programIdToName[p.program_id] = p.name;
+        });
+
+        console.log('fetchProgramsAndClasses: Program ID to name mapping:', programIdToName);
+
+        const grouped: { [key: string]: string[] } = {};
+        (levels || []).forEach((level) => {
+          const pid = (level.program_id ?? '') as string;
+          const programName = (pid && programIdToName[pid]) ? programIdToName[pid] : 'Unknown Program';
+          if (!grouped[programName]) grouped[programName] = [];
+          grouped[programName].push(level.name);
+        });
+
+        console.log('fetchProgramsAndClasses: Grouped classes by curriculum:', grouped);
+
+        setClassesByCurriculum(grouped);
+
+        console.log('fetchProgramsAndClasses: Curricula state updated.');
+        console.log('fetchProgramsAndClasses: Classes by Curriculum state updated.');
+        
+      } catch (error) {
+        console.error('fetchProgramsAndClasses: Unexpected error during fetch:', error);
       }
-      console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs?.length || 0);
-      setCurricula(programs || []); // Store as array of objects
-
-      console.log('fetchProgramsAndClasses: Fetching levels from Supabase...');
-      let { data: levels, error: levelsError } = await supabase
-        .from('levels')
-        .select('name, program_id')
-        .order('name');
-
-      if (levelsError) {
-        console.error('fetchProgramsAndClasses: Error fetching levels:', levelsError);
-        return; // Exit if levels cannot be fetched
-      }
-      console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels?.length || 0);
-
-      const programIdToName: { [key: string]: string } = {};
-      (programs || []).forEach((p) => {
-        programIdToName[p.program_id] = p.name;
-      });
-
-      const grouped: { [key: string]: string[] } = {};
-      (levels || []).forEach((level) => {
-        const pid = (level.program_id ?? '') as string;
-        const programName = (pid && programIdToName[pid]) ? programIdToName[pid] : 'Unknown Program';
-        if (!grouped[programName]) grouped[programName] = [];
-        grouped[programName].push(level.name);
-      });
-
-      setClassesByCurriculum(grouped);
-
-      console.log('fetchProgramsAndClasses: Curricula state updated.');
-      console.log('fetchProgramsAndClasses: Classes by Curriculum state updated.');
     }
 
     fetchProgramsAndClasses(); // Call the async function
@@ -105,7 +140,7 @@ export default function ApplyPage() {
     //     console.log('getSession: Supabase Session (Authenticated):', session);
     //     setSessionInfo(`Authenticated User ID: ${session.user.id}, Role: ${session.user.role}`);
     //   } else {
-    //     console.log('getSession: Supabase Session (Anon): No active session, likely anon user.');
+    //     console.log('getSession: Supabase Session (Anon): No active session, likely anon user.`);
     //     setSessionInfo('No active session (Anon user)');
     //   }
     // }
@@ -378,6 +413,7 @@ export default function ApplyPage() {
             })()}
           </select>
         </div>
+        
         {/* Academic Documents - Styled Button */}
         <div className="flex items-center space-x-3">
           <label className="block font-semibold">

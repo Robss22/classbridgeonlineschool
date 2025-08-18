@@ -156,6 +156,44 @@ export default function TeacherLiveClassesPage() {
     }
   }, [fetchData]);
 
+  // New function to end class and terminate meeting
+  const handleEndClassWithMeetingTermination = useCallback(async (liveClassId: string) => {
+    if (!confirm('Are you sure you want to end this class? This will terminate the meeting and disconnect all participants.')) {
+      return;
+    }
+
+    try {
+      setError(''); // Clear any previous errors
+      
+      // First, terminate the meeting
+      const terminationResponse = await fetch('/api/live-classes/terminate-meeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          live_class_id: liveClassId,
+          force_disconnect: true
+        })
+      });
+
+      if (!terminationResponse.ok) {
+        const terminationResult = await terminationResponse.json();
+        throw new Error(terminationResult.error || 'Failed to terminate meeting');
+      }
+
+      const terminationResult = await terminationResponse.json();
+      
+      // Show success message
+      alert(`Class ended successfully! ${terminationResult.message}`);
+      
+      // Refresh data to show updated status
+      fetchData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while ending the class';
+      setError(errorMessage);
+      console.error('Error ending class with meeting termination:', error);
+    }
+  }, [fetchData]);
+
   // Auto-join functionality
   const handleAutoJoin = useCallback(async (liveClass: LiveClass) => {
     if (!liveClass.meeting_link) {
@@ -465,6 +503,13 @@ export default function TeacherLiveClassesPage() {
                               Started: {new Date(liveClass.started_at).toLocaleTimeString()}
                             </div>
                           )}
+                          {/* TODO: Uncomment when meeting_terminated_at field is added to database
+                          {liveClass.status === 'completed' && liveClass.meeting_terminated_at && (
+                            <div className="text-xs text-green-600 font-medium mt-1">
+                              ✓ Meeting terminated
+                            </div>
+                          )}
+                          */}
                         </td>
                         <td className="p-3">
                           <div className="flex gap-2 flex-wrap">
@@ -511,11 +556,11 @@ export default function TeacherLiveClassesPage() {
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => handleUpdateStatus(liveClass.live_class_id, 'completed')}
-                                  className="p-1 text-blue-600 hover:text-blue-800"
-                                  title="End Class"
+                                  onClick={() => handleEndClassWithMeetingTermination(liveClass.live_class_id)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700"
+                                  title="End Class & Terminate Meeting"
                                 >
-                                  <Play className="w-4 h-4 rotate-90" />
+                                  <Play className="w-3.5 h-3.5 rotate-90" /> End Class
                                 </button>
                               </>
                             )}

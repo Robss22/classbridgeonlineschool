@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET!;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET) {
-  throw new Error('Missing Supabase environment variables');
-}
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -56,17 +50,6 @@ function validateRequest(data: any): CreateUserRequest {
   };
 }
 
-// Verify JWT token from Authorization header
-function verifyToken(token: string): string {
-  try {
-    const payload = jwt.verify(token, SUPABASE_JWT_SECRET) as { sub?: string };
-    if (!payload.sub) throw new Error('Invalid token payload');
-    return payload.sub;
-  } catch {
-    throw new Error('Invalid or expired token');
-  }
-}
-
 // Check if user has admin role in 'users' table
 async function checkIsAdmin(userId: string): Promise<boolean> {
   const { data, error } = await supabaseAdmin
@@ -81,12 +64,19 @@ async function checkIsAdmin(userId: string): Promise<boolean> {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Server is not configured' }, { status: 500 });
+    }
     // === 1. Authenticate request ===
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Missing authorization header' }, { status: 401 });
 
     const token = authHeader.replace('Bearer ', '');
-    const userId = verifyToken(token);
+    const { data: tokenUser, error: tokenError } = await supabaseAdmin.auth.getUser(token);
+    if (tokenError || !tokenUser?.user?.id) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
+    }
+    const userId = tokenUser.user.id;
 
     const isAdmin = await checkIsAdmin(userId);
     if (!isAdmin) return NextResponse.json({ error: 'Insufficient privileges' }, { status: 403 });
@@ -96,9 +86,9 @@ export async function POST(request: NextRequest) {
     const validated = validateRequest(data);
 
     // === 3. Prevent duplicate user by checking Supabase Auth users ===
-    const { data: usersList } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: usersList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 } as any);
     const users: { email?: string }[] = usersList?.users ?? [];
-    if (users.some(u => u.email === validated.email)) {
+    if (users.some(u => (u.email || '').toLowerCase() === validated.email)) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 
