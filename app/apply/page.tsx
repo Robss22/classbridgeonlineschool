@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'; // Import useRef
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getNames } from 'country-list';
-import 'react-phone-input-2/lib/style.css';
 import dynamic from 'next/dynamic';
 const PhoneInput = dynamic(() => import('react-phone-input-2'), { ssr: false });
 

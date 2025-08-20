@@ -9,6 +9,9 @@ const nextConfig = {
   swcMinify: true,
   compress: true,
   
+  // Transpile packages that need special handling
+  transpilePackages: ['react-phone-input-2'],
+  
   // Security headers
   async headers() {
     return [

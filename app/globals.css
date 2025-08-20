@@ -180,3 +180,247 @@ footer {
   min-height: calc(100vh - 200px);
   padding-bottom: 2rem;
 }
+
+/* Phone Input Styles */
+.react-tel-input {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  position: relative;
+  font-size: 14px;
+  color: #000;
+}
+
+.react-tel-input .form-control {
+  position: relative;
+  font-size: 14px;
+  letter-spacing: 0.01rem;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 48px;
+  margin-left: 0;
+  background: #ffffff;
+  border: 1px solid #cacaca;
+  border-radius: 5px;
+  line-height: 25px;
+  height: 35px;
+  width: 300px;
+  outline: none;
+  transition: border-color 0.1s ease;
+}
+
+.react-tel-input .form-control:focus {
+  border-color: #007eff;
+  box-shadow: 0 0 0 1px #007eff;
+}
+
+.react-tel-input .flag-dropdown {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  background-color: #f8f9fa;
+  border: 1px solid #cacaca;
+  border-radius: 3px 0 0 3px;
+  border-right: none;
+}
+
+.react-tel-input .flag-dropdown.open {
+  z-index: 1;
+  background: #fff;
+  border-color: #007eff;
+}
+
+.react-tel-input .flag-dropdown.open .selected-flag {
+  background: #fff;
+  border-radius: 3px 0 0 0;
+}
+
+.react-tel-input .selected-flag {
+  display: flex;
+  align-items: center;
+  width: 46px;
+  height: 100%;
+  padding: 0 0 0 8px;
+  border-radius: 3px 0 0 3px;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus {
+  background-color: #e9ecef;
+}
+
+.react-tel-input .selected-flag .flag {
+  display: inline-block;
+  width: 20px;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA2NCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTAgMGg2NHY0OEgweiIgZmlsbD0iI0ZGRiIvPgo8cGF0aCBkPSJNMCAwaDY0djQ4SDB6IiBmaWxsPSIjMDAwIi8+CjxwYXRoIGQ9Ik0wIDBoNjR2NDhIMHoiIGZpbGw9IiMwMDAiLz4KPC9zdmc+");
+  background-position: 0 0;
+}
+
+.react-tel-input .country-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  width: 300px;
+  overflow-y: scroll;
+  background-color: white;
+  border: 1px solid #cacaca;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  z-index: 1;
+  position: absolute;
+  top: 100%;
+  left: 0;
+}
+
+.react-tel-input .country-list .country {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  min-height: 36px;
+  outline: none;
+}
+
+.react-tel-input .country-list .country:hover {
+  background-color: #f8f9fa;
+}
+
+.react-tel-input .country-list .country.highlight {
+  background-color: #e9ecef;
+}
+
+.react-tel-input .country-list .country .dial-code {
+  color: #6c757d;
+  margin-left: 6px;
+}
+
+.react-tel-input .country-list .country .flag {
+  margin-right: 7px;
+  margin-top: 0px;
+}
+
+.react-tel-input .country-list .search {
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  padding: 10px;
+  border-bottom: 1px solid #cacaca;
+}
+
+.react-tel-input .country-list .search-box {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid #cacaca;
+  border-radius: 3px;
+  outline: none;
+}
+
+.react-tel-input .country-list .no-entries-message {
+  padding: 7px 10px 11px;
+  opacity: 0.7;
+}
+
+.react-tel-input .country-list .divider {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #cacaca;
+}
+
+.react-tel-input .country-list .country-name {
+  margin-right: 6px;
+}
+
+.react-tel-input .country-list .dial-code {
+  color: #6c757d;
+}
+
+.react-tel-input .country-list .flag {
+  margin-right: 7px;
+  margin-top: 0px;
+}
+
+.react-tel-input .country-list .country.highlight {
+  background-color: #e9ecef;
+}
+
+.react-tel-input .country-list .country:hover {
+  background-color: #f8f9fa;
+}
+
+.react-tel-input .country-list .country {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  min-height: 36px;
+  outline: none;
+}
+
+.react-tel-input .country-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  width: 300px;
+  overflow-y: scroll;
+  background-color: white;
+  border: 1px solid #cacaca;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+  z-index: 1;
+  position: absolute;
+  top: 100%;
+  left: 0;
+}
+
+.react-tel-input .flag-dropdown.open .selected-flag {
+  background: #fff;
+  border-radius: 3px 0 0 0;
+}
+
+.react-tel-input .flag-dropdown.open {
+  z-index: 1;
+  background: #fff;
+  border-color: #007eff;
+}
+
+.react-tel-input .flag-dropdown {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  background-color: #f8f9fa;
+  border: 1px solid #cacaca;
+  border-radius: 3px 0 0 3px;
+  border-right: none;
+}
+
+.react-tel-input .form-control:focus {
+  border-color: #007eff;
+  box-shadow: 0 0 0 1px #007eff;
+}
+
+.react-tel-input .form-control {
+  position: relative;
+  font-size: 14px;
+  letter-spacing: 0.01rem;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 48px;
+  margin-left: 0;
+  background: #ffffff;
+  border: 1px solid #cacaca;
+  border-radius: 5px;
+  line-height: 25px;
+  height: 35px;
+  width: 300px;
+  outline: none;
+  transition: border-color 0.1s ease;
+}
+
+.react-tel-input {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  position: relative;
+  font-size: 14px;
+  color: #000;
+}
