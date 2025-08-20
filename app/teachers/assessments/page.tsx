@@ -37,8 +37,9 @@ export default function TeacherAssessmentsPage() {
       
       const data = await AssessmentService.fetchAssessments(filters, 'teacher', user?.id);
       setAssessments(data);
-    } catch (err: any) {
-      setError('Failed to load assessments: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError('Failed to load assessments: ' + errorMessage);
       setAssessments([]);
     } finally {
       setLoading(false);
@@ -90,8 +91,9 @@ export default function TeacherAssessmentsPage() {
       setShowDeleteConfirm(false);
       setAssessmentToDelete(null);
       fetchAssessments();
-    } catch (err: any) {
-      setError('Failed to delete assessment: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError('Failed to delete assessment: ' + errorMessage);
     }
   }, [assessmentToDelete, fetchAssessments]);
 

@@ -56,10 +56,18 @@ export default function TeacherStudentsPage() {
     async function fetchStudents() {
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("user_id, registration_number, users: user_id (full_name, email, phone)")
-        .eq("class", selectedClass)
+        .select("user_id, users: user_id (full_name, email, phone)")
+        .eq("level_id", selectedClass)
         .eq("status", "active");
-      setStudents((enrollments as any[]) || []);
+      
+      // Transform the data to match StudentRow interface
+      const studentRows = (enrollments || []).map(enrollment => ({
+        user_id: enrollment.user_id,
+        registration_number: enrollment.users?.full_name?.substring(0, 8) || 'N/A', // Generate a simple ID
+        users: enrollment.users
+      }));
+      
+      setStudents(studentRows);
       setLoading(false);
     }
     fetchStudents();

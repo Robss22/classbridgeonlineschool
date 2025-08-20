@@ -6,11 +6,11 @@ import { supabase } from '@/lib/supabaseClient';
 interface AdminLiveClassModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  programs: any[];
-  levels: any[];
-  subjects: any[];
-  teachers: any[];
-  papers: any[];
+  programs: Array<Record<string, unknown>>;
+  levels: Array<Record<string, unknown>>;
+  subjects: Array<Record<string, unknown>>;
+  teachers: Array<Record<string, unknown>>;
+  papers: Array<Record<string, unknown>>;
 }
 
 export default function AdminLiveClassModal({
@@ -24,7 +24,7 @@ export default function AdminLiveClassModal({
 }: AdminLiveClassModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [fetchedPapers, setFetchedPapers] = useState<any[]>([]);
+  const [fetchedPapers, setFetchedPapers] = useState<Array<Record<string, unknown>>>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -72,9 +72,9 @@ export default function AdminLiveClassModal({
   useEffect(() => {
     const loadPapersIfMissing = async () => {
       if (!formData.subject_id) return;
-      const hasLocal = papers.some((p: any) => String(p.subject_id) === String(formData.subject_id));
+      const hasLocal = papers.some((p: Record<string, unknown>) => String(p.subject_id) === String(formData.subject_id));
       const hasFetched = fetchedPapers.some(
-        (p: any) => String(p.subject_id) === String(formData.subject_id)
+        (p: Record<string, unknown>) => String(p.subject_id) === String(formData.subject_id)
       );
       if (hasLocal || hasFetched) return;
       try {
@@ -84,7 +84,7 @@ export default function AdminLiveClassModal({
           .eq('subject_id', formData.subject_id);
         if (error) throw error;
         setFetchedPapers((prev) => [...prev, ...(data || [])]);
-      } catch (err) {
+      } catch {
         // non-fatal; keep modal working without papers
       }
     };
@@ -186,9 +186,9 @@ export default function AdminLiveClassModal({
                 required
               >
                 <option value="">Select Program</option>
-                {programs.map((p: any) => (
-                  <option key={p.program_id} value={p.program_id}>
-                    {p.name}
+                {programs.map((p: Record<string, unknown>) => (
+                  <option key={p.program_id as string} value={p.program_id as string}>
+                    {p.name as string}
                   </option>
                 ))}
               </select>
@@ -206,10 +206,10 @@ export default function AdminLiveClassModal({
               >
                 <option value="">Select Level</option>
                 {levels
-                  .filter((level: any) => !formData.program_id || level.program_id === formData.program_id)
-                  .map((level: any) => (
-                    <option key={level.level_id} value={level.level_id}>
-                      {level.name}
+                  .filter((level: Record<string, unknown>) => !formData.program_id || level.program_id === formData.program_id)
+                  .map((level: Record<string, unknown>) => (
+                    <option key={level.level_id as string} value={level.level_id as string}>
+                      {level.name as string}
                     </option>
                   ))}
               </select>
@@ -227,9 +227,9 @@ export default function AdminLiveClassModal({
                 disabled={!formData.level_id}
               >
                 <option value="">Select Subject</option>
-                {subjects.map((subject: any) => (
-                  <option key={subject.subject_id} value={subject.subject_id}>
-                    {subject.name}
+                {subjects.map((subject: Record<string, unknown>) => (
+                  <option key={subject.subject_id as string} value={subject.subject_id as string}>
+                    {subject.name as string}
                   </option>
                 ))}
               </select>
@@ -245,10 +245,10 @@ export default function AdminLiveClassModal({
               >
                 <option value="">Select Paper</option>
                 {allPapers
-                  .filter((p: any) => String(p.subject_id) === String(formData.subject_id))
-                  .map((p: any) => (
-                    <option key={p.paper_id} value={p.paper_id}>
-                      {p.paper_name} ({p.paper_code})
+                  .filter((p: Record<string, unknown>) => String(p.subject_id) === String(formData.subject_id))
+                  .map((p: Record<string, unknown>) => (
+                    <option key={p.paper_id as string} value={p.paper_id as string}>
+                      {p.paper_name as string} ({p.paper_code as string})
                     </option>
                   ))}
               </select>
@@ -264,9 +264,9 @@ export default function AdminLiveClassModal({
               required
             >
               <option value="">Select Teacher</option>
-              {teachers.map((teacher: any) => (
-                <option key={teacher.teacher_id} value={teacher.teacher_id}>
-                  {teacher.users?.first_name} {teacher.users?.last_name}
+              {teachers.map((teacher: Record<string, unknown>) => (
+                <option key={teacher.teacher_id as string} value={teacher.teacher_id as string}>
+                  {(teacher.users as Record<string, unknown>)?.first_name as string} {(teacher.users as Record<string, unknown>)?.last_name as string}
                 </option>
               ))}
             </select>

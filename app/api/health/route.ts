@@ -19,7 +19,7 @@ export async function GET() {
       ...health,
       responseTime: `${responseTime}ms`
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { 
         status: 'unhealthy', 

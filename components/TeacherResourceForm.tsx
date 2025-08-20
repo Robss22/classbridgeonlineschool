@@ -11,7 +11,17 @@ import type { TablesInsert } from '@/lib/supabase.types';
 
 interface TeacherResourceFormProps {
   onClose: () => void;
-  resource?: any;
+  resource?: Partial<{
+    resource_id: string;
+    program_id: string | null;
+    level_id: string | null;
+    subject_id: string | null;
+    paper_id: string | null;
+    title: string | null;
+    description: string | null;
+    url: string | null;
+    type: 'pdf' | 'video' | 'link' | 'word';
+  }> | null;
   onSuccess?: () => void;
 }
 
@@ -70,7 +80,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
     setLoading(true);
     setError('');
 
-    let resourceUrl = url || fileUrl || resource?.url;
+    const resourceUrl = url || fileUrl || resource?.url;
     if (!resourceUrl) {
       setError('Please provide a file or a URL.');
       setLoading(false);
@@ -117,9 +127,9 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
 
       onSuccess?.();
       onClose();
-    } catch (err: any) {
-      console.error('Error saving resource:', err);
-      setError(err.message || 'Failed to save resource');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save resource';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -219,7 +229,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
                   <label className="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
                   <select
                     value={resourceType}
-                    onChange={(e) => setResourceType(e.target.value)}
+                    onChange={(e) => setResourceType(e.target.value as 'pdf' | 'video' | 'link' | 'word')}
                     className="w-full border border-gray-300 rounded-md shadow-sm p-2"
                     required
                   >

@@ -85,7 +85,7 @@ export default function TeacherDashboardPage() {
   // Debug logs for auth status
   useEffect(() => {
     if (!hydrated) return;
-    console.log('DEBUG [TeacherDashboardPage] Auth user:', user, 'Auth loading:', authLoading);
+    // Debug auth status
   }, [user, authLoading, hydrated]);
 
   useEffect(() => {
@@ -137,8 +137,9 @@ export default function TeacherDashboardPage() {
             : []
         );
 
-      } catch (err: any) {
-        setError("Error fetching dashboard data: " + (err.message || "Unknown error"));
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError("Error fetching dashboard data: " + (errorMessage || "Unknown error"));
       } finally {
         setLoading(false);
       }

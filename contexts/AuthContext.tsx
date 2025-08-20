@@ -1,28 +1,44 @@
 'use client';
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { supabase, checkDatabaseHealth } from '../lib/supabaseClient';
 
 // Define types for the auth context
+interface UserMetadata {
+  role?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+}
+
 interface User {
   id: string;
-  email: string;
-  role?: string;
-  first_name?: string;
-  last_name?: string;
-  full_name?: string;
-  [key: string]: any; // Allow additional properties
+  email?: string;  // Made optional to match Supabase User type
+  auth_user_id?: string | null | undefined;
+  created_at?: string | null | undefined;
+  updated_at?: string | null | undefined;
+  first_name?: string | null | undefined;
+  last_name?: string | null | undefined;
+  full_name?: string | null | undefined;
+  role?: string | null | undefined;
+  password_changed?: boolean | null | undefined;
+  status?: string | null | undefined;
+  academic_year?: string | null | undefined;
+  curriculum?: string | null | undefined;
+  registration_number?: string | null | undefined;
+  class?: string | null | undefined;
+  program_id?: string | null | undefined;
+  level_id?: string | null | undefined;
+  user_metadata?: UserMetadata | undefined;
+  [key: string]: unknown | undefined; // Allow additional properties
 }
 
 interface AuthContextType {
   user: User | null;
-  setUser: (user: User | null) => void;
   loading: boolean;
-  setLoading: (loading: boolean) => void;
   authError: string;
-  setAuthError: (error: string) => void;
-  isHydrated: boolean;
-  setIsHydrated: (hydrated: boolean) => void;
-  changePassword: (params: { newPassword: string }) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signOut: () => Promise<void>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -31,283 +47,284 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
-  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // CRITICAL FIX: Use refs to prevent infinite loops
+  const isInitializing = useRef(false);
+  const hasInitialized = useRef(false);
+  const authListener = useRef<{ data: { subscription: { unsubscribe: () => void } } } | null>(null);
 
-  // Change password function that updates both Supabase Auth and database
-  const changePassword = useCallback(async ({ newPassword }: { newPassword: string }) => {
-    console.log('🔐 [changePassword] Function called with:', { newPassword: '***' });
+  // Debug logging for component lifecycle
+  useEffect(() => {
+    console.log('🔐 [AuthProvider] Component mounted');
+    return () => {
+      console.log('🔐 [AuthProvider] Component unmounting');
+      // Clean up auth listener properly
+      if (authListener.current?.data?.subscription) {
+        authListener.current.data.subscription.unsubscribe();
+      }
+    };
+  }, []);
+
+  // CRITICAL FIX: Prevent multiple initializations
+  const initializeAuth = useCallback(async () => {
+    if (isInitializing.current || hasInitialized.current) {
+      console.log('🔐 [AuthProvider] Already initializing or initialized, skipping...');
+      return;
+    }
+
+    isInitializing.current = true;
+    console.log('🔐 [AuthProvider] Starting auth initialization...');
+
+    try {
+      // Test database connection first
+      const isHealthy = await checkDatabaseHealth();
+      if (!isHealthy) {
+        throw new Error('Database connection failed');
+      }
+
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ [AuthProvider] Session error:', sessionError);
+        setAuthError(sessionError.message);
+        return;
+      }
+
+      if (session?.user) {
+        console.log('🔐 [AuthProvider] Found existing session for user:', session.user.id);
+        await fetchUserProfile(session.user);
+      } else {
+        console.log('🔐 [AuthProvider] No existing session found');
+        setUser(null);
+      }
+
+      // Set up auth state change listener with proper subscription handling
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔐 [AuthProvider] Auth state change:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          await fetchUserProfile(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setAuthError('');
+        }
+      });
+
+      // Store the subscription for cleanup
+      authListener.current = { data: { subscription } };
+
+      hasInitialized.current = true;
+      console.log('🔐 [AuthProvider] Auth initialization completed successfully');
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ [AuthProvider] Auth initialization failed:', error);
+      setAuthError(errorMessage || 'Authentication initialization failed');
+    } finally {
+      setLoading(false);
+      isInitializing.current = false;
+    }
+  }, []);
+
+  // CRITICAL FIX: Single initialization effect
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      initializeAuth();
+    }
+  }, [initializeAuth]);
+
+  // Enhanced fetchUserProfile with better error handling
+  const fetchUserProfile = useCallback(async (authUser: { id: string; email?: string | undefined; user_metadata?: Record<string, any> }) => {
+    console.log('🔍 [AuthContext] fetchUserProfile called for:', {
+      id: authUser.id,
+      email: authUser.email,
+      hasEmail: !!authUser.email
+    });
+    
+    if (!authUser?.id) {
+      console.error('❌ [AuthContext] Invalid auth user object:', authUser);
+      throw new Error('Invalid authentication user object');
+    }
     
     try {
-      console.log('🔐 [changePassword] Starting password change process');
-      console.log('🔐 [changePassword] User object:', user);
-      console.log('🔐 [changePassword] Supabase client:', !!supabase);
+      console.log('🔍 [AuthContext] Fetching user profile from database...');
       
-      if (!user || !user.email) {
-        console.error('❌ [changePassword] User or user email not available');
-        return { success: false, error: 'User information not available. Please try logging in again.' };
-      }
-      
-      // Validate password requirements
-      if (!newPassword || newPassword.length < 6) {
-        console.error('❌ [changePassword] Password too short');
-        return { success: false, error: 'Password must be at least 6 characters long.' };
-      }
-      
-      // Step 1: Update password with timeout protection
-      console.log('🔐 [changePassword] Step 1: Updating password with timeout protection');
-      console.log('🔐 [changePassword] New password length:', newPassword.length);
-      
-      let updateData, updateAuthError;
-      try {
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            reject(new Error('Supabase updateUser timeout after 10 seconds'));
-          }, 10000);
-        });
-        
-        // Create the update promise
-        const updatePromise = supabase.auth.updateUser({
-          password: newPassword
-        });
-        
-        console.log('🔐 [changePassword] Calling supabase.auth.updateUser with timeout...');
-        
-        // Race between update and timeout
-        const result = await Promise.race([updatePromise, timeoutPromise]) as { data: any; error: any };
-        updateData = result.data;
-        updateAuthError = result.error;
-        
-        console.log('🔐 [changePassword] Update response data:', updateData);
-        console.log('🔐 [changePassword] Update response error:', updateAuthError);
-      } catch (authException: any) {
-        console.error('❌ [changePassword] Exception during auth update:', authException);
-        
-        if (authException.message?.includes('timeout')) {
-          // If Supabase is hanging, let's try a different approach
-          console.log('🔐 [changePassword] Supabase timeout detected, trying alternative approach...');
-          
-          // Skip the auth update and just update the database
-          // This is not ideal but prevents the hanging issue
-          console.log('⚠️ [changePassword] Skipping Supabase auth update due to timeout');
-            updateData = { user: user } as any;
-          updateAuthError = null;
-        } else {
-          return { success: false, error: 'Authentication service error: ' + authException.message };
-        }
-      }
-
-      if (updateAuthError) {
-        console.error('❌ [changePassword] Supabase Auth update failed:', updateAuthError);
-        
-        // Handle specific error cases
-        if (updateAuthError.message?.includes('Invalid login credentials') || 
-            updateAuthError.message?.includes('current password') ||
-            updateAuthError.message?.includes('password')) {
-          return { success: false, error: 'Current password is incorrect or new password is invalid' };
-        }
-        return { success: false, error: 'Failed to update password: ' + updateAuthError.message };
-      }
-      
-      console.log('🔐 [changePassword] Step 1 completed successfully');
-
-      // Step 2: Update password_changed flag in users table
-      console.log('🔐 [changePassword] Step 2: Updating database');
-      console.log('🔐 [changePassword] Using user auth_user_id:', user.id);
-      console.log('🔐 [changePassword] Using user email for fallback:', user.email);
-      
-      // Try multiple approaches to update the password_changed flag
-      let updateDbError = null;
-      
-      try {
-        // Create timeout for database operations
-        const dbTimeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            reject(new Error('Database update timeout after 5 seconds'));
-          }, 5000);
-        });
-        
-        // First try: Update by auth_user_id with timeout
-        console.log('🔐 [changePassword] Attempting database update by auth_user_id');
-        const updatePromise1 = supabase
-          .from('users')
-          .update({ password_changed: true })
-          .eq('auth_user_id', user.id);
-        
-        // Race between update and timeout
-        const result1 = await Promise.race([updatePromise1, dbTimeoutPromise]) as { data: any; error: any };
-        updateDbError = result1.error;
-        
-        if (updateDbError) {
-          console.log('🔐 [changePassword] First attempt failed, trying by email...');
-          
-          // Second try: Update by email with timeout
-          const updatePromise2 = supabase
-            .from('users')
-            .update({ password_changed: true })
-            .eq('email', user.email);
-          
-          const result2 = await Promise.race([updatePromise2, dbTimeoutPromise]) as { data: any; error: any };
-          updateDbError = result2.error;
-          
-          if (updateDbError) {
-            console.log('🔐 [changePassword] Second attempt failed, trying by id...');
-            
-            // Third try: Update by id with timeout
-            const updatePromise3 = supabase
-              .from('users')
-              .update({ password_changed: true })
-              .eq('id', user.id);
-            
-            const result3 = await Promise.race([updatePromise3, dbTimeoutPromise]) as { data: any; error: any };
-            updateDbError = result3.error;
-          }
-        }
-      } catch (dbException: any) {
-        console.error('❌ [changePassword] Database update exception:', dbException);
-        updateDbError = dbException;
-      }
-      
-      if (updateDbError) {
-        console.error('❌ [changePassword] Database update failed:', updateDbError);
-        // Don't fail the entire operation if database update fails
-        // The password was already changed in Supabase Auth
-        console.log('⚠️ [changePassword] Database update failed, but password was changed in Auth');
-      }
-      
-      console.log('🔐 [changePassword] Step 2 completed');
-      console.log('✅ [changePassword] Password change completed successfully');
-      
-      return { success: true };
-    } catch (error: any) {
-      console.error('❌ [changePassword] Unexpected error:', error);
-      return { success: false, error: 'An unexpected error occurred: ' + error.message };
-    }
-  }, [user]);
-
-  // Fetch user profile (including role) from your users table
-  async function fetchUserProfile(authUser: any): Promise<User | null> {
-    if (!authUser?.id) return null;
-    
-    // Try to find user by email first (most reliable)
-    let { data, error } = await supabase
-      .from('users')
-      .select('auth_user_id, id, role, email, full_name, first_name, last_name')
-      .eq('email', authUser.email)
-      .single();
-    
-    console.log('DEBUG [AuthContext] fetch by email:', { data, error });
-    
-    if (error || !data) {
-      // Fallback: try by auth_user_id
-      const fallback1 = await supabase
+      // Try to fetch user profile
+      const { data: profile, error } = await supabase
         .from('users')
-        .select('auth_user_id, id, role, email, full_name, first_name, last_name')
+        .select('*')
         .eq('auth_user_id', authUser.id)
         .single();
       
-      if (fallback1.error || !fallback1.data) {
-        // Final fallback: try by id (assuming auth user id might be stored as id)
-        const fallback2 = await supabase
-          .from('users')
-          .select('auth_user_id, id, role, email, full_name, first_name, last_name')
-          .eq('id', authUser.id)
-          .single();
+      if (error) {
+        if (error.code === 'PGRST116' || error.message?.includes('No rows returned')) {
+          console.log('DEBUG [AuthContext] User profile not found, creating basic profile');
+          
+          // Get user metadata safely
+          const metadata = authUser.user_metadata as UserMetadata || {};
+          
+          // Create a basic user profile
+          const basicProfile: User = {
+            id: authUser.id,
+            auth_user_id: authUser.id,
+            email: authUser.email || '',
+            first_name: metadata.first_name || '',
+            last_name: metadata.last_name || '',
+            full_name: metadata.full_name || authUser.email,
+            role: metadata.role || 'student',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            password_changed: false
+          };
+          
+          // Insert the basic profile
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert([basicProfile] as any);
+          
+          if (insertError) {
+            console.warn('DEBUG [AuthContext] Failed to create profile:', insertError);
+            // Continue with basic profile even if insert fails
+          } else {
+            console.log('DEBUG [AuthContext] Basic profile created successfully');
+          }
+          
+          setUser(basicProfile);
+          return;
+        }
         
-        data = fallback2.data;
-        error = fallback2.error;
-        console.log('DEBUG [AuthContext] fetch by id fallback:', { data, error });
-      } else {
-        data = fallback1.data;
-        error = fallback1.error;
-        console.log('DEBUG [AuthContext] fetch by auth_user_id fallback:', { data, error });
+        throw new Error(`Failed to fetch user profile: ${error.message}`);
       }
+      
+      console.log('✅ [AuthContext] User profile fetched successfully:', profile);
+      
+      // Get the profile data safely
+      const profileData = profile as Record<string, unknown>;
+      
+      // Cast the profile to User type and handle nullable fields
+      const userProfile: User = {
+        id: String(profileData.id || authUser.id),
+        email: String(profileData.email || authUser.email || ''),
+        role: String(profileData.role || 'student'),
+        first_name: String(profileData.first_name || ''),
+        last_name: String(profileData.last_name || ''),
+        full_name: String(profileData.full_name || profileData.email || authUser.email)
+      };
+      
+      setUser(userProfile);
+      
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ [AuthContext] Error in fetchUserProfile:', error);
+      setAuthError(errorMessage);
+      
+      // Set basic user info even if profile fetch fails
+      const metadata = authUser.user_metadata as UserMetadata || {};
+      const basicUser: User = {
+        id: authUser.id,
+        email: String(authUser.email || ''),
+        role: metadata.role || 'student',
+        first_name: metadata.first_name || '',
+        last_name: metadata.last_name || '',
+        full_name: metadata.full_name || authUser.email
+      };
+      setUser(basicUser);
     }
-    
-    if (error || !data) {
-      setAuthError('Error fetching user profile: ' + (error?.message || 'User profile not found'));
-      console.error('Error fetching user profile:', error);
-      return { ...authUser, role: undefined, error: 'User profile not found' };
-    }
-    
-    return { ...authUser, ...data };
-  }
-
-  useEffect(() => {
-    // Mark as hydrated after first render
-    setIsHydrated(true);
   }, []);
 
-  useEffect(() => {
-    if (!isHydrated) return; // Don't run auth logic until hydrated
-
-    const getSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        console.log('DEBUG [AuthContext] getSession:', data);
-        if (data?.session?.user) {
-          const profile = await fetchUserProfile(data.session.user);
-          setUser(profile);
-        } else {
-          setUser(null);
-        }
-      } catch (err: any) {
-        setAuthError('Error getting session: ' + (err?.message || err));
-        console.error('DEBUG [AuthContext] getSession error:', err);
-        setUser(null);
-      } finally {
-        setLoading(false);
+  // CRITICAL FIX: Simplified sign in without complex logic
+  const signIn = useCallback(async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      setAuthError('');
+      
+      console.log('🔐 [AuthProvider] Signing in user:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        console.error('❌ [AuthProvider] Sign in error:', error);
+        setAuthError(error.message);
+        return { success: false, error: error.message };
       }
-    };
-
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        if (session?.user) {
-          const profile = await fetchUserProfile(session.user);
-          setUser(profile);
-        } else {
-          setUser(null);
-        }
-      } catch (err: any) {
-        setAuthError('Error on auth state change: ' + (err?.message || err));
-        console.error('DEBUG [AuthContext] onAuthStateChange error:', err);
-        setUser(null);
+      
+      if (data?.user) {
+        console.log('✅ [AuthProvider] Sign in successful for user:', data.user.id);
+        await fetchUserProfile(data.user);
+        return { success: true };
+      } else {
+        setAuthError('No user data received');
+        return { success: false, error: 'No user data received' };
       }
-    });
+      
+    } catch (error: any) {
+      console.error('❌ [AuthProvider] Sign in exception:', error);
+      const errorMessage = error.message || 'Sign in failed';
+      setAuthError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchUserProfile]);
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [isHydrated]);
+  const signOut = useCallback(async () => {
+    try {
+      console.log('🔐 [AuthProvider] Signing out user');
+      await supabase.auth.signOut();
+      setUser(null);
+      setAuthError('');
+    } catch (error: any) {
+      console.error('❌ [AuthProvider] Sign out error:', error);
+      setAuthError(error.message || 'Sign out failed');
+    }
+  }, []);
 
-  // Move useMemo before the early return
-  const value = useMemo(() => ({
+  const changePassword = useCallback(async (newPassword: string) => {
+    try {
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ [AuthProvider] Change password error:', error);
+      return { success: false, error: error?.message || 'Unknown error' };
+    }
+  }, [user]);
+
+  // CRITICAL FIX: Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     user,
-    setUser,
     loading,
-    setLoading,
     authError,
-    setAuthError,
-    isHydrated,
-    setIsHydrated,
-    changePassword,
-  }), [user, loading, authError, isHydrated, changePassword]);
-
-  if (authError) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{authError}</div>;
-  }
+    signIn,
+    signOut,
+    changePassword
+  }), [user, loading, authError, signIn, signOut, changePassword]);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used inside an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 };

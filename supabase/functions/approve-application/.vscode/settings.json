@@ -1,0 +1,14 @@
+{
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": false,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.validate.enable": false,
+  "typescript.suggestionActions.enabled": false,
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.workspaceSymbols.scope": "currentProject",
+  "typescript.suggest.includeCompletionsForModuleExports": false,
+  "typescript.suggest.includeCompletionsWithSnippetText": false
+}

@@ -9,14 +9,35 @@ export default function StudentResources() {
   const { studentInfo } = useStudent();
   // Removed unused ResourceRow type
   type SubjectRow = { subject_id: string; name?: string | null };
-  const [resources, setResources] = useState<any[]>([]);
+  
+  interface Resource {
+    resource_id: string;
+    title?: string | null;
+    url?: string | null;
+    subject_id?: string | null;
+    created_at?: string | null;
+    uploaded_by?: string | null;
+    class_id?: string | null;
+    description?: string | null;
+    level_id?: string | null;
+    paper_id?: string | null;
+    program_id?: string | null;
+    resource_type?: string | null;
+    type?: string | null; // align with DB type field
+    uploader?: {
+      full_name?: string | null;
+      email?: string | null;
+    } | null;
+  }
+  
+  const [resources, setResources] = useState<Resource[]>([]);
   // Removed unused subjects state
   const [subjectMap, setSubjectMap] = useState<Record<string, SubjectRow>>({});
   const [loading, setLoading] = useState(true);
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState('');
-  const [previewResource, setPreviewResource] = useState(null);
+  const [previewResource, setPreviewResource] = useState<Resource | null>(null);
 
   useEffect(() => {
     async function fetchSubjectsAndResources() {
@@ -56,17 +77,36 @@ export default function StudentResources() {
       const { data: subjectsData } = await supabase.from('subjects').select('subject_id, name').in('subject_id', allSubjectIds);
   // Removed setSubjects, not needed
       const map: Record<string, SubjectRow> = {};
-      (subjectsData || []).forEach((s: any) => { if (s?.subject_id) map[s.subject_id] = s; });
+      (subjectsData || []).forEach((s: Record<string, unknown>) => { 
+        if (s?.subject_id) map[s.subject_id as string] = s as SubjectRow; 
+      });
       setSubjectMap(map);
       // 6. Fetch resources for these subjects
-      let { data: resourcesData, error } = await supabase
+      const { data: initialResourcesData, error } = await supabase
         .from('resources')
         .select('*, uploader:uploaded_by (full_name, email)')
         .in('subject_id', allSubjectIds);
+      let resourcesData = initialResourcesData as unknown as Resource[] | null;
       if (!resourcesData || error) {
-        resourcesData = ((await supabase.from('resources').select('*').in('subject_id', allSubjectIds)).data || []).map((r: any) => ({ ...r, uploader: null }));
+        const fallbackData = (await supabase.from('resources').select('*').in('subject_id', allSubjectIds)).data || [];
+        resourcesData = fallbackData.map((r: Record<string, unknown>) => ({ 
+          resource_id: String(r.resource_id || ''),
+          title: (r.title as string | null) ?? null,
+          url: (r.url as string | null) ?? null,
+          subject_id: (r.subject_id as string | null) ?? null,
+          created_at: (r.created_at as string | null) ?? null,
+          uploaded_by: (r.uploaded_by as string | null) ?? null,
+          class_id: (r.class_id as string | null) ?? null,
+          description: (r.description as string | null) ?? null,
+          level_id: (r.level_id as string | null) ?? null,
+          paper_id: (r.paper_id as string | null) ?? null,
+          program_id: (r.program_id as string | null) ?? null,
+          resource_type: (r.resource_type as string | null) ?? null,
+          type: ((r as { type?: string | null })?.type) ?? null,
+          uploader: null 
+        }));
       }
-      setResources(resourcesData);
+      setResources(resourcesData as Resource[]);
       setLoading(false);
     }
     if (studentInfo.program_id && studentInfo.level_id && studentInfo.id) fetchSubjectsAndResources();
@@ -82,22 +122,22 @@ export default function StudentResources() {
   }, [subjectIds]);
 
   // Group resources by subject_id
-  const resourcesBySubject: Record<string, any[]> = {};
-  (resources as any[]).forEach((r: any) => {
-    const sid = r.subject_id as string | undefined;
+  const resourcesBySubject: Record<string, Resource[]> = {};
+  resources.forEach((r: Resource) => {
+    const sid = r.subject_id || undefined;
     if (!sid) return;
     if (!resourcesBySubject[sid]) resourcesBySubject[sid] = [];
     resourcesBySubject[sid].push(r);
   });
 
   // Filter resources by search
-  function filterResources(list: any[]) {
+  function filterResources(list: Resource[]) {
     if (!search.trim()) return list;
     const s = search.trim().toLowerCase();
     return list.filter(r =>
       (r.title && r.title.toLowerCase().includes(s)) ||
-      (r.uploader?.full_name && r.uploader.full_name.toLowerCase().includes(s)) ||
-      (r.uploader?.email && r.uploader.email.toLowerCase().includes(s))
+      (r.uploader?.full_name && r.uploader.full_name.toString().toLowerCase().includes(s)) ||
+      (r.uploader?.email && r.uploader.email.toString().toLowerCase().includes(s))
     );
   }
 
@@ -117,7 +157,7 @@ export default function StudentResources() {
   }
 
   // Resource preview modal
-  function ResourcePreviewModal({ resource, onClose }: { resource: any; onClose: () => void }) {
+  function ResourcePreviewModal({ resource, onClose }: { resource: Resource; onClose: () => void }) {
     if (!resource) return null;
     const type = resource.url?.endsWith('.pdf') ? 'PDF'
       : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
@@ -129,11 +169,11 @@ export default function StudentResources() {
           <button className="absolute top-2 right-2 text-gray-500 hover:text-gray-900" onClick={onClose}>&times;</button>
           <h3 className="text-lg font-semibold mb-4">{resource.title || resource.url}</h3>
           {type === 'PDF' ? (
-            <iframe src={resource.url} title="PDF Preview" className="w-full h-96 border rounded" />
+            <iframe src={resource.url ?? undefined} title="PDF Preview" className="w-full h-96 border rounded" />
           ) : type === 'Video' ? (
-            <video src={resource.url} controls className="w-full h-96 rounded" />
+            <video src={resource.url ?? undefined} controls className="w-full h-96 rounded" />
           ) : type === 'Link' ? (
-            <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Open Link</a>
+            <a href={resource.url ?? undefined} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">Open Link</a>
           ) : (
             <div className="text-gray-500">No preview available.</div>
           )}
@@ -201,7 +241,7 @@ export default function StudentResources() {
                               <td colSpan={5} className="px-4 py-4 text-center text-gray-400">No resources for this subject.</td>
                             </tr>
                           ) : (
-                            subjectResources.map((resource: any) => {
+                            subjectResources.map((resource: Resource) => {
                               const type = resource.url?.endsWith('.pdf') ? 'PDF'
                                 : resource.url?.match(/youtube|mp4|mov|avi|video/i) ? 'Video'
                                 : resource.url?.startsWith('http') ? 'Link'
@@ -225,7 +265,7 @@ export default function StudentResources() {
                                   <td className="px-4 py-2 text-gray-500">{resource.created_at ? new Date(resource.created_at ?? '').toLocaleDateString() : '-'}</td>
                                   <td className="px-4 py-2">
                                     <a
-                                      href={resource.url}
+                                      href={resource.url ?? undefined}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-800 transition-colors text-xs mr-2"
@@ -233,7 +273,7 @@ export default function StudentResources() {
                                       View
                                     </a>
                                     <a
-                                      href={resource.url}
+                                      href={resource.url ?? undefined}
                                       download
                                       className="px-3 py-1 rounded bg-green-600 text-white font-semibold hover:bg-green-800 transition-colors text-xs"
                                     >

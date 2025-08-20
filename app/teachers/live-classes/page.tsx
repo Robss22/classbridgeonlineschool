@@ -78,32 +78,33 @@ export default function TeacherLiveClassesPage() {
 
       if (liveClassError) throw liveClassError;
       setLiveClasses(
-        (liveClassData || []).map((item: any) => ({
-          meeting_platform: item.meeting_platform ?? '',
-          status: item.status ?? '',
-          max_participants: item.max_participants ?? 0,
-          teacher_id: item.teacher_id ?? '',
-          level_id: item.level_id ?? '',
-          subject_id: item.subject_id ?? '',
-          program_id: item.program_id ?? '',
-          paper_id: item.paper_id ?? '',
-          live_class_id: item.live_class_id ?? '',
-          title: item.title ?? '',
-          description: item.description ?? '',
-          scheduled_date: item.scheduled_date ?? '',
-          start_time: item.start_time ?? '',
-          end_time: item.end_time ?? '',
-          meeting_link: item.meeting_link ?? '',
-          started_at: item.started_at ?? null,
-          ended_at: item.ended_at ?? null,
-          levels: item.levels ?? null,
-          subjects: item.subjects ?? null,
-          programs: item.programs ?? null,
-          papers: item.papers ?? null
-        }))
+        (liveClassData || []).map((item: Record<string, unknown>) => ({
+          meeting_platform: (item.meeting_platform as string) ?? '',
+          status: (item.status as string) ?? '',
+          max_participants: (item.max_participants as number) ?? 0,
+          teacher_id: (item.teacher_id as string) ?? '',
+          level_id: (item.level_id as string) ?? '',
+          subject_id: (item.subject_id as string) ?? '',
+          program_id: (item.program_id as string) ?? '',
+          paper_id: (item.paper_id as string) ?? '',
+          live_class_id: (item.live_class_id as string) ?? '',
+          title: (item.title as string) ?? '',
+          description: (item.description as string) ?? '',
+          scheduled_date: (item.scheduled_date as string) ?? '',
+          start_time: (item.start_time as string) ?? '',
+          end_time: (item.end_time as string) ?? '',
+          meeting_link: (item.meeting_link as string) ?? '',
+          started_at: (item.started_at as string | null) ?? null,
+          ended_at: (item.ended_at as string | null) ?? null,
+          levels: item.levels as { name: string } | null ?? null,
+          subjects: item.subjects as { name: string } | null ?? null,
+          programs: item.programs as { name: string } | null ?? null,
+          papers: item.papers as { paper_name: string; paper_code: string } | null ?? null
+        })) as unknown as LiveClass[]
       );
-    } catch (error: any) {
-      setDebugLog(log => [...log, `Error: ${error?.message}`]);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setDebugLog(log => [...log, `Error: ${errorMessage}`]);
       const appError = errorHandler.handleSupabaseError(error, 'fetch_teacher_live_classes', 'teacher');
       setError(appError.message);
     } finally {
@@ -126,8 +127,9 @@ export default function TeacherLiveClassesPage() {
         throw new Error(result?.error || 'Failed to generate meeting link');
       }
       await fetchData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to generate meeting link');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage || 'Failed to generate meeting link');
     } finally {
       setGeneratingLinks(prev => {
         const next = new Set(prev);

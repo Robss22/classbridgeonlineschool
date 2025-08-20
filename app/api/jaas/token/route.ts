@@ -28,6 +28,15 @@ type TokenRequest = {
   live_class_id: string
 }
 
+
+
+interface UserProfile {
+  email: string
+  first_name: string | null
+  last_name: string | null
+  role: string
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!JAAS_APP_ID || !JAAS_PRIVATE_KEY || !JAAS_KID) {
@@ -60,7 +69,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Live class not found' }, { status: 404 })
     }
 
-    const teacherUserId = (liveClass as any)?.teachers?.user_id as string | undefined
+    const teacherUserId = Array.isArray((liveClass as Record<string, unknown>)?.teachers)
+      ? ((liveClass as Record<string, unknown>)?.teachers as Array<Record<string, unknown>>)[0]?.user_id as string | undefined
+      : (liveClass as { teachers?: { user_id?: string } })?.teachers?.user_id
 
     // Fetch current user profile for display name/email
     const { data: userProfile } = await supabaseAdmin
@@ -69,7 +80,7 @@ export async function POST(req: NextRequest) {
       .eq('id', userId)
       .single()
 
-    const isAdmin = (userProfile as any)?.role === 'admin'
+    const isAdmin = (userProfile as UserProfile)?.role === 'admin'
     const isModerator = isAdmin || (!!teacherUserId && teacherUserId === userId)
 
     const displayName = userProfile
@@ -116,9 +127,10 @@ export async function POST(req: NextRequest) {
       isModerator,
       displayName,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('JaaS token error:', error)
-    return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 400 })
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
 

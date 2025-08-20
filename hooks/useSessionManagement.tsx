@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { SessionManager } from '@/lib/services/sessionManager';
@@ -16,10 +16,16 @@ export function useSessionManagement({
   autoLogout = true,
   redirectOnInvalid = '/login'
 }: UseSessionManagementOptions = {}) {
+  
   const router = useRouter();
   const intervalRef = useRef<NodeJS.Timeout>();
   const activityTimeoutRef = useRef<NodeJS.Timeout>();
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // CRITICAL FIX: Use refs to prevent infinite loops
+  const isInitializing = useRef(false);
+  const hasInitialized = useRef(false);
+  const lastAuthState = useRef<string>('');
 
   /**
    * Handle user activity to extend session
@@ -32,7 +38,11 @@ export function useSessionManagement({
 
     // Set new timeout for session extension
     activityTimeoutRef.current = setTimeout(async () => {
-      await SessionManager.updateSessionActivity();
+      try {
+        await SessionManager.updateSessionActivity();
+      } catch (error) {
+        console.warn('Session activity update failed:', error);
+      }
     }, 30000); // 30 seconds delay to avoid too frequent updates
   }, []);
 
@@ -66,15 +76,20 @@ export function useSessionManagement({
    */
   const createUserSession = useCallback(async (userId: string) => {
     try {
+      console.log('[useSessionManagement] Creating session for user:', userId);
+      
       const session = await SessionManager.createSession(userId);
       if (session) {
-        console.log('Session created successfully for device:', session.device_name);
+        console.log('✅ Session created successfully for device:', session.device_name);
         return session;
+      } else {
+        console.warn('⚠️ Session creation returned null for user:', userId);
+        return null;
       }
     } catch (error) {
-      console.error('Error creating user session:', error);
+      console.error('❌ Error creating user session:', error);
+      return null;
     }
-    return null;
   }, []);
 
   /**
@@ -84,11 +99,11 @@ export function useSessionManagement({
     try {
       const success = await SessionManager.forceLogoutOtherDevices();
       if (success) {
-        console.log('Successfully logged out from all other devices');
+        console.log('✅ Successfully logged out from all other devices');
         return true;
       }
     } catch (error) {
-      console.error('Error force logging out other devices:', error);
+      console.error('❌ Error force logging out other devices:', error);
     }
     return false;
   }, []);
@@ -100,7 +115,7 @@ export function useSessionManagement({
     try {
       return await SessionManager.getCurrentSession();
     } catch (error) {
-      console.error('Error getting current session:', error);
+      console.error('❌ Error getting current session:', error);
       return null;
     }
   }, []);
@@ -112,7 +127,7 @@ export function useSessionManagement({
     try {
       return await SessionManager.getActiveSessions();
     } catch (error) {
-      console.error('Error getting active sessions:', error);
+      console.error('❌ Error getting active sessions:', error);
       return [];
     }
   }, []);
@@ -124,11 +139,11 @@ export function useSessionManagement({
     try {
       const success = await SessionManager.endSession();
       if (success) {
-        console.log('Current session ended successfully');
+        console.log('✅ Current session ended successfully');
         return true;
       }
     } catch (error) {
-      console.error('Error ending current session:', error);
+      console.error('❌ Error ending current session:', error);
     }
     return false;
   }, []);
@@ -136,153 +151,143 @@ export function useSessionManagement({
   /**
    * Extend current session
    */
-  const extendSession = useCallback(async (hours: number = 2.5) => {
+  const extendSession = useCallback(async () => {
     try {
-      const success = await SessionManager.extendSession(hours);
+      const success = await SessionManager.extendSession();
       if (success) {
-        console.log(`Session extended by ${hours} hours`);
+        console.log('✅ Session extended successfully');
         return true;
       }
     } catch (error) {
-      console.error('Error extending session:', error);
+      console.error('❌ Error extending session:', error);
     }
     return false;
   }, []);
 
   /**
-   * Get session statistics
+   * CRITICAL FIX: Initialize session management only once
    */
-  const getSessionStats = useCallback(async () => {
+  const initializeSessionManagement = useCallback(async () => {
+    if (isInitializing.current || hasInitialized.current) {
+      console.log('[useSessionManagement] Already initializing or initialized, skipping...');
+      return;
+    }
+
+    isInitializing.current = true;
+    console.log('[useSessionManagement] Starting session management initialization...');
+
     try {
-      return await SessionManager.getSessionStats();
-    } catch (error) {
-      console.error('Error getting session stats:', error);
-      return { totalSessions: 0, activeSessions: 0, expiredSessions: 0 };
-    }
-  }, []);
-
-  // Set up activity listeners
-  useEffect(() => {
-    // Only set up activity listeners if initialized
-    if (!isInitialized) {
-      return;
-    }
-
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click', 'focus'];
-    
-    events.forEach(event => {
-      document.addEventListener(event, handleUserActivity, true);
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, handleUserActivity, true);
-      });
-    };
-  }, [handleUserActivity, isInitialized]);
-
-  // Set up periodic session checking
-  useEffect(() => {
-    // Only start session checking if we have a valid user session and are initialized
-    if (!isInitialized) {
-      console.log('[useSessionManagement] Waiting for initialization...');
-      return;
-    }
-
-    const initializeSessionChecking = async () => {
-      try {
-        const currentSession = await SessionManager.getCurrentSession();
-        if (currentSession) {
-          console.log('[useSessionManagement] Starting session validation');
-          // Check session validity immediately
-          checkSessionValidity();
-
-          // Set up interval for periodic checking
-          intervalRef.current = setInterval(checkSessionValidity, checkInterval * 60 * 1000);
+      // Get current auth state
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        console.log('[useSessionManagement] User authenticated, creating session...');
+        
+        // Check if user already has an active session
+        const existingSession = await getCurrentSession();
+        if (existingSession) {
+          console.log('[useSessionManagement] User already has active session, skipping creation');
+        } else {
+          await createUserSession(user.id);
         }
-      } catch (error) {
-        console.log('[useSessionManagement] No active session yet, waiting for authentication');
+      } else {
+        console.log('[useSessionManagement] No authenticated user found');
       }
-    };
 
-    // Initialize with a delay to avoid conflicts
-    const timer = setTimeout(initializeSessionChecking, 2000);
+      // Set up auth state change listener
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        const currentAuthState = `${event}_${session?.user?.id || 'none'}`;
+        
+        // Prevent duplicate processing
+        if (currentAuthState === lastAuthState.current) {
+          console.log('[useSessionManagement] Duplicate auth state change, skipping:', currentAuthState);
+          return;
+        }
+        
+        lastAuthState.current = currentAuthState;
+        console.log('[useSessionManagement] Auth state change:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('[useSessionManagement] User signed in, creating session...');
+          
+          // Check if user already has an active session
+          const existingSession = await getCurrentSession();
+          if (existingSession) {
+            console.log('[useSessionManagement] User already has active session, skipping creation');
+          } else {
+            await createUserSession(session.user.id);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('[useSessionManagement] User signed out, cleaning up...');
+          // Clean up session data
+          localStorage.removeItem('classbridge_session_id');
+          localStorage.removeItem('classbridge_device_id');
+        }
+      });
 
+      // Set up periodic session validation
+      if (checkInterval > 0) {
+        intervalRef.current = setInterval(checkSessionValidity, checkInterval * 60 * 1000);
+      }
+
+      // Set up activity monitoring
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+      events.forEach(event => {
+        document.addEventListener(event, handleUserActivity, { passive: true });
+      });
+
+      hasInitialized.current = true;
+      setIsInitialized(true);
+      console.log('[useSessionManagement] Session management initialization completed successfully');
+
+    } catch (error) {
+      console.error('❌ [useSessionManagement] Initialization failed:', error);
+    } finally {
+      isInitializing.current = false;
+    }
+  }, [checkInterval, checkSessionValidity, createUserSession, handleUserActivity]);
+
+  // CRITICAL FIX: Single initialization effect
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      initializeSessionManagement();
+    }
+
+    // Cleanup function
     return () => {
-      clearTimeout(timer);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
       if (activityTimeoutRef.current) {
         clearTimeout(activityTimeoutRef.current);
       }
-    };
-  }, [checkSessionValidity, checkInterval, isInitialized]);
-
-  // Handle authentication state changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[useSessionManagement] Auth state change:', event, session?.user?.id);
       
-      if (event === 'SIGNED_IN' && session?.user) {
-        // User signed in, create session with delay to avoid conflicts
-        setTimeout(async () => {
-          try {
-            const sessionResult = await createUserSession(session.user.id);
-            if (sessionResult) {
-              console.log('[useSessionManagement] Session created successfully');
-              setIsInitialized(true);
-            }
-          } catch (error) {
-            console.error('[useSessionManagement] Error creating session:', error);
-          }
-        }, 1000); // 1 second delay
-      } else if (event === 'SIGNED_OUT') {
-        // User signed out, end session
-        try {
-          await endCurrentSession();
-          console.log('[useSessionManagement] Session ended successfully');
-          setIsInitialized(false);
-        } catch (error) {
-          console.error('[useSessionManagement] Error ending session:', error);
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [createUserSession, endCurrentSession]);
-
-  // Don't return functions until initialized to prevent premature calls
-  if (!isInitialized) {
-    return {
-      createUserSession: async () => null,
-      getCurrentSession: async () => null,
-      getActiveSessions: async () => [],
-      endCurrentSession: async () => false,
-      forceLogoutOtherDevices: async () => false,
-      extendSession: async () => false,
-      getSessionStats: async () => ({ totalSessions: 0, activeSessions: 0, expiredSessions: 0 }),
-      checkSessionValidity: async () => {},
-      isSessionValid: async () => false,
-      isInitialized: false
+      // Remove event listeners
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserActivity);
+      });
     };
-  }
+  }, [initializeSessionManagement, handleUserActivity]);
 
-  return {
-    // Session management functions
+  // CRITICAL FIX: Memoize return value to prevent unnecessary re-renders
+  return useMemo(() => ({
+    isInitialized,
     createUserSession,
+    forceLogoutOtherDevices,
     getCurrentSession,
     getActiveSessions,
     endCurrentSession,
-    forceLogoutOtherDevices,
     extendSession,
-    getSessionStats,
-    
-    // Session checking
-    checkSessionValidity,
-    
-    // Utility functions
-    isSessionValid: () => SessionManager.isSessionValid(),
-    isInitialized: true
-  };
+    checkSessionValidity
+  }), [
+    isInitialized,
+    createUserSession,
+    forceLogoutOtherDevices,
+    getCurrentSession,
+    getActiveSessions,
+    endCurrentSession,
+    extendSession,
+    checkSessionValidity
+  ]);
 }

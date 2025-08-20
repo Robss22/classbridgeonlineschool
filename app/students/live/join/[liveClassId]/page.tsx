@@ -6,7 +6,9 @@ import { supabase } from '@/lib/supabaseClient'
 
 declare global {
   interface Window {
-    JitsiMeetExternalAPI?: any
+    JitsiMeetExternalAPI?: new (domain: string, options: Record<string, unknown>) => {
+      addListener: (event: string, callback: (payload?: Record<string, unknown>) => void) => void;
+    }
   }
 }
 
@@ -21,7 +23,7 @@ export default function JoinLiveClassPage() {
   const [jwt, setJwt] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>('')
-  const [technicalData, setTechnicalData] = useState<any>({})
+  const [technicalData, setTechnicalData] = useState<Record<string, unknown>>({})
   // reserved for future checks ui
   const [, setPrecheck] = useState<{ ok: boolean; reason?: string }>({ ok: false })
 
@@ -45,10 +47,10 @@ export default function JoinLiveClassPage() {
         const deviceInfo = {
           userAgent: navigator.userAgent,
           platform: navigator.platform,
-          connection: (navigator as any).connection ? {
-            effectiveType: (navigator as any).connection.effectiveType,
-            downlink: (navigator as any).connection.downlink,
-            rtt: (navigator as any).connection.rtt
+          connection: (navigator as unknown as { connection?: { effectiveType?: string; downlink?: number; rtt?: number } }).connection ? {
+            effectiveType: (navigator as unknown as { connection?: { effectiveType?: string } }).connection?.effectiveType,
+            downlink: (navigator as unknown as { connection?: { downlink?: number } }).connection?.downlink,
+            rtt: (navigator as unknown as { connection?: { rtt?: number } }).connection?.rtt
           } : null
         }
 
@@ -113,7 +115,7 @@ export default function JoinLiveClassPage() {
             if (resp.ok && json?.meeting_link) {
               link = json.meeting_link
             }
-          } catch (_) {}
+          } catch {}
         }
 
         if (!link) {
@@ -167,7 +169,7 @@ export default function JoinLiveClassPage() {
           let room = url.pathname.replace(/^\//, '') || `ClassBridge-${liveClassId}`
           room = room.replace(/[^A-Za-z0-9_-]/g, '') || `ClassBridge-${liveClassId}`
 
-          const api = new window.JitsiMeetExternalAPI(domain, {
+          const api = new window.JitsiMeetExternalAPI!(domain, {
             roomName: room,
             parentNode: containerRef.current,
             userInfo: { displayName },
@@ -195,32 +197,32 @@ export default function JoinLiveClassPage() {
           })
 
           // Track technical events
-          api.addListener('audioMuteStatusChanged', (audio: any) => {
-            setTechnicalData((prev: any) => ({
+          api.addListener('audioMuteStatusChanged', (audio?: Record<string, unknown>) => {
+            setTechnicalData((prev: Record<string, unknown>) => ({
               ...prev,
               technical_data: {
-                ...prev.technical_data,
-                audio_enabled: !audio.muted
+                ...(prev.technical_data as Record<string, unknown> | undefined),
+                audio_enabled: !(audio?.muted as boolean)
               }
             }))
           })
 
-          api.addListener('videoMuteStatusChanged', (video: any) => {
-            setTechnicalData((prev: any) => ({
+          api.addListener('videoMuteStatusChanged', (video?: Record<string, unknown>) => {
+            setTechnicalData((prev: Record<string, unknown>) => ({
               ...prev,
               technical_data: {
-                ...prev.technical_data,
-                video_enabled: !video.muted
+                ...(prev.technical_data as Record<string, unknown> | undefined),
+                video_enabled: !(video?.muted as boolean)
               }
             }))
           })
 
-          api.addListener('screenSharingStatusChanged', (screen: any) => {
-            setTechnicalData((prev: any) => ({
+          api.addListener('screenSharingStatusChanged', (screen?: Record<string, unknown>) => {
+            setTechnicalData((prev: Record<string, unknown>) => ({
               ...prev,
               technical_data: {
-                ...prev.technical_data,
-                screen_shared: screen.on
+                ...(prev.technical_data as Record<string, unknown> | undefined),
+                screen_shared: (screen?.on as boolean) || false
               }
             }))
           })
@@ -241,18 +243,18 @@ export default function JoinLiveClassPage() {
           })
 
           // Monitor connection quality
-          api.addListener('connectionQualityChanged', (quality: any) => {
+          api.addListener('connectionQualityChanged', (quality?: Record<string, unknown>) => {
             const qualityMap: { [key: string]: 'good' | 'fair' | 'poor' } = {
               'good': 'good',
               'fair': 'fair',
               'poor': 'poor'
             }
             
-            setTechnicalData((prev: any) => ({
+            setTechnicalData((prev: Record<string, unknown>) => ({
               ...prev,
               technical_data: {
-                ...prev.technical_data,
-                connection_quality: qualityMap[quality] || 'fair'
+                ...(prev.technical_data as Record<string, unknown> | undefined),
+                connection_quality: qualityMap[String(quality)] || 'fair'
               }
             }))
           })

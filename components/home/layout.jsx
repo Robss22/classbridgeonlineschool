@@ -9,7 +9,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head />
+      {/* Head element removed - metadata is handled by Next.js */}
       <body className="bg-transparent text-gray-900 flex flex-col min-h-screen">
 
         {/* Modern Header with Glassmorphism */}

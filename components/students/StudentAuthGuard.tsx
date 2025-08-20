@@ -8,13 +8,13 @@ export default function StudentAuthGuard({ children }: { children: React.ReactNo
   const router = useRouter();
   const pathname = usePathname();
 
-  console.log('[StudentAuthGuard] render', { user, pathname });
+  // StudentAuthGuard render
 
   useEffect(() => {
-    console.log('[StudentAuthGuard] useEffect', { loading, user, pathname });
+    // StudentAuthGuard useEffect
     if (!loading) {
       if (!user) {
-        console.log('[StudentAuthGuard] Redirecting to /login');
+        // Redirecting to /login
         router.push('/login');
       }
     }
@@ -22,7 +22,7 @@ export default function StudentAuthGuard({ children }: { children: React.ReactNo
 
   // Optionally show a loading spinner while checking auth
   if (loading || !user) {
-    console.log('[StudentAuthGuard] Showing spinner', { loading, user, pathname });
+    // Showing spinner
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -30,6 +30,6 @@ export default function StudentAuthGuard({ children }: { children: React.ReactNo
     );
   }
 
-  console.log('[StudentAuthGuard] Rendering children');
+  // Rendering children
   return children;
 }

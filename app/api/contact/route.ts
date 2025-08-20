@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: data.error.message || 'Failed to send email.' }, { status: 500 });
     }
     return NextResponse.json({ message: 'Message sent successfully.' });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Unexpected error.' }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unexpected error.';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

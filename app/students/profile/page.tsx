@@ -110,8 +110,10 @@ export default function ProfilePage() {
                     const publicUrl = (publicData?.publicUrl || '') + `?v=${Date.now()}`;
                     setProfilePic(publicUrl);
                     setStudentPhotoUrl(publicUrl);
-                  } catch (err: any) {
-                    const msg = err?.message || err?.error_description || 'Unknown error';
+                  } catch (err: unknown) {
+                    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                    const errorDescription = (err as Record<string, unknown>)?.error_description;
+                    const msg = errorMessage || errorDescription || 'Unknown error';
                     setUploadError('Upload failed: ' + msg);
                   } finally {
                     setUploading(false);

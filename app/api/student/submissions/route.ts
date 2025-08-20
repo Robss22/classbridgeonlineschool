@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       if (assessError) return false;
       if (!assess?.due_date) return false;
       const now = new Date();
-      const due = new Date(assess.due_date as any);
+      const due = new Date(assess.due_date as string);
       return now > due;
     };
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         submission_url: filePath,
         submitted_at: new Date().toISOString(),
         status: 'submitted',
-      } as any);
+      });
       if (insertError) return NextResponse.json({ error: insertError.message }, { status: 400 });
       return NextResponse.json({ ok: true });
     }
@@ -118,8 +118,9 @@ export async function POST(req: NextRequest) {
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
 
     return NextResponse.json({ ok: true, filePath: objectPath, fileName: originalName });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Upload failed' }, { status: 500 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : 'Upload failed';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -141,8 +142,9 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase.storage.from('students_submissions').createSignedUrl(path, 60 * 10);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ signedUrl: data?.signedUrl });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to sign URL' }, { status: 500 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : 'Failed to sign URL';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

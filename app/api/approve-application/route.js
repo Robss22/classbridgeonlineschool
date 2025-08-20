@@ -20,31 +20,48 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Application ID is required' }, { status: 400 });
     }
 
-    // Invoke your Supabase Edge Function by its name.
-    // The `supabaseAdmin.functions.invoke` method handles forming the correct URL
-    // and authorizing the call using the service_role key.
+    // Invoke Edge Function
     const { data, error } = await supabaseAdmin.functions.invoke('approve-application', {
       body: { application_id: application_id },
-      // No need for 'Authorization' header here; the service_role client handles it.
     });
 
     if (error) {
-      console.error("Supabase Edge Function invocation error:", error);
+      // Try to get more detailed error information
+      let errorDetails = 'No additional details.';
+      let errorStatus = 500;
+      
+      if (error.message) {
+        errorDetails = error.message;
+      }
+      
+      if (error.status) {
+        errorStatus = error.status;
+      }
+      
       // Return the error from the Edge Function to the client
       return NextResponse.json({
-        error: error.message || 'Failed to invoke Supabase Edge Function',
-        details: error.details || 'No additional details.'
+        error: 'Edge Function returned a non-2xx status code',
+        details: errorDetails,
+        status: errorStatus,
+        context: 'approve-application',
+        timestamp: new Date().toISOString()
       }, {
-        status: error.status || 500, // Use the status from the Edge Function error if available
+        status: errorStatus,
       });
     }
+
+    // Edge Function successful
 
     // If the Edge Function returns data, pass it back to the client
     return NextResponse.json(data, { status: 200 });
 
   } catch (error) {
-    console.error("Next.js API Route processing error:", error);
+    // Next.js API Route processing error
     // Handle unexpected errors during the API route processing itself
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message || 'Internal Server Error',
+      context: 'api-route-error',
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
   }
 }

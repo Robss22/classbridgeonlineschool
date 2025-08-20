@@ -32,11 +32,11 @@ export interface LiveClass {
 
 interface Props {
   initialLiveClasses: LiveClass[];
-  levels: any[];
-  subjects: any[];
-  teachers: any[];
-  programs: any[];
-  papers: any[];
+  levels: Array<Record<string, unknown>>;
+  subjects: Array<Record<string, unknown>>;
+  teachers: Array<Record<string, unknown>>;
+  programs: Array<Record<string, unknown>>;
+  papers: Array<Record<string, unknown>>;
 }
 
 export default function AdminLiveClassesClient({ initialLiveClasses, levels, subjects, teachers, programs, papers }: Props) {
@@ -57,9 +57,10 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch live classes');
       setLiveClasses(json.data || []);
-    } catch (e: any) {
-      setError(e.message || 'Failed to fetch');
-      toast({ title: 'Error', description: e.message || 'Failed to fetch', variant: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      setError(errorMessage || 'Failed to fetch');
+      toast({ title: 'Error', description: errorMessage || 'Failed to fetch', variant: 'error' });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -77,9 +78,10 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       if (!response.ok) throw new Error(body?.error || 'Failed to update status');
       toast({ title: 'Updated', description: 'Class status updated' });
       fetchData(true);
-    } catch (e: any) {
-      setError(e.message || 'Failed to update');
-      toast({ title: 'Error', description: e.message || 'Failed to update', variant: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      setError(errorMessage || 'Failed to update');
+      toast({ title: 'Error', description: errorMessage || 'Failed to update', variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -98,9 +100,10 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       if (!response.ok) throw new Error(body?.error || 'Failed to delete');
       toast({ title: 'Deleted', description: 'Live class removed', variant: 'success' });
       fetchData(true);
-    } catch (e: any) {
-      setError(e.message || 'Failed to delete');
-      toast({ title: 'Error', description: e.message || 'Failed to delete', variant: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      setError(errorMessage || 'Failed to delete');
+      toast({ title: 'Error', description: errorMessage || 'Failed to delete', variant: 'error' });
     } finally {
       setLoading(false);
       setDeleteConfirm({ isOpen: false, liveClassId: null });
@@ -119,9 +122,10 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       if (!response.ok) throw new Error(body?.error || 'Failed to generate meeting link');
       toast({ title: 'Link generated', description: 'Meeting link is ready' });
       await fetchData(true);
-    } catch (e: any) {
-      setError(e.message || 'Failed to generate');
-      toast({ title: 'Error', description: e.message || 'Failed to generate', variant: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      setError(errorMessage || 'Failed to generate');
+      toast({ title: 'Error', description: errorMessage || 'Failed to generate', variant: 'error' });
     } finally {
       setGeneratingLinks(prev => { const next = new Set(prev); next.delete(liveClassId); return next; });
     }
@@ -133,8 +137,9 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       const response = await fetch('/api/live-classes/auto-status', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       if (!response.ok) throw new Error('Failed to update statuses');
       await fetchData(true);
-    } catch (e: any) {
-      toast({ title: 'Auto update failed', description: e.message || 'Failed', variant: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      toast({ title: 'Auto update failed', description: errorMessage || 'Failed', variant: 'error' });
     }
   }, [error, loading, fetchData, toast]);
 

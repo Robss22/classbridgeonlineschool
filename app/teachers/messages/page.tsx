@@ -65,14 +65,14 @@ export default function TeacherMessagesPage() {
       .select("*, sender:sender_id (full_name, email)")
       .eq("message_type", "announcement")
       .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: Array<Record<string, unknown>> | null; error: { message: string } | null }) => {
         if (error) setFetchError(error.message);
-        setAnnouncements((data as any[])?.map(d => ({
-          id: d.id,
-          subject: d.subject ?? '',
-          body: d.body ?? '',
-          created_at: d.created_at ?? undefined,
-          sender: d.sender ?? null,
+        setAnnouncements((data || []).map(d => ({
+          id: d.id as string,
+          subject: (d.subject as string) ?? '',
+          body: (d.body as string) ?? '',
+          created_at: (d.created_at as string) ?? undefined,
+          sender: (d.sender as UserMini) ?? null,
         })) || []);
         setLoading(false);
       });
@@ -89,17 +89,17 @@ export default function TeacherMessagesPage() {
       .eq("recipient_id", user.id)
       .is("parent_id", null)
       .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: Array<Record<string, unknown>> | null; error: { message: string } | null }) => {
         if (error) setInboxError(error.message);
-        setInbox((data as any[])?.map(d => ({
-          id: d.id,
-          subject: d.subject ?? '',
-          body: d.body ?? '',
-          created_at: d.created_at ?? undefined,
-          sender: d.sender ?? null,
-          sender_id: d.sender_id,
-          recipient_id: d.recipient_id,
-          parent_id: d.parent_id,
+        setInbox((data || []).map(d => ({
+          id: d.id as string,
+          subject: (d.subject as string) ?? '',
+          body: (d.body as string) ?? '',
+          created_at: (d.created_at as string) ?? undefined,
+          sender: (d.sender as UserMini) ?? null,
+          sender_id: d.sender_id as string,
+          recipient_id: d.recipient_id as string,
+          parent_id: d.parent_id as string | null,
         })) || []);
         setLoadingInbox(false);
       });
@@ -116,17 +116,17 @@ export default function TeacherMessagesPage() {
       .eq("sender_id", user.id)
       .is("parent_id", null)
       .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: Array<Record<string, unknown>> | null; error: { message: string } | null }) => {
         if (error) setSentError(error.message);
-        setSent((data as any[])?.map(d => ({
-          id: d.id,
-          subject: d.subject ?? '',
-          body: d.body ?? '',
-          created_at: d.created_at ?? undefined,
-          recipient: d.recipient ?? null,
-          sender_id: d.sender_id,
-          recipient_id: d.recipient_id,
-          parent_id: d.parent_id,
+        setSent((data || []).map(d => ({
+          id: d.id as string,
+          subject: (d.subject as string) ?? '',
+          body: (d.body as string) ?? '',
+          created_at: (d.created_at as string) ?? undefined,
+          recipient: (d.recipient as UserMini) ?? null,
+          sender_id: d.sender_id as string,
+          recipient_id: d.recipient_id as string,
+          parent_id: d.parent_id as string | null,
         })) || []);
         setLoadingSent(false);
       });
@@ -151,17 +151,17 @@ export default function TeacherMessagesPage() {
       .select("*, sender:sender_id (full_name, email)")
       .or(`id.eq.${rootId},parent_id.eq.${rootId}`)
       .order("created_at", { ascending: true })
-      .then(({ data, error }) => {
+      .then(({ data, error }: { data: Array<Record<string, unknown>> | null; error: { message: string } | null }) => {
         if (error) setThreadError(error.message);
-        setThread(((data as any[]) || []).map(d => ({
-          id: d.id,
-          subject: d.subject ?? '',
-          body: d.body ?? '',
-          created_at: d.created_at ?? undefined,
-          sender: d.sender ?? null,
-          sender_id: d.sender_id,
-          recipient_id: d.recipient_id,
-          parent_id: d.parent_id,
+        setThread(((data || [])).map(d => ({
+          id: d.id as string,
+          subject: (d.subject as string) ?? '',
+          body: (d.body as string) ?? '',
+          created_at: (d.created_at as string) ?? undefined,
+          sender: (d.sender as UserMini) ?? null,
+          sender_id: d.sender_id as string,
+          recipient_id: d.recipient_id as string,
+          parent_id: (d.parent_id as string | null),
         })));
         setLoadingThread(false);
       });
@@ -186,12 +186,25 @@ export default function TeacherMessagesPage() {
       // Determine recipient: if user is sender, reply to the other party
       const lastMsg = thread[thread.length - 1];
       const recipientId = lastMsg.sender_id === user.id ? lastMsg.recipient_id : lastMsg.sender_id;
-      const { error } = await (supabase as any).from("messages").insert({
-        subject: lastMsg.subject,
+      if (!recipientId) {
+        setThreadError("Invalid recipient");
+        setReplying(false);
+        return;
+      }
+      if (!rootId) {
+        setThreadError("Invalid thread context");
+        setReplying(false);
+        return;
+      }
+      const { error } = await supabase.from("messages").insert({
+        subject: lastMsg.subject ?? "(No Subject)",
         body: reply,
         sender_id: user.id,
         recipient_id: recipientId,
-        parent_id: rootId,
+        message_type: "message",
+        sender_type: "Teacher",
+        recipient_type: "teacher",
+        parent_id: rootId ?? null,
         created_at: new Date().toISOString(),
       });
       if (error) throw error;
@@ -203,22 +216,23 @@ export default function TeacherMessagesPage() {
         .select("*, sender:sender_id (full_name, email)")
         .or(`id.eq.${rootId},parent_id.eq.${rootId}`)
         .order("created_at", { ascending: true })
-        .then(({ data, error }) => {
+        .then(({ data, error }: { data: Array<Record<string, unknown>> | null; error: { message: string } | null }) => {
           if (error) setThreadError(error.message);
-          setThread(((data as any[]) || []).map(d => ({
-            id: d.id,
-            subject: d.subject ?? '',
-            body: d.body ?? '',
-            created_at: d.created_at ?? undefined,
-            sender: d.sender ?? null,
-            sender_id: d.sender_id,
-            recipient_id: d.recipient_id,
-            parent_id: d.parent_id,
+          setThread(((data || [])).map(d => ({
+            id: d.id as string,
+            subject: (d.subject as string) ?? '',
+            body: (d.body as string) ?? '',
+            created_at: (d.created_at as string) ?? undefined,
+            sender: (d.sender as UserMini) ?? null,
+            sender_id: d.sender_id as string,
+            recipient_id: d.recipient_id as string,
+            parent_id: (d.parent_id as string | null),
           })));
           setLoadingThread(false);
         });
-    } catch (err: any) {
-      setThreadError(err?.message || "Failed to send reply");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setThreadError(errorMessage || "Failed to send reply");
     } finally {
       setReplying(false);
     }
@@ -236,7 +250,7 @@ export default function TeacherMessagesPage() {
     setSuccess("");
     try {
       if (!form.title || !form.message) throw new Error("Title and message are required");
-      const { error } = await (supabase as any).from("messages").insert({
+      const { error } = await supabase.from("messages").insert({
         subject: form.title,
         body: form.message,
         sender_id: user.id,
@@ -251,8 +265,9 @@ export default function TeacherMessagesPage() {
       setSuccess("Announcement sent!");
       setForm({ title: "", message: "", recipient: "all", fileUrl: "" });
       setShowModal(false);
-    } catch (err: any) {
-      setError(err?.message || "Failed to send announcement");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage || "Failed to send announcement");
     } finally {
       setSending(false);
     }

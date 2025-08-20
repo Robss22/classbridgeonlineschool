@@ -1,43 +1,62 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { Bell, X, ExternalLink, Clock, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabaseClient';
+import { Bell, X, Check } from 'lucide-react';
 
-interface Notification {
-  notification_id: string;
+interface Message {
+  id: string;
   title: string;
-  message: string;
-  type: string;
-  data: any;
-  is_read: boolean;
+  body: string;
   created_at: string;
+  read: boolean;
+  message_type?: string;
+  sender_type?: string;
+  recipient_type?: string;
 }
 
 export default function StudentNotifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchMessages = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
       setLoading(true);
-      const { data, error } = await (supabase as any)
-        .from('notifications' as any)
+      const { data, error } = await supabase
+        .from('messages')
         .select('*')
-        .eq('user_id', user?.id as any)
+        .eq('recipient_id', user.id)
+        .eq('recipient_type', 'student')
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
 
-      setNotifications((data as any[]) || []);
-      setUnreadCount(((data as any[])?.filter((n: any) => !n.is_read).length) || 0);
+      const messageList = (data || []).map((msg: Record<string, unknown>) => ({
+        id: String(msg.id || ''),
+        title: (() => {
+          const title = msg.subject || msg.body || 'Message';
+          const titleStr = typeof title === 'string' ? title : String(title);
+          return titleStr.length > 50 ? titleStr.substring(0, 50) : titleStr;
+        })(),
+        body: String(msg.body || ''),
+        created_at: String(msg.created_at || ''),
+        read: Boolean(msg.read || false),
+        message_type: String(msg.message_type || 'general'),
+        sender_type: String(msg.sender_type || 'system'),
+        recipient_type: String(msg.recipient_type || 'student')
+      })) as Message[];
+
+      setMessages(messageList);
+      setUnreadCount(messageList.filter((msg) => !msg.read).length);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
@@ -45,17 +64,16 @@ export default function StudentNotifications() {
 
   useEffect(() => {
     if (!user) return;
-
-    fetchNotifications();
+    fetchMessages();
     
-    // Set up real-time updates for notifications
+    // Set up real-time updates for messages
     const channel = supabase
-      .channel('notifications_realtime')
+      .channel('messages_realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
+        { event: '*', schema: 'public', table: 'messages' },
         () => {
-          fetchNotifications();
+          fetchMessages();
         }
       )
       .subscribe();
@@ -63,79 +81,68 @@ export default function StudentNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchNotifications]);
+  }, [user, fetchMessages]);
 
-  
-
-  const markAsRead = async (notificationId: string) => {
+  const markAsRead = async (messageId: string) => {
     try {
-      const { error } = await (supabase as any)
-        .from('notifications' as any)
+      const { error } = await supabase
+        .from('messages')
         .update({ 
-          is_read: true, 
-          read_at: new Date().toISOString() 
+          read: true, 
+          updated_at: new Date().toISOString() 
         })
-        .eq('notification_id', notificationId as any);
+        .eq('id', messageId);
 
       if (error) throw error;
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(n => 
-          n.notification_id === notificationId 
-            ? { ...n, is_read: true }
-            : n
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, read: true }
+            : msg
         )
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('Error marking message as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      const { error } = await (supabase as any)
-        .from('notifications' as any)
+      const { error } = await supabase
+        .from('messages')
         .update({ 
-          is_read: true, 
-          read_at: new Date().toISOString() 
+          read: true, 
+          updated_at: new Date().toISOString() 
         })
-        .eq('user_id', user?.id as any)
-        .eq('is_read', false);
+        .eq('recipient_id', user?.id || '')
+        .eq('read', false);
 
       if (error) throw error;
 
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, is_read: true }))
+      setMessages(prev => 
+        prev.map(msg => ({ ...msg, read: true }))
       );
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error('Error marking all messages as read:', error);
     }
   };
 
   const formatTimeAgo = (timestamp: string) => {
     const now = new Date();
-    const created = new Date(timestamp);
-    const diffInMinutes = Math.floor((now.getTime() - created.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return `${Math.floor(diffInMinutes / 1440)}d ago`;
-  };
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (notification.type === 'class_started' && notification.data?.meeting_link) {
-      // Open meeting link in new tab
-      window.open(notification.data.meeting_link, '_blank');
-    }
-    
-    // Mark as read
-    if (!notification.is_read) {
-      markAsRead(notification.notification_id);
-    }
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMinutes > 0) return `${diffMinutes}m ago`;
+    return 'Just now';
   };
 
   if (!user) return null;
@@ -144,10 +151,11 @@ export default function StudentNotifications() {
     <div className="relative">
       {/* Notification Bell */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-800 transition-colors"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        aria-label="Notifications"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -155,94 +163,78 @@ export default function StudentNotifications() {
         )}
       </button>
 
-      {/* Notifications Panel */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+      {/* Dropdown */}
+      {showDropdown && (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-              <div className="flex items-center space-x-2">
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Mark all read
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowDropdown(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                className="text-sm text-blue-600 hover:text-blue-800 mt-2"
+              >
+                Mark all as read
+              </button>
+            )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="p-2">
             {loading ? (
-              <div className="p-4 text-center text-gray-500">Loading...</div>
-            ) : notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">No notifications</div>
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>No notifications yet</p>
+              </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {notifications.map((notification) => (
+              <div className="space-y-2">
+                {messages.map((message) => (
                   <div
-                    key={notification.notification_id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`p-4 cursor-pointer transition-colors ${
-                      notification.is_read 
-                        ? 'bg-gray-50 hover:bg-gray-100' 
-                        : 'bg-blue-50 hover:bg-blue-100'
+                    key={message.id}
+                    className={`p-3 rounded-lg border transition-colors ${
+                      message.read 
+                        ? 'bg-gray-50 border-gray-200' 
+                        : 'bg-blue-50 border-blue-200'
                     }`}
                   >
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-2 h-2 rounded-full mt-2 ${
-                        notification.is_read ? 'bg-gray-300' : 'bg-blue-500'
-                      }`} />
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className={`text-sm font-medium ${
-                            notification.is_read ? 'text-gray-900' : 'text-blue-900'
-                          }`}>
-                            {notification.title}
-                          </p>
-                          <span className="text-xs text-gray-500">
-                            {formatTimeAgo(notification.created_at)}
-                          </span>
-                        </div>
-                        <p className={`text-sm mt-1 ${
-                          notification.is_read ? 'text-gray-600' : 'text-blue-700'
+                        <h4 className={`font-medium text-sm ${
+                          message.read ? 'text-gray-700' : 'text-blue-900'
                         }`}>
-                          {notification.message}
+                          {message.title}
+                        </h4>
+                        <p className={`text-xs mt-1 ${
+                          message.read ? 'text-gray-600' : 'text-blue-700'
+                        }`}>
+                          {message.body.length > 100 
+                            ? `${message.body.substring(0, 100)}...` 
+                            : message.body
+                          }
                         </p>
-                        
-                        {notification.type === 'class_started' && notification.data && (
-                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                            <div className="flex items-center space-x-2 text-xs text-green-800">
-                              <Clock className="w-3 h-3" />
-                              <span>Started at {notification.data.start_time}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-xs text-green-700 mt-1">
-                              <User className="w-3 h-3" />
-                              <span>Teacher: {notification.data.teacher}</span>
-                            </div>
-                            {notification.data.meeting_link && (
-                              <a
-                                href={notification.data.meeting_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center space-x-1 mt-2 text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>Join Class</span>
-                              </a>
-                            )}
-                          </div>
-                        )}
+                        <p className="text-xs text-gray-500 mt-2">
+                          {formatTimeAgo(message.created_at)}
+                        </p>
                       </div>
+                      {!message.read && (
+                        <button
+                          onClick={() => markAsRead(message.id)}
+                          className="ml-2 p-1 text-blue-600 hover:text-blue-800 rounded"
+                          title="Mark as read"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -250,6 +242,14 @@ export default function StudentNotifications() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Click outside to close */}
+      {showDropdown && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowDropdown(false)}
+        />
       )}
     </div>
   );

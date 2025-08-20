@@ -16,9 +16,9 @@ interface TeacherAssignment {
 interface TeacherAccessControlProps {
   children: (data: {
     teacherAssignments: TeacherAssignment[];
-    availablePrograms: any[];
-    availableLevels: any[];
-    availableSubjects: any[];
+    availablePrograms: Array<{ program_id: string; name: string }>;
+    availableLevels: Array<{ level_id: string; name: string; program_id?: string }>;
+    availableSubjects: Array<{ subject_id: string; name: string }>;
     isLoading: boolean;
     error: string | null;
   }) => React.ReactNode;
@@ -27,9 +27,9 @@ interface TeacherAccessControlProps {
 export default function TeacherAccessControl({ children }: TeacherAccessControlProps) {
   const { user } = useAuth();
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
-  const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
-  const [availableLevels, setAvailableLevels] = useState<any[]>([]);
-  const [availableSubjects, setAvailableSubjects] = useState<any[]>([]);
+  const [availablePrograms, setAvailablePrograms] = useState<Array<{ program_id: string; name: string }>>([]);
+  const [availableLevels, setAvailableLevels] = useState<Array<{ level_id: string; name: string; program_id?: string }>>([]);
+  const [availableSubjects, setAvailableSubjects] = useState<Array<{ subject_id: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,30 +84,27 @@ export default function TeacherAccessControl({ children }: TeacherAccessControlP
         const uniqueLevels = new Set<string>();
         const uniqueSubjects = new Set<string>();
 
-        (assignments || []).forEach((assignment: any) => {
-          const subjectName = Array.isArray(assignment.subjects) 
-            ? assignment.subjects[0]?.name 
-            : assignment.subjects?.name;
-          const levelName = Array.isArray(assignment.levels) 
-            ? assignment.levels[0]?.name 
-            : assignment.levels?.name;
-          const programName = Array.isArray(assignment.programs) 
-            ? assignment.programs[0]?.name 
-            : assignment.programs?.name;
+        (assignments || []).forEach((assignment: Record<string, unknown>) => {
+          const subjectsRel = assignment.subjects as { name?: string } | Array<{ name?: string }> | undefined;
+          const levelsRel = assignment.levels as { name?: string } | Array<{ name?: string }> | undefined;
+          const programsRel = assignment.programs as { name?: string } | Array<{ name?: string }> | undefined;
+          const subjectName = Array.isArray(subjectsRel) ? subjectsRel[0]?.name : subjectsRel?.name;
+          const levelName = Array.isArray(levelsRel) ? levelsRel[0]?.name : levelsRel?.name;
+          const programName = Array.isArray(programsRel) ? programsRel[0]?.name : programsRel?.name;
 
           if (subjectName && levelName) {
             processedAssignments.push({
-              subject_id: assignment.subject_id,
-              level_id: assignment.level_id,
-              program_id: assignment.program_id,
+              subject_id: String(assignment.subject_id || ''),
+              level_id: String(assignment.level_id || ''),
+              program_id: String(assignment.program_id || ''),
               subject_name: subjectName,
               level_name: levelName,
               program_name: programName || '',
             });
 
-            uniquePrograms.add(assignment.program_id);
-            uniqueLevels.add(assignment.level_id);
-            uniqueSubjects.add(assignment.subject_id);
+            if (assignment.program_id) uniquePrograms.add(String(assignment.program_id));
+            if (assignment.level_id) uniqueLevels.add(String(assignment.level_id));
+            if (assignment.subject_id) uniqueSubjects.add(String(assignment.subject_id));
           }
         });
 
@@ -131,7 +128,11 @@ export default function TeacherAccessControl({ children }: TeacherAccessControlP
             .from('levels')
             .select('level_id, name, program_id')
             .in('level_id', Array.from(uniqueLevels));
-          setAvailableLevels(levelsData || []);
+          setAvailableLevels((levelsData || []).map(level => ({
+            level_id: level.level_id,
+            name: level.name,
+            program_id: level.program_id || ''
+          })));
         }
 
         if (uniqueSubjects.size > 0) {
@@ -142,9 +143,9 @@ export default function TeacherAccessControl({ children }: TeacherAccessControlP
           setAvailableSubjects(subjectsData || []);
         }
 
-      } catch (err: any) {
-        console.error('Error in TeacherAccessControl:', err);
-        setError(err.message || 'Failed to load access control data');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to load access control data';
+        setError(msg);
       } finally {
         setIsLoading(false);
       }

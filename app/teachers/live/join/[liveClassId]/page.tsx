@@ -6,7 +6,9 @@ import { supabase } from '@/lib/supabaseClient'
 
 declare global {
   interface Window {
-    JitsiMeetExternalAPI?: any
+    JitsiMeetExternalAPI?: new (domain: string, options: Record<string, unknown>) => {
+      addListener: (event: string, callback: (payload?: Record<string, unknown>) => void) => void;
+    }
   }
 }
 
@@ -72,7 +74,7 @@ export default function TeacherJoinLiveClassPage() {
           if (resp.ok && json?.meeting_link) {
             link = json.meeting_link
           }
-        } catch (_) {}
+        } catch {}
       }
 
       if (!link) { setError('No meeting link available'); return }
@@ -95,7 +97,7 @@ export default function TeacherJoinLiveClassPage() {
         if (!window.JitsiMeetExternalAPI || !containerRef.current) return
 
         // Normalize meeting link to a room on meet.jit.si
-        let domain = 'meet.jit.si'
+        const domain = 'meet.jit.si'
         let room = ''
         try {
           const url = new URL(meetingLink)
@@ -108,7 +110,7 @@ export default function TeacherJoinLiveClassPage() {
         // Sanitize room name (avoid spaces/special chars that may trigger auth flows)
         room = room.replace(/[^A-Za-z0-9_-]/g, '') || `ClassBridge-${liveClassId}`
 
-        const api = new window.JitsiMeetExternalAPI(domain, {
+        const api = new window.JitsiMeetExternalAPI!(domain, {
           roomName: room,
           parentNode: containerRef.current,
           userInfo: { displayName },
@@ -131,10 +133,11 @@ export default function TeacherJoinLiveClassPage() {
 
         // Ensure lobby is disabled if available (first participant is moderator on meet.jit.si)
         try {
-          if (typeof (api as any).enableLobby === 'function') {
-            (api as any).enableLobby(false)
+          const anyApi = api as unknown as { enableLobby?: (enabled: boolean) => void }
+          if (typeof anyApi.enableLobby === 'function') {
+            anyApi.enableLobby(false)
           }
-        } catch (_) {}
+        } catch {}
 
         let hasJoined = false
         api.addListener('videoConferenceJoined', () => {

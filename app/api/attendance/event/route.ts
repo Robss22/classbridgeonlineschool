@@ -19,7 +19,7 @@ type AttendanceEventBody = {
   device_info?: {
     userAgent: string
     platform: string
-    connection?: any
+    connection?: Record<string, unknown>
   }
   technical_data?: {
     connection_quality?: 'good' | 'fair' | 'poor'
@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
 
         if (error) {
           // If table/columns don't exist yet, log the error but don't fail
-          const msg = (error as any)?.message || ''
+          const msg = (error as Error)?.message || ''
           if (msg.includes('relation "live_class_participants" does not exist') || msg.includes('column') || msg.includes('does not exist')) {
-            console.warn('live_class_participants table does not exist. Please run the database migration.');
+            // live_class_participants table missing; return soft success
             return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
           }
           throw error;
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
         // Send notification to teacher about student joining (commented out until notifications table is created)
         try {
-          console.log('Student joined notification would be sent');
+          // Student joined notification would be sent
           // await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/notifications/live-class`, {
           //   method: 'POST',
           //   headers: { 'Content-Type': 'application/json' },
@@ -99,12 +99,13 @@ export async function POST(request: NextRequest) {
           console.warn('Failed to send join notification:', notifError)
         }
 
-      } catch (dbError: any) {
-        console.error('Database error:', dbError);
+      } catch (dbError: unknown) {
+        // Database error
+        const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown database error';
         return NextResponse.json({ 
           success: false, 
           error: 'Attendance tracking unavailable',
-          details: dbError.message 
+          details: errorMessage 
         }, { status: 500 });
       }
 
@@ -140,20 +141,21 @@ export async function POST(request: NextRequest) {
 
         if (error) {
           // If table/columns don't exist, log the error but don't fail
-          const msg = (error as any)?.message || ''
+          const msg = (error as Error)?.message || ''
           if (msg.includes('relation "live_class_participants" does not exist') || msg.includes('column') || msg.includes('does not exist')) {
-            console.warn('live_class_participants table does not exist. Please run the database migration.');
+            // live_class_participants table missing; return soft success
             return NextResponse.json({ success: true, message: 'Attendance tracking not available' });
           }
           throw error;
         }
 
-      } catch (dbError: any) {
-        console.error('Database error:', dbError);
+      } catch (dbError: unknown) {
+        // Database error
+        const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown database error';
         return NextResponse.json({ 
           success: false, 
           error: 'Attendance tracking unavailable',
-          details: dbError.message 
+          details: errorMessage 
         }, { status: 500 });
       }
 
@@ -162,13 +164,13 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    console.error('Attendance event error:', error)
-    return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 400 })
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
 
-// function calculateParticipationScore(duration_minutes: number, technical_data?: any): number {
+// function calculateParticipationScore(duration_minutes: number, technical_data?: Record<string, unknown>): number {
 //   let score = 0
 //   
 //   // Base score from duration (assuming 60-minute class)

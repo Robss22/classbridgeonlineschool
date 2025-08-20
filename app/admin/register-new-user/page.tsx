@@ -59,8 +59,9 @@ export default function AdminRegisterPage() {
       setRole('student');
       setPhone('');
       setDepartment('');
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setMessage(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

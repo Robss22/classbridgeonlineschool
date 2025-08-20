@@ -109,18 +109,32 @@ export default function StudentTimetablePage() {
 
       if (fetchError) throw fetchError;
 
-      const processedClasses: LiveClass[] = (data || []).map((item: any) => ({
-        ...item,
-        meeting_platform: item.meeting_platform || 'Google Meet',
-        status: item.status || 'scheduled',
-        title: item.title || 'Live Class',
-        description: item.description || ''
-      }));
+      const processedClasses: LiveClass[] = ((data || []) as Array<Record<string, unknown>>).map((item) => {
+        const teacherObj = item.teachers as Record<string, unknown> | undefined;
+        const usersObj = (teacherObj?.users as Record<string, unknown> | undefined) || undefined;
+        return {
+          live_class_id: String(item.live_class_id || ''),
+          title: String(item.title || 'Live Class'),
+          description: String(item.description || ''),
+          scheduled_date: String(item.scheduled_date || ''),
+          start_time: String(item.start_time || ''),
+          end_time: String(item.end_time || ''),
+          meeting_link: String(item.meeting_link || ''),
+          meeting_platform: String(item.meeting_platform || 'Google Meet'),
+          status: String(item.status || 'scheduled'),
+          subject_id: String(item.subject_id || ''),
+          subjects: (item.subjects ? (item.subjects as { name: string }) : { name: '' }),
+          teachers: teacherObj ? { teacher_id: String((teacherObj as Record<string, unknown>).teacher_id || ''), users: { first_name: String((usersObj as Record<string, unknown>)?.first_name || ''), last_name: String((usersObj as Record<string, unknown>)?.last_name || '') } } : { teacher_id: '', users: { first_name: '', last_name: '' } },
+          levels: (item.levels ? (item.levels as { name: string }) : { name: '' }),
+          programs: (item.programs ? (item.programs as { name: string }) : { name: '' }),
+        };
+      });
 
       setLiveClasses(processedClasses);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error fetching live classes:', err);
-      setError(err.message || 'Failed to fetch live classes');
+      setError(errorMessage || 'Failed to fetch live classes');
     } finally {
       // no-op: removed loading state
     }

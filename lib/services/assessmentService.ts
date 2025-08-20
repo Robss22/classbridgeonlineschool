@@ -46,24 +46,24 @@ export class AssessmentService {
       if (error) throw error;
 
       // Transform the data to match the Assessment interface
-      return (data || []).map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        type: item.type,
-        program_id: item.program_id,
-        level_id: item.level_id,
-        subject_id: item.subject_id,
-        due_date: item.due_date,
-        file_url: item.file_url,
-        creator_id: item.creator_id,
-        created_at: item.created_at,
-        paper_id: item.paper_id,
-        subject_name: item.subjects?.name || 'Unknown Subject',
-        level_name: item.levels?.name || 'Unknown Level',
-        program_name: item.programs?.name || 'Unknown Program',
-        creator_name: item.creator?.full_name || 'Unknown Creator',
-        creator_role: item.creator?.role || 'Unknown Role',
+      return (data || []).map((item: Record<string, unknown>) => ({
+        id: String(item.id),
+        title: String(item.title),
+        description: String(item.description),
+        type: String(item.type),
+        program_id: String(item.program_id),
+        level_id: String(item.level_id),
+        subject_id: String(item.subject_id),
+        due_date: String(item.due_date),
+        file_url: String(item.file_url),
+        creator_id: String(item.creator_id),
+        created_at: String(item.created_at),
+        paper_id: String(item.paper_id),
+        subject_name: ((item.subjects as Record<string, string>)?.name) || 'Unknown Subject',
+        level_name: ((item.levels as Record<string, string>)?.name) || 'Unknown Level',
+        program_name: ((item.programs as Record<string, string>)?.name) || 'Unknown Program',
+        creator_name: ((item.creator as Record<string, string>)?.full_name) || 'Unknown Creator',
+        creator_role: ((item.creator as Record<string, string>)?.role) || 'Unknown Role',
       }));
     } catch (error) {
       console.error('Error fetching assessments:', error);
@@ -121,24 +121,24 @@ export class AssessmentService {
       if (error) throw error;
 
       // Transform the data
-      return (data || []).map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        type: item.type,
-        program_id: item.program_id,
-        level_id: item.level_id,
-        subject_id: item.subject_id,
-        due_date: item.due_date,
-        file_url: item.file_url,
-        creator_id: item.creator_id,
-        created_at: item.created_at,
-        paper_id: item.paper_id,
-        subject_name: item.subjects?.name || 'Unknown Subject',
-        level_name: item.levels?.name || 'Unknown Level',
-        program_name: item.programs?.name || 'Unknown Program',
+      return (data || []).map((item: Record<string, unknown>) => ({
+        id: String(item.id),
+        title: String(item.title),
+        description: String(item.description),
+        type: String(item.type),
+        program_id: String(item.program_id),
+        level_id: String(item.level_id),
+        subject_id: String(item.subject_id),
+        due_date: String(item.due_date),
+        file_url: String(item.file_url),
+        creator_id: String(item.creator_id),
+        created_at: String(item.created_at),
+        paper_id: String(item.paper_id),
+        subject_name: ((item.subjects as Record<string, string>)?.name) || 'Unknown Subject',
+        level_name: ((item.levels as Record<string, string>)?.name) || 'Unknown Level',
+        program_name: ((item.programs as Record<string, string>)?.name) || 'Unknown Program',
         creator_name: item.creator ? 
-          `${item.creator.first_name} ${item.creator.last_name}` : 
+          `${(item.creator as Record<string, string>).first_name} ${(item.creator as Record<string, string>).last_name}` : 
           'Unknown Teacher',
       }));
     } catch (error) {

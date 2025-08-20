@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { errorHandler } from '@/lib/errorHandler';
 
+interface LiveClassUpdate {
+  status: string;
+  started_at?: string;
+  ended_at?: string;
+}
+
 export async function POST() {
   try {
     const now = new Date();
@@ -12,7 +18,7 @@ export async function POST() {
       .update({ 
         status: 'ongoing',
         started_at: now.toISOString()
-      } as any)
+      } as LiveClassUpdate)
       .eq('status', 'scheduled')
       .lte('scheduled_date', now.toISOString().split('T')[0])
       .lte('start_time', now.toTimeString().split(' ')[0])
@@ -29,7 +35,7 @@ export async function POST() {
       .update({ 
         status: 'completed',
         ended_at: now.toISOString()
-      } as any)
+      } as LiveClassUpdate)
       .eq('status', 'ongoing')
       .or(`scheduled_date.lt.${now.toISOString().split('T')[0]},and(scheduled_date.eq.${now.toISOString().split('T')[0]},end_time.lt.${now.toTimeString().split(' ')[0]})`);
 

@@ -96,8 +96,7 @@ export default function ApplicationsPage() {
 
     const channel = supabase
       .channel('applications_changes_admin_dashboard')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, (payload) => {
-        console.log('Real-time change received!', payload);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, () => {
         fetchApplications();
       })
       .subscribe();

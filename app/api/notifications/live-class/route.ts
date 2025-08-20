@@ -29,11 +29,10 @@ export async function POST(request: NextRequest) {
       throw new Error('Live class not found');
     }
 
-    const notifications: any[] = [];
+    const notifications: Array<Record<string, unknown>> = [];
 
     // Teacher notifications (commented out until teacher_id field is added)
     if (recipients === 'teachers' || recipients === 'both') {
-      console.log('Teacher notifications would be sent for live class:', live_class_id);
       // if (liveClass.teacher_id) {
       //   notifications.push({
       //     user_id: liveClass.teacher_id,
@@ -82,7 +81,6 @@ export async function POST(request: NextRequest) {
 
     // Insert notifications (commented out until notifications table is created)
     if (notifications.length > 0) {
-      console.log('Notifications would be sent:', notifications);
       // const { error: insertError } = await supabase
       //   .from('notifications')
       //   .insert(notifications);
@@ -113,9 +111,9 @@ function getNotificationTitle(type: string): string {
   }
 }
 
-function getNotificationMessage(type: string, liveClass: any, customMessage?: string): string {
-  const subject = liveClass.subjects?.name || 'Subject';
-  const level = liveClass.levels?.name || 'Level';
+function getNotificationMessage(type: string, liveClass: Record<string, unknown>, customMessage?: string): string {
+  const subject = (liveClass.subjects as { name?: string } | undefined)?.name || 'Subject';
+  const level = (liveClass.levels as { name?: string } | undefined)?.name || 'Level';
   
   switch (type) {
     case 'reminder_30min': 

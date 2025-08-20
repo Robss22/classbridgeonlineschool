@@ -30,10 +30,7 @@ export default function TeachersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Handler for successful teacher addition
-  const handleAddTeacherSuccess = () => {
-    fetchUsers(); // Auto-refresh the list
-  };
+
 
   if (loading) return <div className="py-12 text-center text-lg text-gray-700">Loading teachers...</div>;
   if (error) return <div className="text-red-600 py-12 text-center">{error}</div>;

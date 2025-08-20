@@ -109,7 +109,7 @@ export function useCreateResource() {
       if (error) throw error
       return newResource
     },
-    onSuccess: (data) => {
+    onSuccess: (data: Resource) => {
       queryClient.invalidateQueries({ queryKey: resourceKeys.lists() })
       if (data.uploaded_by) {
         queryClient.invalidateQueries({ queryKey: resourceKeys.byTeacher(data.uploaded_by) })
@@ -134,7 +134,7 @@ export function useUpdateResource() {
       if (error) throw error
       return updatedResource
     },
-    onSuccess: (data) => {
+    onSuccess: (data: Resource) => {
       queryClient.invalidateQueries({ queryKey: resourceKeys.detail(data.resource_id) })
       queryClient.invalidateQueries({ queryKey: resourceKeys.lists() })
       if (data.uploaded_by) {

@@ -1,4 +1,4 @@
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = Record<string, unknown>> {
   success: boolean
   data?: T
   error?: string
@@ -25,17 +25,24 @@ export class ApiError extends Error {
   }
 }
 
-export function createApiError(error: any): ApiError {
+export function createApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error
   }
   
-  if (error?.status) {
-    return new ApiError(error.message || 'API Error', error.status, error.code)
-  }
-  
-  if (error?.message) {
-    return new ApiError(error.message, 500)
+  if (typeof error === 'object' && error !== null) {
+    const err = error as Record<string, unknown>;
+    if (err.status && typeof err.status === 'number') {
+      return new ApiError(
+        typeof err.message === 'string' ? err.message : 'API Error',
+        err.status,
+        typeof err.code === 'string' ? err.code : undefined
+      );
+    }
+    
+    if (err.message && typeof err.message === 'string') {
+      return new ApiError(err.message, 500);
+    }
   }
   
   return new ApiError('An unexpected error occurred', 500)
@@ -75,7 +82,7 @@ export function handleApiResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
-export function createQueryParams(params: Record<string, any>): string {
+export function createQueryParams(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams()
   
   Object.entries(params).forEach(([key, value]) => {

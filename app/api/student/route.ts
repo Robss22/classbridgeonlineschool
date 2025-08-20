@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     // Your student POST logic here
     return NextResponse.json({ message: 'Student created', data });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to process request' }, { status: 400 });
   }
 }

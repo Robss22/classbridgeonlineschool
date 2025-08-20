@@ -31,10 +31,11 @@ export async function POST() {
       ...result
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error triggering auto-start:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to trigger auto-start system', details: error.message },
+      { error: 'Failed to trigger auto-start system', details: errorMessage },
       { status: 500 }
     );
   }

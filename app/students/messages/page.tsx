@@ -32,8 +32,8 @@ export default function MessagesPage() {
     async function fetchMessages() {
       setLoading(true);
       // Example: fetch all messages for now
-      const { data } = await supabase.from('messages').select('message_id, title, body, created_at, read, message_type, sender_type').order('created_at', { ascending: false });
-      setMessages((data as any[]) || []);
+      const { data } = await supabase.from('messages').select('message_id, title, body, created_at, read, type:message_type, sender_type').order('created_at', { ascending: false });
+      setMessages(((data || []) as unknown as StudentMessage[]));
       setLoading(false);
     }
     fetchMessages();

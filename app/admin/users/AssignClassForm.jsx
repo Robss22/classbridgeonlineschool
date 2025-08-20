@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
-  console.log('🚀 [AssignClassForm] Component rendering with teacher:', teacher);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -92,7 +91,6 @@ export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
         if (error) throw error;
         
         setPrograms(data || []);
-        console.log('✅ [AssignClassForm] Programs loaded:', data?.length);
       } catch (error) {
         console.error('❌ [AssignClassForm] Error fetching programs:', error);
         setErrorMsg('Failed to load programs. Please try again.');
@@ -125,7 +123,6 @@ export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
         if (error) throw error;
         
         setLevels(data || []);
-        console.log('✅ [AssignClassForm] Levels loaded for program:', formData.programId, data?.length);
       } catch (error) {
         console.error('❌ [AssignClassForm] Error fetching levels:', error);
         setErrorMsg('Failed to load levels. Please try again.');
@@ -165,7 +162,6 @@ export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
         if (error) throw error;
         
         setSubjectOfferings(data || []);
-        console.log('✅ [AssignClassForm] Subject offerings loaded:', data?.length);
       } catch (error) {
         console.error('❌ [AssignClassForm] Error fetching subject offerings:', error);
         setErrorMsg('Failed to load subjects. Please try again.');
@@ -206,7 +202,6 @@ export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
         if (error) throw error;
         
         setPapers(data || []);
-        console.log('✅ [AssignClassForm] Papers loaded for subject:', offering.subject_id, data?.length);
       } catch (error) {
         console.error('❌ [AssignClassForm] Error fetching papers:', error);
         setErrorMsg('Failed to load papers. Please try again.');
@@ -272,7 +267,6 @@ export default function AssignClassForm({ teacher, onSuccess, onCancel }) {
         throw new Error(`Failed to assign teacher: ${teacherAssignmentError.message}`);
       }
 
-      console.log('✅ [AssignClassForm] Successfully assigned teacher to subject');
       onSuccess();
     } catch (error) {
       console.error('❌ [AssignClassForm] Assignment error:', error);

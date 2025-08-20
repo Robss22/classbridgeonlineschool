@@ -113,8 +113,9 @@ export default function TeacherClassesPage() {
           };
         });
         setClasses(levelData);
-      } catch (error: any) {
-        console.error("Error fetching levels:", error?.message || error);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error("Error fetching levels:", errorMessage || error);
         // Optionally, set an error state to display to the user
       } finally {
         setLoading(false);

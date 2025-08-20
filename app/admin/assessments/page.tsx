@@ -35,10 +35,11 @@ export default function AdminAssessmentsPage() {
       setLoading(true);
       setError(null);
       
-      const data = await AssessmentService.fetchAssessments(filters, user?.role, user?.id);
+      const data = await AssessmentService.fetchAssessments(filters, user?.role || undefined, user?.id || undefined);
       setAssessments(data);
-    } catch (err: any) {
-      setError('Failed to load assessments: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError('Failed to load assessments: ' + errorMessage);
       setAssessments([]);
     } finally {
       setLoading(false);
@@ -90,8 +91,9 @@ export default function AdminAssessmentsPage() {
       setShowDeleteConfirm(false);
       setAssessmentToDelete(null);
       fetchAssessments();
-    } catch (err: any) {
-      setError('Failed to delete assessment: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError('Failed to delete assessment: ' + errorMessage);
     }
   }, [assessmentToDelete, fetchAssessments]);
 
@@ -213,7 +215,7 @@ export default function AdminAssessmentsPage() {
                     setEditingAssessment(null);
                   }}
                   onSave={editingAssessment ? handleAssessmentEdited : handleAssessmentCreated}
-                  assessmentItem={editingAssessment}
+                  assessmentItem={editingAssessment || undefined}
                 />
               </div>
             </div>

@@ -56,7 +56,7 @@ function DeleteConfirmModal({ show, onClose, onConfirm, itemName }) {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full relative">
         <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
-        <p className="mb-6">Are you sure you want to delete "<span className="font-semibold">{itemName}</span>"? This action cannot be undone.</p>
+        <p className="mb-6">Are you sure you want to delete &quot;<span className="font-semibold">{itemName}</span>&quot;? This action cannot be undone.</p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'scheduled')
       .order('start_time', { ascending: true });
 
-    const feed = (classes || []).map((lc: any) => ({
+    const feed = (classes || []).map((lc: Record<string, unknown>) => ({
       id: `live_${lc.live_class_id}`,
       type: 'live_class',
       title: 'Live Class Starting Soon',
@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ data: feed }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to fetch notifications' }, { status: 400 });
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : 'Failed to fetch notifications';
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 }
 

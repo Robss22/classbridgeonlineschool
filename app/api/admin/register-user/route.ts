@@ -4,7 +4,7 @@ import { requireAdmin, requireAuthUserIdFromBearer } from '@/lib/auth/apiAuth';
 import { createUserSchema } from '@/lib/validation/admin';
 
 // Validate and sanitize incoming request data
-function validateRequest(data: any) {
+function validateRequest(data: unknown) {
   const parsed = createUserSchema.parse(data);
   return {
     ...parsed,
@@ -27,8 +27,9 @@ export async function POST(request: NextRequest) {
 
     try {
       await requireAdmin(userId);
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Insufficient privileges' }, { status: 403 });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Insufficient privileges';
+      return NextResponse.json({ error: errorMessage }, { status: 403 });
     }
 
     // === 2. Validate input data ===
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     const validated = validateRequest(data);
 
     // === 3. Prevent duplicate user by checking Supabase Auth users ===
-    const { data: usersList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 } as any);
+    const { data: usersList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const users: { email?: string }[] = usersList?.users ?? [];
     if (users.some(u => (u.email || '').toLowerCase() === validated.email)) {
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
@@ -82,7 +83,6 @@ export async function POST(request: NextRequest) {
         }, { onConflict: 'id' });
 
       if (profileError) {
-        console.error('Profile upsert error:', profileError);
         // Rollback Auth user creation on failure
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
         return NextResponse.json({ error: 'Failed to create or update user profile' }, { status: 500 });
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
 
       if (profileFetchError && profileFetchError.code !== 'PGRST116') {
         // Real error besides "no rows found"
-        console.error('Error checking existing user profile:', profileFetchError);
         // Rollback Auth user creation on failure
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
         return NextResponse.json({ error: 'Failed to check user profile' }, { status: 500 });
@@ -106,7 +105,6 @@ export async function POST(request: NextRequest) {
 
       if (existingProfile) {
         // Profile already exists - skip insert
-        console.log('User profile already exists, skipping insert');
       } else {
         const { error: profileError } = await supabaseAdmin
           .from('users')
@@ -125,7 +123,6 @@ export async function POST(request: NextRequest) {
           });
 
         if (profileError) {
-          console.error('Profile insert error:', profileError);
           // Rollback Auth user creation on failure
           await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
           return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 });
@@ -145,20 +142,16 @@ export async function POST(request: NextRequest) {
         });
 
       if (teacherError) {
-        console.error('Teacher record creation error:', teacherError);
         // Note: We don't rollback here as the user is already created
         // The teacher record can be created later through the UI
-        console.warn('Teacher record creation failed, but user was created successfully');
-      } else {
-        console.log('Teacher record created successfully for user:', authData.user.id);
       }
     }
 
     // === 7. Success response ===
     return NextResponse.json({ message: 'User created successfully' }, { status: 201 });
 
-  } catch (error: any) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json({ error: error.message || 'Unexpected error' }, { status: 400 });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 }

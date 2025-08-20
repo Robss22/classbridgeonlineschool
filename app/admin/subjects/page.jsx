@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { normalizeForInsert as normalizeInsertStrict } from '@/utils/normalizeForInsert';
+
 import { normalizeForInsert as normalizeInsertLoose } from '@/utils/db';
 
 // Reusable Dropdown menu for actions
@@ -80,7 +80,7 @@ function DeleteConfirmModal({ show, onClose, onConfirm, itemName }) {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full relative">
         <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
-        <p className="mb-6">Are you sure you want to delete "<span className="font-semibold">{itemName}</span>"? This action cannot be undone.</p>
+        <p className="mb-6">Are you sure you want to delete &quot;<span className="font-semibold">{itemName}</span>&quot;? This action cannot be undone.</p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -181,7 +181,7 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
-                 <h2 className="text-2xl font-bold mb-4">{offeringItem ? 'Edit Offering' : 'Add New Offering'} for "{subjectName}"</h2>
+                 <h2 className="text-2xl font-bold mb-4">{offeringItem ? 'Edit Offering' : 'Add New Offering'} for &quot;{subjectName}&quot;</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Program</label>
@@ -304,7 +304,7 @@ function AddOfferingModal({ subject, onClose, onSave }) {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full relative">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
-        <h2 className="text-2xl font-bold mb-4">Add New Offering for "{subject.name}"</h2>
+        <h2 className="text-2xl font-bold mb-4">Add New Offering for &quot;{subject.name}&quot;</h2>
 
         {loading ? (
           <p className="text-center text-gray-500 py-4">Loading...</p>
@@ -431,7 +431,7 @@ function ManageOfferingsModal({ subject, onClose, onSave }) {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full relative">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
-        <h2 className="text-2xl font-bold mb-4">Manage Offerings for "{subject.name}"</h2>
+        <h2 className="text-2xl font-bold mb-4">Manage Offerings for &quot;{subject.name}&quot;</h2>
 
         {loadingOfferings ? (
           <p className="text-center text-gray-500 py-4">Loading offerings...</p>

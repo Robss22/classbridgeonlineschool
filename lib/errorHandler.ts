@@ -1,10 +1,10 @@
 export interface AppError {
   code: string;
   message: string;
-  details?: any;
+  details: Record<string, unknown> | null;
   timestamp: Date;
-  userId?: string | undefined;
-  path?: string | undefined;
+  userId: string | null;
+  path: string | null;
 }
 
 export class ErrorHandler {
@@ -40,21 +40,22 @@ export class ErrorHandler {
   createError(
     code: string,
     message: string,
-    details?: any,
-    userId?: string,
-    path?: string
+    details: Record<string, unknown> | null = null,
+    userId: string | null = null,
+    path: string | null = null
   ): AppError {
-    return {
+    const error: AppError = {
       code,
       message,
-      details,
       timestamp: new Date(),
+      details,
       userId,
-      path,
+      path
     };
+    return error;
   }
 
-  handleSupabaseError(error: any, operation: string, userId?: string): AppError {
+  handleSupabaseError(error: unknown, operation: string, userId?: string): AppError {
     const appError = this.createError(
       'SUPABASE_ERROR',
       `Database operation failed: ${operation}`,
@@ -69,7 +70,7 @@ export class ErrorHandler {
     return appError;
   }
 
-  handleAuthError(error: any, operation: string, userId?: string): AppError {
+  handleAuthError(error: unknown, operation: string, userId?: string): AppError {
     const appError = this.createError(
       'AUTH_ERROR',
       `Authentication failed: ${operation}`,
@@ -96,7 +97,7 @@ export class ErrorHandler {
     return appError;
   }
 
-  handleFileUploadError(error: any, fileName: string, userId?: string): AppError {
+  handleFileUploadError(error: unknown, fileName: string, userId?: string): AppError {
     const appError = this.createError(
       'FILE_UPLOAD_ERROR',
       `File upload failed: ${fileName}`,

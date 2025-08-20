@@ -11,7 +11,20 @@ import type { TablesInsert } from '@/lib/supabase.types';
 
 interface TeacherAssessmentFormProps {
   onClose: () => void;
-  assessmentItem?: any;
+  assessmentItem?: Partial<{
+    id: string;
+    title: string;
+    description: string;
+    type: string;
+    program_id: string;
+    level_id: string;
+    subject_id: string;
+    due_date: string | null;
+    file_url: string | null;
+    paper_id: string | null;
+    creator_id: string;
+    created_at: string;
+  }> | null | undefined;
   onSave: () => void;
 }
 
@@ -30,7 +43,7 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
-  const [availablePapers, setAvailablePapers] = useState<any[]>([]);
+  const [availablePapers, setAvailablePapers] = useState<Array<{ paper_id: string; paper_code: string; paper_name: string }>>([]);
   const [paperId, setPaperId] = useState(assessmentItem?.paper_id || '');
 
   const assessmentTypes = ['assignment', 'quiz', 'exam', 'activity'];
@@ -100,9 +113,9 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
 
       onSave();
       onClose();
-    } catch (err: any) {
-      console.error('Error saving assessment:', err);
-      setError(err.message || 'Failed to save assessment');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save assessment';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -130,9 +143,9 @@ export default function TeacherAssessmentForm({ onClose, assessmentItem, onSave 
         .getPublicUrl(filePath);
 
       setFileUrl(publicUrl);
-    } catch (err: any) {
-      console.error('File upload failed:', err);
-      setFileUploadError(`Upload failed: ${err.message || 'Unknown error'}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setFileUploadError(`Upload failed: ${msg}`);
     }
   };
 

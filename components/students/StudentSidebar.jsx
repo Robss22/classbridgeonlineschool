@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Calendar, User, Home, FileText, MessageCircle, Settings, ClipboardList, LogOut, Menu, X, Video } from 'lucide-react';
+import { BookOpen, Calendar, Home, FileText, MessageCircle, Settings, ClipboardList, LogOut, X, Video } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -120,8 +120,7 @@ export default function StudentSidebar({ className = "", isMobileMenuOpen, onMob
                 onClick={async () => {
                   try {
                     await supabase.auth.signOut();
-                  } catch (err) {
-                    console.error('Logout error:', err);
+                  } catch {
                   } finally {
                     router.replace('/login');
                   }
@@ -169,8 +168,7 @@ export default function StudentSidebar({ className = "", isMobileMenuOpen, onMob
             onClick={async () => {
               try {
                 await supabase.auth.signOut();
-              } catch (err) {
-                console.error('Logout error:', err);
+              } catch {
               } finally {
                 router.replace('/login');
               }

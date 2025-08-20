@@ -22,8 +22,9 @@ export default function StudentAssessmentsPage() {
       
       const data = await AssessmentService.fetchStudentAssessments(user.id);
       setAssessments(data);
-    } catch (err: any) {
-      setError('Failed to load assessments: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError('Failed to load assessments: ' + errorMessage);
       setAssessments([]);
     } finally {
       setLoading(false);
@@ -39,7 +40,8 @@ export default function StudentAssessmentsPage() {
   // Handle view assessment
   const handleViewAssessment = useCallback((assessment: Assessment) => {
     // TODO: Implement assessment viewing/submission functionality
-    console.log('View assessment:', assessment.id);
+    // Placeholder: open assessment view route (to be implemented)
+    void assessment;
   }, []);
 
   // Loading state

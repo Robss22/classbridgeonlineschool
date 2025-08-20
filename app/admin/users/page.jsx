@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import AddTeacherForm from './AddTeacherForm';
+
 import AssignClassForm from './AssignClassForm';
 import { useRouter } from 'next/navigation';
 
@@ -17,7 +17,7 @@ export default function TeachersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', password: '', role: '' });
   const [editLoading, setEditLoading] = useState(false);
-  const dropdownRefs = useRef({});
+
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [showAdmins, setShowAdmins] = useState(false);
   const [showTeachers, setShowTeachers] = useState(false);
@@ -40,12 +40,12 @@ export default function TeachersPage() {
         .single();
       
       if (checkError && checkError.code !== 'PGRST116') {
-        console.error('❌ [ensureTeacherRecord] Error checking existing teacher:', checkError);
+        // Error checking existing teacher
         return null;
       }
       
       if (existingTeacher) {
-        console.log('✅ [ensureTeacherRecord] Teacher record already exists for user:', userId);
+        // Teacher record already exists for user
         return existingTeacher.teacher_id;
       }
       
@@ -57,14 +57,14 @@ export default function TeachersPage() {
         .single();
       
       if (createError) {
-        console.error('❌ [ensureTeacherRecord] Error creating teacher record:', createError);
+        // Error creating teacher record
         return null;
       }
       
-      console.log('✅ [ensureTeacherRecord] Created new teacher record:', newTeacher.teacher_id);
+      // Created new teacher record
       return newTeacher.teacher_id;
-    } catch (error) {
-      console.error('❌ [ensureTeacherRecord] Unexpected error:', error);
+    } catch {
+      // Unexpected error
       return null;
     }
   };
@@ -88,27 +88,25 @@ export default function TeachersPage() {
 
       // First, try to fetch from teachers_with_users view
       let teachersData = null;
-      let teachersError = null;
       
       const { data: viewData, error: viewError } = await supabase
         .from('teachers_with_users')
       .select('*');
       
-      console.log('🔍 [fetchUsers] teachers_with_users view result:', { data: viewData, error: viewError });
+      // teachers_with_users view result
       
       if (viewError) {
-        console.warn('⚠️ [fetchUsers] teachers_with_users view failed, trying fallback approach');
-        teachersError = viewError;
+        // teachers_with_users view failed, trying fallback approach
       } else if (viewData && viewData.length > 0) {
         teachersData = viewData;
-        console.log('✅ [fetchUsers] Using teachers_with_users view data');
+        // Using teachers_with_users view data
       } else {
-        console.warn('⚠️ [fetchUsers] teachers_with_users view is empty, trying fallback approach');
+        // teachers_with_users view is empty, trying fallback approach
       }
 
       // Fallback: If view is empty or fails, fetch teachers from users table and join with teachers table
       if (!teachersData || teachersData.length === 0) {
-        console.log('🔄 [fetchUsers] Using fallback: fetching teachers from users table');
+        // Using fallback: fetching teachers from users table
         
         // Get all users with role 'teacher'
         const { data: teacherUsers, error: teacherUsersError } = await supabase
@@ -117,14 +115,14 @@ export default function TeachersPage() {
           .eq('role', 'teacher');
         
         if (teacherUsersError) {
-          console.error('❌ [fetchUsers] Failed to fetch teacher users:', teacherUsersError);
+          // Failed to fetch teacher users
           setError('Failed to load teachers: ' + teacherUsersError.message);
           setUsers([]);
           setLoading(false);
           return;
         }
         
-        console.log('🔍 [fetchUsers] Teacher users found:', teacherUsers);
+        // Teacher users found
         
         if (teacherUsers && teacherUsers.length > 0) {
           // For each teacher user, try to get their teacher record or create one if it doesn't exist
@@ -138,7 +136,7 @@ export default function TeachersPage() {
             let finalTeacherRecord = teacherRecord;
             
             if (teacherError && teacherError.code === 'PGRST116') { // PGRST116 = no rows returned
-              console.log(`ℹ️ [fetchUsers] No teacher record found for user ${user.id}, creating one...`);
+              // No teacher record found for user, creating one
               const newTeacherId = await ensureTeacherRecord(user.id);
               if (newTeacherId) {
                 // Fetch the newly created teacher record
@@ -150,7 +148,7 @@ export default function TeachersPage() {
                 finalTeacherRecord = newTeacherRecord;
               }
             } else if (teacherError) {
-              console.warn(`⚠️ [fetchUsers] Error fetching teacher record for user ${user.id}:`, teacherError);
+              // Error fetching teacher record for user
             }
             
             return {
@@ -160,7 +158,7 @@ export default function TeachersPage() {
           });
           
           const teacherResults = await Promise.all(teacherPromises);
-          console.log('🔍 [fetchUsers] Teacher results:', teacherResults);
+          // Teacher results
           
           // Transform the data to match expected format
           teachersData = teacherResults.map(({ user, teacherRecord }) => {
@@ -181,18 +179,18 @@ export default function TeachersPage() {
               bio: teacherRecord?.bio || null,
             };
             
-            // Log warning if teacher_id is still null after creation attempt
+            // Warning if teacher_id is still null after creation attempt
             if (!transformed.teacher_id) {
-              console.warn(`⚠️ [fetchUsers] Teacher record creation failed for user ${user.id}`);
+              // Teacher record creation failed for user
             }
             
             return transformed;
           });
           
-          console.log('✅ [fetchUsers] Transformed teacher data:', teachersData);
+          // Transformed teacher data
         } else {
           teachersData = [];
-          console.log('ℹ️ [fetchUsers] No teacher users found in users table');
+          // No teacher users found in users table
         }
       }
 
@@ -212,32 +210,28 @@ export default function TeachersPage() {
           program_id: teacher.program_id,
           bio: teacher.bio,
         };
-        console.log('🔄 [fetchUsers] Transformed teacher:', transformed);
+        // Transformed teacher
         return transformed;
       });
 
       // Combine regular users and transformed teachers
       const allUsers = [...(regularUsers || []), ...transformedTeachers];
-      console.log('✅ [fetchUsers] Final combined users array:', allUsers);
+      // Final combined users array
       setUsers(allUsers);
-    } catch (error) {
-      console.error('❌ [fetchUsers] Unexpected error:', error);
-      setError('An unexpected error occurred: ' + error.message);
+    } catch (err) {
+      // Unexpected error
+      setError('An unexpected error occurred: ' + (err instanceof Error ? err.message : 'Unknown error'));
       setUsers([]);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Handler for successful teacher addition
-  const handleAddTeacherSuccess = () => {
-    console.log('🔄 [handleAddTeacherSuccess] Refreshing users list...');
-    fetchUsers(); // Auto-refresh the list
-  };
+
 
   // Handler for successful subject assignment
   const handleAssignClassSuccess = () => {

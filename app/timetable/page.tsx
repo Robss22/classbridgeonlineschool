@@ -25,7 +25,7 @@ interface LiveClass {
   subject_id: string;
   teachers?: { 
     teacher_id: string; 
-    users?: { 
+    users: { 
       first_name: string; 
       last_name: string 
     } 
@@ -93,18 +93,31 @@ export default function TimetablePage() {
         .order('start_time', { ascending: true });
 
       if (error) throw error;
-      const liveClasses: LiveClass[] = data.map((item: any) => ({
-        ...item,
-        meeting_platform: item.meeting_platform || '',
-        status: item.status || '',
-        teacher_id: item.teacher_id || '',
-        program_id: item.program_id || '',
-        level_id: item.level_id || '',
-        title: item.title || '',
-        description: item.description || ''
+      const liveClasses: LiveClass[] = ((data || []) as Array<Record<string, unknown>>).map((item) => ({
+        live_class_id: String(item.live_class_id || ''),
+        title: String(item.title || ''),
+        description: String(item.description || ''),
+        scheduled_date: String(item.scheduled_date || ''),
+        start_time: String(item.start_time || ''),
+        end_time: String(item.end_time || ''),
+        meeting_link: String(item.meeting_link || ''),
+        meeting_platform: String(item.meeting_platform || ''),
+        status: String(item.status || ''),
+        teacher_id: String(item.teacher_id || ''),
+        program_id: String(item.program_id || ''),
+        level_id: String(item.level_id || ''),
+        subject_id: String(item.subject_id || ''),
+        teachers: (() => {
+          const t = item.teachers as Record<string, unknown> | undefined;
+          const u = (t?.users as Record<string, unknown> | undefined) || undefined;
+          return { teacher_id: String(t?.teacher_id || ''), users: { first_name: String(u?.first_name || ''), last_name: String(u?.last_name || '') } };
+        })(),
+        levels: (item.levels ? (item.levels as { name: string }) : { name: '' }),
+        subjects: (item.subjects ? (item.subjects as { name: string }) : { name: '' }),
+        programs: (item.programs ? (item.programs as { name: string }) : { name: '' }),
       }));
       setLiveClasses(liveClasses);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_live_classes', '');
       setError(appError.message);
     } finally {
@@ -148,7 +161,7 @@ export default function TimetablePage() {
           .select('subject_id, name')
           .order('name');
         if (subjectsError) throw subjectsError;
-        setSubjects((subjectsData || []) as any);
+        setSubjects(((subjectsData || []) as Array<{ subject_id: string; name: string }>));
 
         // Fetch teachers for assigning in modal
         const { data: teachersData, error: teachersError } = await supabase
@@ -156,7 +169,13 @@ export default function TimetablePage() {
           .select('*, users(first_name, last_name)')
           .order('teacher_id');
         if (teachersError) throw teachersError;
-        setTeachers((teachersData || []) as any);
+        setTeachers(((teachersData || []) as Array<Record<string, unknown>>).map(t => {
+          const u = (t.users as Record<string, unknown> | undefined) || undefined;
+          return {
+            teacher_id: String(t.teacher_id || ''),
+            users: { first_name: String(u?.first_name || ''), last_name: String(u?.last_name || '') }
+          };
+        }));
 
         // Fetch papers for subject selection (optional)
         const { data: papersData, error: papersError } = await supabase
@@ -164,7 +183,7 @@ export default function TimetablePage() {
           .select('paper_id, paper_name, paper_code, subject_id');
         if (papersError) throw papersError;
         setPapers(papersData || []);
-      } catch (error: any) {
+      } catch (error: unknown) {
         const appError = errorHandler.handleSupabaseError(error, 'fetch_filters_data', '');
         setError(appError.message);
       }
@@ -311,11 +330,11 @@ export default function TimetablePage() {
             setShowCreateForm(false);
             fetchLiveClasses();
           }}
-          programs={programs as any[]}
-          levels={levels as any[]}
-          subjects={subjects as any[]}
-          teachers={teachers as any[]}
-          papers={papers as any[]}
+          programs={programs}
+          levels={levels}
+          subjects={subjects}
+          teachers={teachers}
+          papers={papers}
         />
       )}
     </div>

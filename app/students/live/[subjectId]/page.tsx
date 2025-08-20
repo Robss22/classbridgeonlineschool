@@ -4,13 +4,36 @@ import { useEffect, useState } from "react";
 import { supabase } from '../../../../lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 
+interface Subject {
+  subject_id: string;
+  name: string;
+  description: string | null;
+}
+
+interface TimetableEntry {
+  timetable_id: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  meeting_link: string | null;
+}
+
+interface LiveClass {
+  live_class_id: string;
+  title: string;
+  scheduled_date: string;
+  start_time: string;
+  end_time: string;
+  meeting_link: string | null;
+}
+
 export default function SubjectPage() {
   const params = useParams();
-  const subjectId = (params as any)?.subjectId as string | undefined;
+  const subjectId = (params as Record<string, unknown>)?.subjectId as string | undefined;
   const { user, loading: authLoading } = useAuth();
-  const [subject, setSubject] = useState<any>(null);
-  const [timetable, setTimetable] = useState<any[]>([]);
-  const [liveClasses, setLiveClasses] = useState<any[]>([]);
+  const [subject, setSubject] = useState<Subject | null>(null);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -30,20 +53,37 @@ export default function SubjectPage() {
         setLoading(false);
         return;
       }
-      setSubject(subjectData);
+      setSubject({
+        subject_id: String((subjectData as Record<string, unknown>)?.subject_id),
+        name: String((subjectData as Record<string, unknown>)?.name || ''),
+        description: ((subjectData as Record<string, unknown>)?.description as string | null) ?? null
+      });
       // Fetch timetable for this subject and user
       const { data: timetableData } = await supabase
         .from('timetables')
         .select('timetable_id, day_of_week, start_time, end_time, meeting_link')
         .eq('subject_id', subjectId as string);
-      setTimetable(timetableData || []);
+      setTimetable(((timetableData || []) as Array<Record<string, unknown>>).map(t => ({
+        timetable_id: String(t.timetable_id),
+        day_of_week: String(t.day_of_week || ''),
+        start_time: String(t.start_time || ''),
+        end_time: String(t.end_time || ''),
+        meeting_link: (t.meeting_link as string | null) ?? null
+      })));
       // Fetch live classes for this subject
       const { data: liveClassData } = await supabase
         .from('live_classes')
         .select('live_class_id, title, scheduled_date, start_time, end_time, meeting_link')
         .eq('subject_id', subjectId as string)
         .order('scheduled_date', { ascending: true });
-      setLiveClasses(liveClassData || []);
+      setLiveClasses(((liveClassData || []) as Array<Record<string, unknown>>).map(lc => ({
+        live_class_id: String(lc.live_class_id),
+        title: String(lc.title || ''),
+        scheduled_date: String(lc.scheduled_date || ''),
+        start_time: String(lc.start_time || ''),
+        end_time: String(lc.end_time || ''),
+        meeting_link: (lc.meeting_link as string | null) ?? null
+      })));
       setLoading(false);
     };
     fetchData();

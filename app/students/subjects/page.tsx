@@ -23,7 +23,7 @@ type SubjectOffering = {
   id: string;
   is_compulsory: boolean;
   subjects: Subject;
-  programs?: Program;
+  programs?: Program | undefined;
 };
 
 type EnrolledOptional = {
@@ -70,8 +70,8 @@ export default function MySubjectsPage() {
         .select('program_id, level_id')
         .eq('id', userId)
         .single();
-      const programId = (userRow as any)?.program_id as string | undefined;
-      const levelId = (userRow as any)?.level_id as string | undefined;
+      const programId = (userRow as Record<string, unknown>)?.program_id as string | undefined;
+      const levelId = (userRow as Record<string, unknown>)?.level_id as string | undefined;
 
       if (!programId || !levelId) {
         console.warn('No program/level assigned to student');
@@ -86,9 +86,9 @@ export default function MySubjectsPage() {
           .select('name')
           .eq('level_id', levelId)
           .single();
-        const levelName = (levelRow as any)?.name as string | undefined;
+        const levelName = (levelRow as Record<string, unknown>)?.name as string | undefined;
         setIsS1OrS2(levelName === 'S1' || levelName === 'S2');
-      } catch (_) {
+      } catch {
         setIsS1OrS2(false);
       }
 
@@ -113,17 +113,21 @@ export default function MySubjectsPage() {
 
       // Only keep valid SubjectOffering objects, skip error objects
       const validCompulsory: SubjectOffering[] = (compulsory || [])
-        .filter((s: any) =>
+        .filter((s: Record<string, unknown>) =>
           !s?.error &&
           typeof s?.id === 'string' &&
           typeof s?.is_compulsory === 'boolean' &&
-          s?.subjects && typeof s.subjects.name === 'string'
+          s?.subjects && typeof (s.subjects as Record<string, unknown>).name === 'string' &&
+          typeof (s.subjects as Record<string, unknown>).subject_id === 'string'
         )
-        .map((s: any) => ({
-          id: s.id,
-          is_compulsory: s.is_compulsory,
-          subjects: s.subjects,
-          programs: s.programs,
+        .map((s: Record<string, unknown>) => ({
+          id: s.id as string,
+          is_compulsory: s.is_compulsory as boolean,
+          subjects: {
+            subject_id: String((s.subjects as Record<string, unknown>).subject_id),
+            name: String((s.subjects as Record<string, unknown>).name)
+          },
+          programs: { program_id: String((s.programs as Record<string, unknown>)?.program_id || ''), name: String((s.programs as Record<string, unknown>)?.name || '') },
         }));
       setCompulsorySubjects(validCompulsory);
 
@@ -151,19 +155,19 @@ export default function MySubjectsPage() {
 
       // Only keep valid EnrolledOptional objects (non-compulsory), skip error objects and null ids
       const validOptional: EnrolledOptional[] = (optional || [])
-        .filter((entry: any) =>
+        .filter((entry: Record<string, unknown>) =>
           typeof entry?.subject_offering_id === 'string' &&
           entry.subject_offering_id &&
           entry.subject_offerings &&
-          !entry.subject_offerings.error &&
-          typeof entry.subject_offerings.id === 'string' &&
-          entry.subject_offerings.subjects && typeof entry.subject_offerings.subjects.name === 'string' &&
-          entry.subject_offerings.is_compulsory === false
+          !(entry.subject_offerings as Record<string, unknown>)?.error &&
+          typeof (entry.subject_offerings as Record<string, unknown>).id === 'string' &&
+          (entry.subject_offerings as Record<string, unknown>).subjects && typeof ((entry.subject_offerings as Record<string, unknown>).subjects as Record<string, unknown>).name === 'string' &&
+          (entry.subject_offerings as Record<string, unknown>).is_compulsory === false
         )
-        .map((entry: any) => ({
-          id: entry.id,
-          subject_offering_id: entry.subject_offering_id,
-          subject_offerings: entry.subject_offerings
+        .map((entry: Record<string, unknown>) => ({
+          id: String(entry.id as string),
+          subject_offering_id: String(entry.subject_offering_id as string),
+          subject_offerings: (entry.subject_offerings as SubjectOffering)
         }));
       setOptionalSubjects(validOptional);
 
@@ -192,11 +196,17 @@ export default function MySubjectsPage() {
 
         if (liveClassData) {
           const classesBySubject: Record<string, LiveClass[]> = {};
-          liveClassData.forEach((liveClass: any) => {
+          (liveClassData as Array<Record<string, unknown>>).forEach((liveClass) => {
             // Add default status if not present
             const processedClass: LiveClass = {
-              ...liveClass,
-              status: liveClass.status || 'scheduled'
+              live_class_id: String(liveClass.live_class_id),
+              title: String(liveClass.title || ''),
+              scheduled_date: String(liveClass.scheduled_date || ''),
+              start_time: String(liveClass.start_time || ''),
+              end_time: String(liveClass.end_time || ''),
+              meeting_link: (liveClass.meeting_link as string) || '',
+              subject_id: String(liveClass.subject_id || ''),
+              status: (liveClass.status as string) || 'scheduled'
             };
             
             if (!classesBySubject[processedClass.subject_id]) {
@@ -229,17 +239,17 @@ export default function MySubjectsPage() {
 
       if (availableOptional) {
         const validAvailable: SubjectOffering[] = (availableOptional || [])
-          .filter((s: any) =>
-            !s?.error &&
+          .filter((s: Record<string, unknown>) =>
+            !(s as Record<string, unknown>)?.error &&
             typeof s?.id === 'string' &&
             typeof s?.is_compulsory === 'boolean' &&
-            s?.subjects && typeof s.subjects.name === 'string'
+            s?.subjects && typeof (s.subjects as Record<string, unknown>).name === 'string'
           )
-          .map((s: any) => ({
-            id: s.id,
-            is_compulsory: s.is_compulsory,
-            subjects: s.subjects,
-            programs: s.programs
+          .map((s: Record<string, unknown>) => ({
+            id: String(s.id),
+            is_compulsory: Boolean(s.is_compulsory),
+            subjects: s.subjects as Subject,
+            programs: s.programs as Program | undefined
           }));
 
         // Filter out subjects the student is already enrolled in

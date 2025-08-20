@@ -57,12 +57,12 @@ export default function StudentLiveClassesPage() {
         .eq('id', userId)
         .single();
       
-      let programId = (userData as any)?.program_id as string | undefined;
-      const levelId = (userData as any)?.level_id as string | undefined;
+      let programId = (userData as Record<string, unknown>)?.program_id as string | undefined;
+      const levelId = (userData as Record<string, unknown>)?.level_id as string | undefined;
       
       // Handle case where program_id might be a string name instead of UUID
       if (programId && !programId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        console.log('Program ID is not a UUID, looking up by name:', programId);
+        // Program ID is not a UUID, looking up by name
         // program_id is not a UUID, so it's likely a program name
         // Look up the actual program UUID by name
         const { data: programData, error: programError } = await supabase
@@ -72,16 +72,16 @@ export default function StudentLiveClassesPage() {
           .single();
         
         if (programError || !programData) {
-          console.warn('Could not find program UUID for name:', programId);
+          // Could not find program UUID for name
           setError('Program configuration error. Please contact your administrator.');
           return;
         }
         
-        console.log('Found program UUID:', programData.program_id, 'for name:', programId);
+        // Found program UUID
         programId = programData.program_id;
       }
       
-      console.log('Using program ID for query:', programId);
+      // Using program ID for query
       
       if (!programId) {
         setError('No program assigned. Please contact your administrator.');
@@ -113,15 +113,15 @@ export default function StudentLiveClassesPage() {
       
       if (fetchError) throw fetchError;
       
-      const processedClasses: LiveClass[] = (data || []).map((item: any) => ({
+      const processedClasses: LiveClass[] = (data || []).map((item: Record<string, unknown>) => ({
         ...item,
-        meeting_platform: item.meeting_platform || 'Google Meet',
-        status: item.status || 'scheduled',
-        title: item.title || 'Live Class',
-        description: item.description || '',
-        started_at: item.started_at || null,
-        ended_at: item.ended_at || null
-      }));
+        meeting_platform: (item.meeting_platform as string) || 'Google Meet',
+        status: (item.status as string) || 'scheduled',
+        title: (item.title as string) || 'Live Class',
+        description: (item.description as string) || '',
+        started_at: (item.started_at as string | null) || null,
+        ended_at: (item.ended_at as string | null) || null
+      })) as unknown as LiveClass[];
 
       setLiveClasses(processedClasses);
       
@@ -129,16 +129,17 @@ export default function StudentLiveClassesPage() {
       // For now, we'll set empty attendance map
       setAttendanceMap({});
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching live classes:', error);
       
       // Handle specific Supabase errors
-      if (error.code === 'PGRST116') {
+      if (error instanceof Error && 'code' in error && error.code === 'PGRST116') {
         setError('Database query error. Please contact your administrator.');
-      } else if (error.message && error.message.includes('400')) {
+      } else if (errorMessage && errorMessage.includes('400')) {
         setError('Invalid query parameters. Please contact your administrator.');
       } else {
-        setError(error.message || 'Failed to fetch live classes');
+        setError(errorMessage || 'Failed to fetch live classes');
       }
     } finally {
       // setLoading(false); // This line was removed as per the edit hint

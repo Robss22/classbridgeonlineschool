@@ -103,7 +103,7 @@ export function useUpdateStudent() {
       if (error) throw error
       return updatedStudent
     },
-    onSuccess: (data) => {
+    onSuccess: (data: Student) => {
       queryClient.invalidateQueries({ queryKey: studentKeys.detail(data.id) })
       queryClient.invalidateQueries({ queryKey: studentKeys.lists() })
     },

@@ -28,8 +28,9 @@ export async function POST() {
     }
 
     return NextResponse.json({ success: true, timestamp: nowIso })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error?.message || 'Unexpected error' }, { status: 500 })
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error';
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
 

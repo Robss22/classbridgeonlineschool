@@ -96,8 +96,20 @@ export class SessionManager {
     try {
       const deviceInfo = this.detectDeviceInfo();
       
+      // First, deactivate any existing active sessions for this user
+      const { error: deactivateError } = await supabase
+        .from('user_sessions')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('is_active', true);
+
+      if (deactivateError) {
+        console.warn('Warning: Could not deactivate existing sessions:', deactivateError);
+        // Continue anyway - the unique constraint will handle conflicts
+      }
+      
       // Create new session in database
-      const { data: session, error } = await supabase
+      let { data: session, error } = await supabase
         .from('user_sessions')
         .insert({
           user_id: userId,
@@ -112,33 +124,61 @@ export class SessionManager {
         .select()
         .single();
 
-      if (error) {
-        console.error('Error creating session:', error);
+      // If insert fails due to unique constraint, try upsert approach
+      if (error && error.code === '23505') { // Unique constraint violation
+        
+        const { data: upsertSession, error: upsertError } = await supabase
+          .from('user_sessions')
+          .upsert({
+            user_id: userId,
+            device_id: deviceInfo.deviceId,
+            device_name: deviceInfo.deviceName,
+            device_type: deviceInfo.deviceType,
+            browser: deviceInfo.browser,
+            os: deviceInfo.os,
+            user_agent: deviceInfo.userAgent,
+            expires_at: new Date(Date.now() + 2.5 * 60 * 60 * 1000).toISOString(),
+            is_active: true
+          }, {
+            onConflict: 'user_id',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+
+        if (upsertError) {
+          return null;
+        }
+        
+        session = upsertSession;
+        error = null;
+      }
+
+      if (error || !session) {
         return null;
       }
 
-             // Store session ID in localStorage
-       localStorage.setItem(this.SESSION_KEY, session.session_id);
-       
-       // Transform database response to match interface
-       return {
-         session_id: session.session_id,
-         device_id: session.device_id,
-         device_name: session.device_name,
-         device_type: session.device_type,
-         browser: session.browser,
-         os: session.os,
-         login_time: session.login_time,
-         last_activity: session.last_activity,
-         expires_at: session.expires_at,
-         is_active: session.is_active,
-         ip_address: session.ip_address ?? null,
-         user_agent: session.user_agent ?? null,
-         created_at: session.created_at ?? null,
-         updated_at: session.updated_at ?? null
-       };
-    } catch (error) {
-      console.error('Error creating session:', error);
+      // Store session ID in localStorage
+      localStorage.setItem(this.SESSION_KEY, session.session_id);
+      
+      // Transform database response to match interface
+      return {
+        session_id: session.session_id,
+        device_id: session.device_id,
+        device_name: session.device_name,
+        device_type: session.device_type,
+        browser: session.browser,
+        os: session.os,
+        login_time: session.login_time,
+        last_activity: session.last_activity,
+        expires_at: session.expires_at,
+        is_active: session.is_active,
+        ip_address: session.ip_address ?? null,
+        user_agent: session.user_agent ?? null,
+        created_at: session.created_at ?? null,
+        updated_at: session.updated_at ?? null
+      };
+    } catch {
       return null;
     }
   }
@@ -151,14 +191,14 @@ export class SessionManager {
       const sessionId = localStorage.getItem(this.SESSION_KEY);
       if (!sessionId) return null;
 
-      const { data: session, error } = await supabase
+      const { data: session, error: sessionError } = await supabase
         .from('user_sessions')
         .select('*')
         .eq('session_id', sessionId)
         .eq('is_active', true)
         .single();
 
-             if (error || !session) {
+             if (sessionError || !session) {
          // Session not found or inactive, clear from localStorage
          localStorage.removeItem(this.SESSION_KEY);
          return null;
@@ -181,10 +221,9 @@ export class SessionManager {
          created_at: session.created_at ?? null,
          updated_at: session.updated_at ?? null
        };
-    } catch (error) {
-      console.error('Error getting current session:', error);
-      return null;
-    }
+         } catch {
+       return null;
+     }
   }
 
   /**

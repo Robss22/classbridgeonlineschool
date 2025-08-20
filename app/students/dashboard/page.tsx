@@ -144,7 +144,7 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
   );
 }
 
-function TeachersAssigned({ teachers }: { teachers: any[] }) {
+function TeachersAssigned({ teachers }: { teachers: Array<{ name?: string; subject?: string }> }) {
   if (teachers.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow p-4">
@@ -167,8 +167,8 @@ function TeachersAssigned({ teachers }: { teachers: any[] }) {
         {teachers.slice(0, 3).map((teacher, index) => (
           <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
             <div>
-              <div className="font-medium text-gray-900">{teacher.name}</div>
-              <div className="text-sm text-gray-600">{teacher.subject}</div>
+              <div className="font-medium text-gray-900">{String(teacher.name || '')}</div>
+              <div className="text-sm text-gray-600">{String(teacher.subject || '')}</div>
             </div>
           </div>
         ))}
@@ -177,7 +177,7 @@ function TeachersAssigned({ teachers }: { teachers: any[] }) {
   );
 }
 
-function LatestResources({ resources }: { resources: any[] }) {
+function LatestResources({ resources }: { resources: Array<{ title?: string; subject?: string }> }) {
   if (resources.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow p-4 mb-4">
@@ -199,8 +199,8 @@ function LatestResources({ resources }: { resources: any[] }) {
       <div className="space-y-2">
         {resources.slice(0, 3).map((resource, index) => (
           <div key={index} className="text-sm">
-            <div className="font-medium text-gray-900">{resource.title}</div>
-            <div className="text-gray-600">{resource.subject}</div>
+            <div className="font-medium text-gray-900">{String(resource.title || '')}</div>
+            <div className="text-gray-600">{String(resource.subject || '')}</div>
           </div>
         ))}
       </div>
@@ -211,8 +211,8 @@ function LatestResources({ resources }: { resources: any[] }) {
 export default function StudentDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [resources, setResources] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<Array<Record<string, unknown>>>([]);
+  const [resources, setResources] = useState<Array<Record<string, unknown>>>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]); // Added state for announcements
   const [loading, setLoading] = useState(true);
 
@@ -261,13 +261,13 @@ export default function StudentDashboard() {
           .order('start_time', { ascending: true });
 
         if (liveClassData) {
-          const processedClasses: LiveClass[] = liveClassData.map((item: any) => ({
+          const processedClasses: LiveClass[] = liveClassData.map((item: Record<string, unknown>) => ({
             ...item,
-            meeting_platform: item.meeting_platform || 'Google Meet',
-            status: item.status || 'scheduled',
-            title: item.title || 'Live Class',
-            description: item.description || ''
-          }));
+            meeting_platform: (item.meeting_platform as string) || 'Google Meet',
+            status: (item.status as string) || 'scheduled',
+            title: (item.title as string) || 'Live Class',
+            description: (item.description as string) || ''
+          })) as unknown as LiveClass[];
           setLiveClasses(processedClasses);
         }
 
@@ -307,10 +307,10 @@ export default function StudentDashboard() {
           .limit(5);
 
         if (resourcesData) {
-          const processedResources = resourcesData.map((resource: any) => ({
-            title: resource.title || 'Untitled Resource',
-            subject: resource.subjects?.name || 'Unknown Subject',
-            created_at: resource.created_at
+          const processedResources = resourcesData.map((resource: Record<string, unknown>) => ({
+            title: (resource.title as string) || 'Untitled Resource',
+            subject: (resource.subjects as Record<string, unknown>)?.name || 'Unknown Subject',
+            created_at: resource.created_at as string
           }));
           setResources(processedResources);
         }
@@ -329,11 +329,11 @@ export default function StudentDashboard() {
           .limit(3);
 
         if (announcementsData) {
-          const processedAnnouncements = announcementsData.map((announcement: any) => ({
-            id: announcement.id,
-            title: announcement.subject || 'Announcement',
-            message: announcement.body || 'No message content',
-            created_at: announcement.created_at
+          const processedAnnouncements = announcementsData.map((announcement: Record<string, unknown>) => ({
+            id: announcement.id as string,
+            title: (announcement.subject as string) || 'Announcement',
+            message: (announcement.body as string) || 'No message content',
+            created_at: announcement.created_at as string
           }));
           setAnnouncements(processedAnnouncements);
         }

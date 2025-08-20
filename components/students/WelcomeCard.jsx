@@ -1,11 +1,12 @@
 import React from 'react';
+import Image from 'next/image';
 import { useStudent } from '@/contexts/StudentContext';
 
 export default function WelcomeCard() {
   const { studentInfo, loadingStudent } = useStudent();
   
-  console.log('🎨 WelcomeCard render - studentInfo:', studentInfo);
-  console.log('🎨 WelcomeCard render - loadingStudent:', loadingStudent);
+  // WelcomeCard render - studentInfo
+  // WelcomeCard render - loadingStudent
   
   if (loadingStudent) {
     return (
@@ -22,7 +23,7 @@ export default function WelcomeCard() {
      ? studentInfo.name.trim() 
      : 'Student';
   
-  console.log('🎨 WelcomeCard - Final displayName:', `"${displayName}"`);
+  // WelcomeCard - Final displayName
   
   const { program, class: className, registration_number, email, photoUrl } = studentInfo;
   
@@ -40,7 +41,7 @@ export default function WelcomeCard() {
         <div className="mb-2 flex justify-end">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-blue-200 flex items-center justify-center overflow-hidden">
             {photoUrl ? (
-              <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+              <Image src={photoUrl} alt="Profile" className="w-full h-full object-cover" width={64} height={64} />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-blue-400 to-green-400 flex items-center justify-center text-white font-bold text-lg">
                 {displayName.charAt(0).toUpperCase()}

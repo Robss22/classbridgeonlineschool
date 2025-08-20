@@ -23,7 +23,7 @@ interface LiveClass {
   subject_id: string;
   teachers?: { 
     teacher_id: string; 
-    users?: { 
+    users: { 
       first_name: string; 
       last_name: string 
     } 
@@ -79,11 +79,9 @@ export default function AdminTimetablePage() {
           // Refresh the timetable to show the new meeting link
           fetchLiveClasses();
         }
-      } else {
-        console.error('Failed to generate meeting link');
       }
-    } catch (error) {
-      console.error('Error generating meeting link:', error);
+    } catch {
+      // Handle error silently
     } finally {
       setGeneratingLinks(prev => {
         const newSet = new Set(prev);
@@ -130,25 +128,28 @@ export default function AdminTimetablePage() {
 
       if (error) throw error;
       
-      // Debug: Log the fetched data
-      console.log('Fetched live classes:', data);
-      console.log('Current week start:', format(currentWeekStart, 'yyyy-MM-dd'));
-      console.log('Current week end:', format(weekEnd, 'yyyy-MM-dd'));
-      
-      const liveClasses: LiveClass[] = data.map((item: any) => ({
-        ...item,
-        meeting_platform: item.meeting_platform || '',
-        status: item.status || '',
-        teacher_id: item.teacher_id || '',
-        program_id: item.program_id || '',
-        level_id: item.level_id || '',
-        title: item.title || '',
-        description: item.description || ''
+      const liveClasses: LiveClass[] = ((data || []) as Array<Record<string, unknown>>).map((item) => ({
+        live_class_id: (item.live_class_id as string) || '',
+        title: (item.title as string) || '',
+        description: (item.description as string) || '',
+        scheduled_date: (item.scheduled_date as string) || '',
+        start_time: (item.start_time as string) || '',
+        end_time: (item.end_time as string) || '',
+        meeting_link: (item.meeting_link as string) || '',
+        meeting_platform: (item.meeting_platform as string) || '',
+        status: (item.status as string) || '',
+        teacher_id: (item.teacher_id as string) || '',
+        program_id: (item.program_id as string) || '',
+        level_id: (item.level_id as string) || '',
+        subject_id: (item.subject_id as string) || '',
+        teachers: { teacher_id: String((item.teachers as Record<string, unknown>)?.teacher_id || ''), users: { first_name: String((item.teachers as { users?: { first_name?: string } })?.users?.first_name || ''), last_name: String((item.teachers as { users?: { last_name?: string } })?.users?.last_name || '') } },
+        levels: item.levels as { name: string } || undefined,
+        subjects: item.subjects as { name: string } || undefined,
+        programs: item.programs as { name: string } || undefined
       }));
       
-      console.log('Processed live classes:', liveClasses);
       setLiveClasses(liveClasses);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_live_classes', '');
       setError(appError.message);
     }
@@ -187,18 +188,17 @@ export default function AdminTimetablePage() {
         // Set reference data
         setLevels(levelsRes.data || []);
         setSubjects(subjectsRes.data || []);
-        setTeachers((teachersRes.data || []).map((teacher: any) => ({
-          teacher_id: teacher.teacher_id,
+        setTeachers(((teachersRes.data || []) as Array<Record<string, unknown>>).map((teacher) => ({
+          teacher_id: (teacher.teacher_id as string) || '',
           users: teacher.users ? {
-            first_name: teacher.users.first_name || '',
-            last_name: teacher.users.last_name || ''
+            first_name: String((teacher.users as Record<string, unknown>).first_name || ''),
+            last_name: String((teacher.users as Record<string, unknown>).last_name || '')
           } : undefined
         })));
         setPrograms(programsRes.data || []);
         setPapers(papersRes.data || []);
         
-      } catch (error: any) {
-        console.error('Error in fetchFiltersData:', error);
+      } catch (error: unknown) {
         const appError = errorHandler.handleSupabaseError(error, 'fetch_filters_data', '');
         setError(appError.message);
       }
@@ -229,8 +229,7 @@ export default function AdminTimetablePage() {
         }
       }
       setAutoStartStatus('idle');
-    } catch (error) {
-      console.error('Error checking classes status:', error);
+    } catch {
       setAutoStartStatus('error');
       setTimeout(() => setAutoStartStatus('idle'), 3000);
     }
@@ -294,23 +293,29 @@ export default function AdminTimetablePage() {
 
       if (error) throw error;
       
-      console.log('All live classes (no date filter):', data);
-      
-      const allLiveClasses: LiveClass[] = data.map((item: any) => ({
-        ...item,
-        meeting_platform: item.meeting_platform || '',
-        status: item.status || '',
-        teacher_id: item.teacher_id || '',
-        program_id: item.program_id || '',
-        level_id: item.level_id || '',
-        title: item.title || '',
-        description: item.description || ''
+      const allLiveClasses: LiveClass[] = ((data || []) as Array<Record<string, unknown>>).map((item) => ({
+        live_class_id: (item.live_class_id as string) || '',
+        title: (item.title as string) || '',
+        description: (item.description as string) || '',
+        scheduled_date: (item.scheduled_date as string) || '',
+        start_time: (item.start_time as string) || '',
+        end_time: (item.end_time as string) || '',
+        meeting_link: (item.meeting_link as string) || '',
+        meeting_platform: (item.meeting_platform as string) || '',
+        status: (item.status as string) || '',
+        teacher_id: (item.teacher_id as string) || '',
+        program_id: (item.program_id as string) || '',
+        level_id: (item.level_id as string) || '',
+        subject_id: (item.subject_id as string) || '',
+        teachers: { teacher_id: String((item.teachers as Record<string, unknown>)?.teacher_id || ''), users: { first_name: String((item.teachers as { users?: { first_name?: string } })?.users?.first_name || ''), last_name: String((item.teachers as { users?: { last_name?: string } })?.users?.last_name || '') } },
+        levels: item.levels as { name: string } || undefined,
+        subjects: item.subjects as { name: string } || undefined,
+        programs: item.programs as { name: string } || undefined
       }));
       
       setLiveClasses(allLiveClasses);
       setShowAllClasses(true);
-    } catch (error: any) {
-      console.error('Error fetching all classes:', error);
+    } catch (error: unknown) {
       const appError = errorHandler.handleSupabaseError(error, 'fetch_all_classes', '');
       setError(appError.message);
     }
@@ -326,7 +331,6 @@ export default function AdminTimetablePage() {
     const trimmed = time.trim();
     const match = trimmed.match(/^(\d{1,2}):(\d{2}):?(\d{2})?/);
     if (!match) {
-      console.warn('Invalid time format:', time);
       return 0;
     }
     
@@ -338,7 +342,6 @@ export default function AdminTimetablePage() {
       return hours * 60 + minutes;
     }
     
-    console.warn('Invalid time values:', { hours, minutes, original: time });
     return 0;
   };
 

@@ -53,7 +53,7 @@ export default function AssignmentsPage() {
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | undefined }>({});
 
   // Hoisted validator so it's available across effects/handlers
-  const isValidAssignment = (data: any): data is Assignment => {
+  const isValidAssignment = (data: Record<string, unknown>): data is Assignment => {
     return data && typeof data.id === 'string' && typeof data.title === 'string';
   };
 
@@ -123,11 +123,14 @@ export default function AssignmentsPage() {
           .order('created_at', { ascending: false });
 
         // Process and validate the data
-        const validAssignments = (assessmentsData || [])
+        const validAssignments: Assignment[] = (assessmentsData || [])
           .filter(isValidAssignment)
-          .map(assignment => ({
-            ...assignment,
-            submissions: Array.isArray((assignment as any).submissions) ? (assignment as any).submissions : [],
+          .map((assignment) => ({
+            ...(assignment as Assignment),
+            created_at: (assignment as Record<string, unknown>).created_at as string | null,
+            submissions: Array.isArray((assignment as Record<string, unknown>).submissions)
+              ? ((assignment as Record<string, unknown>).submissions as Submission[])
+              : [],
           }));
 
         setAssignments(validAssignments);        // 5. Fetch subject details for mapping
@@ -149,7 +152,7 @@ export default function AssignmentsPage() {
           papersData.forEach(p => { map[`${p.subject_id}_${p.paper_id}`] = p.paper_code; });
           setPaperCodesMap(map);
         }
-      } catch (err) {
+      } catch {
         setAssignments([]);
         setSubjectsMap({});
         setPaperCodesMap({});

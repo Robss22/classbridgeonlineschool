@@ -61,12 +61,7 @@ export default function ResourcesPage() {
         .from('resources')
         .select(`
           resource_id, title, description, url, type, uploaded_by,
-          program_id, level_id, subject_id, paper_id,
-          programs(name),
-          levels(name),
-          subjects(name),
-          subject_papers(paper_code, paper_name),
-          uploader:uploaded_by(full_name, email)
+          program_id, level_id, subject_id, paper_id
         `, { count: 'exact' }); // Get exact count for pagination
 
       // Apply program filter
@@ -100,7 +95,7 @@ export default function ResourcesPage() {
         } else if (sortColumn === 'paper_name') {
           query = query.order('paper_name', { foreignTable: 'subject_papers', ascending: sortDirection === 'asc' });
         } else if (sortColumn === 'uploaded_by_name') {
-          query = query.order('full_name', { foreignTable: 'uploader', ascending: sortDirection === 'asc' });
+          query = query.order('full_name', { foreignTable: 'users', ascending: sortDirection === 'asc' });
         } else {
           // Default sorting for direct columns on 'resources'
           query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
@@ -111,11 +106,133 @@ export default function ResourcesPage() {
 
       const { data, error, count } = await query;
       
-      if (!error) {
+      if (!error && data) {
+        // Fetch related data for each resource
+        const enrichedData = await Promise.all(
+          data.map(async (resource) => {
+            try {
+              // Fetch user data - try both users and teachers_with_users tables
+              let userData = null;
+              
+              if (resource.uploaded_by) {
+                // First try to get from users table
+                let { data: userResult, error: userError } = await supabase
+                  .from('users')
+                  .select('id, full_name, email, first_name, last_name')
+                  .eq('auth_user_id', resource.uploaded_by)
+                  .single();
+                
+                if (userError || !userResult) {
+                  // If not found in users, try teachers_with_users
+                  const { data: teacherResult, error: teacherError } = await supabase
+                    .from('teachers_with_users')
+                    .select('user_id, full_name, email, first_name, last_name')
+                    .eq('auth_user_id', resource.uploaded_by)
+                    .single();
+                  
+                  if (teacherError) {
+                    // Teacher data fetch error - continue with null userData
+                  } else if (teacherResult) {
+                    userData = teacherResult;
+                  }
+                } else {
+                  userData = userResult;
+                }
+                
+                if (!userData) {
+                  // No user data found - continue with null userData
+                }
+              }
+
+              // Fetch program data
+              let programData = null;
+              if (resource.program_id) {
+                const { data: programResult, error: programError } = await supabase
+                  .from('programs')
+                  .select('name')
+                  .eq('program_id', resource.program_id)
+                  .single();
+                
+                if (programError) {
+                  // Program data fetch error - continue with null programData
+                } else {
+                  programData = programResult;
+                }
+              }
+
+              // Fetch level data
+              let levelData = null;
+              if (resource.level_id) {
+                const { data: levelResult, error: levelError } = await supabase
+                  .from('levels')
+                  .select('name')
+                  .eq('level_id', resource.level_id)
+                  .single();
+                
+                if (levelError) {
+                  // Level data fetch error - continue with null levelData
+                } else {
+                  levelData = levelResult;
+                }
+              }
+
+              // Fetch subject data
+              let subjectData = null;
+              if (resource.subject_id) {
+                const { data: subjectResult, error: subjectError } = await supabase
+                  .from('subjects')
+                  .select('name')
+                  .eq('subject_id', resource.subject_id)
+                  .single();
+                
+                if (subjectError) {
+                  // Subject data fetch error - continue with null subjectData
+                } else {
+                  subjectData = subjectResult;
+                }
+              } else {
+                // No subject_id for resource
+              }
+
+              // Fetch paper data
+              let paperData = null;
+              if (resource.paper_id) {
+                const { data: paperResult, error: paperError } = await supabase
+                  .from('subject_papers')
+                  .select('paper_code, paper_name')
+                  .eq('paper_id', resource.paper_id)
+                  .single();
+                
+                if (paperError) {
+                  // Paper data fetch error - continue with null paperData
+                } else {
+                  paperData = paperResult;
+                }
+              } else {
+                // No paper_id for resource
+              }
+
+              return {
+                ...resource,
+                users: userData || null,
+                programs: programData || null,
+                levels: levelData || null,
+                subjects: subjectData || null,
+                subject_papers: paperData || null
+              };
+            } catch {
+              // Error enriching resource data - return original resource
+              return resource;
+            }
+          })
+        );
+
+        // Debug logging removed for production
+        
         // Client-side search filtering if 'search' is active
-        let processedData = data;
+        let processedData = enrichedData;
         if (search) {
-          processedData = data.filter(r => 
+          processedData = enrichedData.filter(r => 
             r.title?.toLowerCase().includes(search.toLowerCase()) || 
             r.subjects?.name?.toLowerCase().includes(search.toLowerCase()) ||
             r.subject_papers?.paper_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -124,9 +241,8 @@ export default function ResourcesPage() {
         }
         setResources(processedData);
         setTotalResources(count || 0);
-        console.log('Fetched resources:', processedData);
       } else {
-        console.error('Error fetching resources:', error);
+        // Error fetching resources - handle silently in production
       }
     } finally {
       setLoading(false);
@@ -153,7 +269,6 @@ export default function ResourcesPage() {
         .eq('program_id', selectedProgramObj.program_id);
 
       if (levelError) {
-        console.error('Error fetching levels for filter:', levelError);
         setLevelsForFilter([]);
       } else {
         setLevelsForFilter(levelData || []);
@@ -169,7 +284,7 @@ export default function ResourcesPage() {
           .in('level_id', levelIds);
 
         if (offeringsError) {
-          console.error('Error fetching subject offerings for filter:', offeringsError);
+          // Handle error silently
         } else {
           const distinctSubjectIds = [...new Set((offeringsData || []).map(o => o.subject_id))];
           if (distinctSubjectIds.length > 0) {
@@ -179,7 +294,7 @@ export default function ResourcesPage() {
               .in('subject_id', distinctSubjectIds);
 
             if (subjectsError) {
-              console.error('Error fetching subjects for filter:', subjectsError);
+              // Handle error silently
             } else {
               subjectData = subjectsResult || [];
             }
@@ -195,7 +310,7 @@ export default function ResourcesPage() {
         .eq('program_id', selectedProgramObj.program_id);
 
       if (offeringsError) {
-        console.error('Error fetching subject offerings for non-academic filter:', offeringsError);
+        // Handle error silently
       } else {
         const distinctSubjectIds = [...new Set((offeringsData || []).map(o => o.subject_id))];
         if (distinctSubjectIds.length > 0) {
@@ -204,7 +319,7 @@ export default function ResourcesPage() {
             .select('subject_id, name')
             .in('subject_id', distinctSubjectIds);
           if (subjectsError) {
-            console.error('Error fetching subjects for non-academic filter:', subjectsError);
+            // Handle error silently
           } else {
             setSubjectsForFilter(subjectsResult || []);
           }
@@ -241,13 +356,11 @@ export default function ResourcesPage() {
       setLoading(true);
       const { error } = await supabase.from('resources').delete().eq('resource_id', resourceToDelete.resource_id);
       if (error) {
-        console.error('Error deleting resource:', error);
         alert('Failed to delete resource: ' + error.message); // Replace with custom toast/message box
       } else {
         fetchResources(); // Re-fetch resources after successful deletion
       }
-    } catch (err) {
-      console.error('Unexpected error during delete:', err);
+    } catch {
       alert('An unexpected error occurred during deletion.'); // Replace with custom toast/message box
     } finally {
       setLoading(false);
@@ -263,7 +376,7 @@ export default function ResourcesPage() {
       <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full relative">
           <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
-          <p className="mb-6">Are you sure you want to delete the resource: <span className="font-semibold">"{resourceTitle}"</span>? This action cannot be undone.</p>
+          <p className="mb-6">Are you sure you want to delete the resource: <span className="font-semibold">&quot;{resourceTitle}&quot;</span>? This action cannot be undone.</p>
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
@@ -441,7 +554,12 @@ export default function ResourcesPage() {
                   {resources.map(res => (
                     <tr key={res.resource_id} className="hover:bg-blue-50 transition align-middle">
                       <td className="px-4 py-3 font-medium text-blue-900 max-w-xs truncate align-middle" title={res.title}>{res.title}</td>
-                      <td className="px-4 py-3 text-gray-700 align-middle">{res.uploader?.full_name || res.uploader?.email || res.uploaded_by || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-gray-700 align-middle">
+                        {res.users?.full_name || 
+                         `${res.users?.first_name || ''} ${res.users?.last_name || ''}`.trim() || 
+                         res.users?.email || 
+                         (res.uploaded_by ? `ID: ${res.uploaded_by}` : 'Unknown')}
+                      </td>
                       <td className="px-4 py-3 text-gray-700 align-middle">{res.programs?.name || 'N/A'}</td>
                       <td className="px-4 py-3 text-gray-700 align-middle">{res.levels?.name || 'N/A'}</td>
                       <td className="px-4 py-3 text-gray-700 align-middle">{res.subjects?.name || 'N/A'}</td>

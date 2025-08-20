@@ -173,7 +173,7 @@ export class MeetingTerminationService {
       if (meetingId && process.env.ZOOM_API_KEY && process.env.ZOOM_API_SECRET) {
         // This would require Zoom API integration
         // For now, we'll just notify participants
-        console.log('Zoom API integration would be implemented here');
+        // Zoom API integration would be implemented here
       }
       
       // Notify participants

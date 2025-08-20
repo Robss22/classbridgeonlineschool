@@ -43,70 +43,35 @@ export default function ApplyPage() {
 
   // Ref for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submissionCompletedRef = useRef(false);
 
   useEffect(() => {
-    // START: Logging for initial data fetch in useEffect
-    console.log('useEffect: Initiating fetch for programs, classes, and session.');
-
     async function fetchProgramsAndClasses() {
-      console.log('fetchProgramsAndClasses: Fetching programs from Supabase...');
-      
-      // Add more detailed logging for the programs query
       try {
-        let { data: programs, error: programsError } = await supabase
+        const { data: programs, error: programsError } = await supabase
           .from('programs')
           .select('program_id, name')
           .order('name');
 
-        console.log('fetchProgramsAndClasses: Raw programs response:', { programs, programsError });
-
         if (programsError) {
-          console.error('fetchProgramsAndClasses: Error fetching programs:', programsError);
-          console.error('fetchProgramsAndClasses: Error details:', {
-            message: programsError.message,
-            details: programsError.details,
-            hint: programsError.hint,
-            code: programsError.code
-          });
           return; // Exit if programs cannot be fetched
-        }
-        
-        console.log('fetchProgramsAndClasses: Programs fetched successfully. Count:', programs?.length || 0);
-        console.log('fetchProgramsAndClasses: Programs data:', programs);
-        
-        if (!programs || programs.length === 0) {
-          console.warn('fetchProgramsAndClasses: No programs found in database');
         }
         
         setCurricula(programs || []); // Store as array of objects
 
-        console.log('fetchProgramsAndClasses: Fetching levels from Supabase...');
-        let { data: levels, error: levelsError } = await supabase
+        const { data: levels, error: levelsError } = await supabase
           .from('levels')
           .select('name, program_id')
           .order('name');
 
-        console.log('fetchProgramsAndClasses: Raw levels response:', { levels, levelsError });
-
         if (levelsError) {
-          console.error('fetchProgramsAndClasses: Error fetching levels:', levelsError);
-          console.error('fetchProgramsAndClasses: Levels error details:', {
-            message: levelsError.message,
-            details: levelsError.details,
-            hint: levelsError.hint,
-            code: levelsError.code
-          });
           return; // Exit if levels cannot be fetched
         }
-        console.log('fetchProgramsAndClasses: Levels fetched successfully. Count:', levels?.length || 0);
-        console.log('fetchProgramsAndClasses: Levels data:', levels);
 
         const programIdToName: { [key: string]: string } = {};
         (programs || []).forEach((p) => {
           programIdToName[p.program_id] = p.name;
         });
-
-        console.log('fetchProgramsAndClasses: Program ID to name mapping:', programIdToName);
 
         const grouped: { [key: string]: string[] } = {};
         (levels || []).forEach((level) => {
@@ -116,15 +81,10 @@ export default function ApplyPage() {
           grouped[programName].push(level.name);
         });
 
-        console.log('fetchProgramsAndClasses: Grouped classes by curriculum:', grouped);
-
         setClassesByCurriculum(grouped);
-
-        console.log('fetchProgramsAndClasses: Curricula state updated.');
-        console.log('fetchProgramsAndClasses: Classes by Curriculum state updated.');
         
-      } catch (error) {
-        console.error('fetchProgramsAndClasses: Unexpected error during fetch:', error);
+      } catch {
+        // Handle error silently
       }
     }
 
@@ -175,7 +135,6 @@ export default function ApplyPage() {
       setForm((f) => ({ ...f, [name]: (e.target as HTMLInputElement).checked }));
     } else if (type === 'file' && e.target instanceof HTMLInputElement) {
       const files = e.target.files;
-      console.log(`handleChange: File selected for ${name}:`, files && files[0]?.name);
       setForm((f) => ({ ...f, [name]: files && files[0] ? files[0] : null }));
     } else {
       setForm((f) => {
@@ -183,20 +142,19 @@ export default function ApplyPage() {
           const selectedProgram = curricula.find(p => p.program_id === value);
           return { ...f, curriculum: value, curriculumName: selectedProgram ? selectedProgram.name : '', className: '' };
         }
-        console.log(`handleChange: Setting form field ${name} to ${value}`);
         return { ...f, [name]: value };
       });
     }
   }
 
   function handlePhoneChange(value: string) {
-    console.log('handlePhoneChange: Parent contact updated to:', value);
     setForm((f) => ({ ...f, parentContact: value }));
   }
 
   // New function to handle "OK" click on success message
   const handleSuccessOk = () => {
     setShowSuccessOverlay(false); // Hide the overlay
+    submissionCompletedRef.current = false; // Reset submission state
     router.push('/home'); // Navigate to home page using Next.js router
   };
 
@@ -207,51 +165,55 @@ export default function ApplyPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('handleSubmit: Form submission initiated.');
-    console.log('handleSubmit: Current form state:', form);
 
     if (!form.consent) {
       setMessage('You must agree to the consent.');
-      console.log('handleSubmit: Submission blocked - Consent not checked.');
       return;
     }
 
     if (!form.academicDocs) {
       setMessage('Academic documents are required.');
-      console.log('handleSubmit: Submission blocked - Academic documents not provided.');
       return;
     }
 
     setLoading(true);
-    setMessage('');
-    console.log('handleSubmit: Loading state set to true, message cleared.');
+    setMessage('Starting form submission...');
+    submissionCompletedRef.current = false;
+
+    // Add a timeout to prevent the form from getting stuck
+    const timeoutId = setTimeout(() => {
+      // Only show timeout message if submission hasn't completed yet
+      if (!submissionCompletedRef.current) {
+        setLoading(false);
+        setMessage('Submission is taking longer than expected. Please wait, the form may still be processing in the background.');
+      }
+    }, 60000); // 60 second timeout - increased to be more reasonable
 
     try {
+      // Clear timeout once we start processing - form is no longer "stuck"
+      clearTimeout(timeoutId);
+      
       let academicDocsUrl = null;
       if (form.academicDocs) {
-        console.log('handleSubmit: Attempting to upload academic documents to Supabase Storage.');
+        setMessage('Uploading academic documents...');
         const fileExt = form.academicDocs.name.split('.').pop();
         const fileName = `${form.firstName}_${form.lastName}_${Date.now()}.${fileExt}`;
-
-        console.log('handleSubmit: File to upload:', form.academicDocs.name);
-        console.log('handleSubmit: Calculated storage fileName:', fileName);
 
         const { error: uploadError } = await supabase.storage
           .from('academic-docs')
           .upload(fileName, form.academicDocs);
 
         if (uploadError) {
-          console.error('handleSubmit: ERROR uploading academic documents:', uploadError);
+          clearTimeout(timeoutId);
           setMessage('Error uploading academic documents: ' + uploadError.message);
-          throw uploadError;
+          setLoading(false);
+          return;
         }
         academicDocsUrl = supabase.storage.from('academic-docs').getPublicUrl(fileName).data.publicUrl;
-        console.log('handleSubmit: Academic documents uploaded successfully. Public URL:', academicDocsUrl);
-      } else {
-        console.log('handleSubmit: No academic documents provided for upload.');
       }
 
-      console.log('handleSubmit: Attempting to insert application data into "applications" table.');
+      setMessage('Submitting application to database...');
+
       const { data: applicationInsertData, error: applicationInsertError } = await supabase.from('applications').insert([
         {
           first_name: form.firstName,
@@ -273,48 +235,43 @@ export default function ApplyPage() {
       ]).select('application_id');
 
       if (applicationInsertError) {
-        console.error('handleSubmit: ERROR inserting application data into Supabase DB:', applicationInsertError);
+        clearTimeout(timeoutId);
         setMessage('Error submitting application data: ' + applicationInsertError.message);
-        throw applicationInsertError;
+        setLoading(false);
+        return;
       }
-      console.log('handleSubmit: Application data inserted successfully. Application ID:', applicationInsertData[0].application_id);
 
-      // --- CRITICAL LOGGING AROUND EDGE FUNCTION INVOCATION ---
-      console.log('handleSubmit: Attempting to invoke "send-confirmation-email" Edge Function.');
-      const edgeFunctionPayload = {
-        application: {
-          ...form,
-          document_url: academicDocsUrl,
-          application_id: applicationInsertData[0].application_id
-        }
-      };
-      console.log('handleSubmit: Payload being sent to Edge Function:', JSON.stringify(edgeFunctionPayload, null, 2));
-
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-confirmation-email', {
-        body: edgeFunctionPayload,
-      });
-
-      if (emailError) {
-        console.error('handleSubmit: ERROR during Edge Function invocation!', emailError);
-        if (emailError.context && typeof emailError.context === 'object') {
-          console.error('handleSubmit: Edge Function error context:', emailError.context);
-          if (emailError.context.details) {
-            console.error('handleSubmit: Edge Function error context details:', emailError.context.details);
+      // Try to send confirmation email, but don't fail the entire submission if it fails
+      setMessage('Sending confirmation email...');
+      try {
+        const edgeFunctionPayload = {
+          application: {
+            ...form,
+            document_url: academicDocsUrl,
+            application_id: applicationInsertData[0].application_id
           }
-          if (emailError.context.status) {
-            console.error('handleSubmit: Edge Function response status:', emailError.context.status);
-          }
-        }
-        // Set an error message but still allow the success overlay to appear for the main submission success
-        setMessage('Application submitted, but failed to send confirmation email. Please contact support. Error: ' + (emailError.message || 'Unknown email error.'));
-        setSuccessMessageContent('Your application has been submitted, but we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour.');
-        setShowSuccessOverlay(true);
+        };
+        
+        const { error: emailError } = await supabase.functions.invoke('send-confirmation-email', {
+          body: edgeFunctionPayload,
+        });
 
-      } else {
-        console.log('handleSubmit: SUCCESS: Confirmation email function invoked successfully.', emailData);
-        setSuccessMessageContent('Your application has been submitted successfully! \n A confirmation email has been sent to your parent email. \n Your Application will be processed after confirmation of the Application fee: Ugx 50000/= \n For help 0747808222');
-        setShowSuccessOverlay(true); // Show the success overlay
+        if (emailError) {
+          setMessage('Application submitted successfully! However, we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour.');
+          setSuccessMessageContent('Your application has been submitted successfully! \n However, we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour. \n Your Application will be processed after confirmation of the Application fee: Ugx 50000/= \n For help 0747808222');
+        } else {
+          setMessage('Application submitted successfully! A confirmation email has been sent.');
+          setSuccessMessageContent('Your application has been submitted successfully! \n A confirmation email has been sent to your parent email. \n Your Application will be processed after confirmation of the Application fee: Ugx 50000/= \n For help 0747808222');
+        }
+      } catch {
+        setMessage('Application submitted successfully! However, we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour.');
+        setSuccessMessageContent('Your application has been submitted successfully! \n However, we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour. \n Your Application will be processed after confirmation of the Application fee: Ugx 50000/= \n For help 0747808222');
       }
+
+      // Mark submission as completed and show success
+      submissionCompletedRef.current = true;
+      setMessage('Application submitted successfully!');
+      setShowSuccessOverlay(true);
 
       // Reset form fields
       setForm({
@@ -322,17 +279,18 @@ export default function ApplyPage() {
         curriculum: '', curriculumName: '', className: '', parentName: '', parentContact: '', email: '',
         about: '', consent: false, academicDocs: null,
       });
+      
       // Clear the file input field by resetting its value via ref
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
 
     } catch (err) {
-      console.error('handleSubmit: Catch block - General error during application submission:', err);
+      clearTimeout(timeoutId);
       setMessage('Error submitting application: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
+      clearTimeout(timeoutId); // Clear the timeout (redundant but safe)
       setLoading(false);
-      console.log('handleSubmit: Form submission process completed. Loading state set to false.');
     }
   }
 
@@ -367,9 +325,45 @@ export default function ApplyPage() {
           </div>
         )}
 
-        <p className={`mb-4 ${message.startsWith('Error') || message.includes('failed') ? 'text-red-600' : 'text-green-600'}`}>
-          {message}
-        </p>
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg border ${
+            message.startsWith('Error') || message.includes('failed') 
+              ? 'bg-red-50 border-red-200 text-red-700' 
+              : message.includes('successfully') 
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+          }`}>
+            <div className="flex items-center gap-2">
+              {message.includes('successfully') ? (
+                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : message.startsWith('Error') || message.includes('failed') ? (
+                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              <span className="font-medium">{message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Progress indicator during submission */}
+        {loading && !message.includes('successfully') && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700">
+              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="font-medium">Please wait while we process your application...</span>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
         {/* Student Info */}
@@ -453,8 +447,18 @@ export default function ApplyPage() {
           <input type="checkbox" name="consent" checked={form.consent} onChange={handleChange} required />
           <span>I agree to the terms and conditions.</span>
         </label>
-        <button type="submit" disabled={!!loading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
-          {loading ? 'Submitting...' : 'Submit Application'}
+        <button type="submit" disabled={!!loading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
+          {loading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Submitting...
+            </>
+          ) : (
+            'Submit Application'
+          )}
         </button>
       </form>
     </div>

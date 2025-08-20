@@ -1,54 +1,66 @@
-const isProd = process.env.NODE_ENV === 'production';
-
-// Detect Supabase storage host for Next/Image remote patterns
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-let supabaseHost = '';
-try {
-	if (supabaseUrl) {
-		supabaseHost = new URL(supabaseUrl).host;
-	}
-} catch {}
-
-const baseConfig = {
-	images: {
-		remotePatterns: supabaseHost
-			? [
-				{
-					protocol: 'https',
-					hostname: supabaseHost,
-					pathname: '/storage/v1/object/public/**',
-				},
-			]
-			: [],
-	},
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Production optimizations
+  experimental: {
+    // Remove deprecated appDir option - no longer needed in Next.js 14
+  },
+  
+  // Performance optimizations
+  swcMinify: true,
+  compress: true,
+  
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // Environment variables
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  
+  // Image optimization
+  images: {
+    domains: ['localhost'],
+    formats: ['image/webp', 'image/avif'],
+  },
+  
+  // Webpack configuration for production
+  webpack: (config, { dev, isServer }) => {
+    // Production optimizations
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
+    
+    return config;
+  },
 };
 
-/** @type {import('next').NextConfig} */
-const nextConfig = isProd
-  ? {
-		...baseConfig,
-		webpack: (config) => {
-			// Suppress Supabase realtime-js dynamic require warning (prod only)
-			config.ignoreWarnings = config.ignoreWarnings || [];
-			config.ignoreWarnings.push((warning) => {
-				const isCriticalExpr =
-					typeof warning.message === 'string' &&
-					warning.message.includes(
-						'Critical dependency: the request of a dependency is an expression'
-					);
-				const isSupabaseRealtime =
-					warning.module &&
-					warning.module.resource &&
-					/@supabase[\\\/]realtime-js[\\\/]dist[\\\/]module[\\\/]lib[\\\/]websocket-factory\.js$/.test(
-						warning.module.resource
-					);
-				return isCriticalExpr && isSupabaseRealtime;
-			});
-			return config;
-		},
-	}
-  : {
-		...baseConfig,
-	};
-
-export default nextConfig;
+module.exports = nextConfig;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSessionManagement } from '@/hooks/useSessionManagement';
 import { SessionInfo } from '@/lib/services/sessionManager';
 import { Monitor, Smartphone, Tablet, MonitorSmartphone, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -35,27 +35,34 @@ export default function SessionManager({
     extendSession
   } = useSessionManagement();
 
+  // Use refs to store the latest function references to prevent infinite loops
+  const getCurrentSessionRef = useRef(getCurrentSession);
+  const getActiveSessionsRef = useRef(getActiveSessions);
+
+  // Update refs when functions change
+  useEffect(() => {
+    getCurrentSessionRef.current = getCurrentSession;
+    getActiveSessionsRef.current = getActiveSessions;
+  }, [getCurrentSession, getActiveSessions]);
+
   const loadSessions = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('[SessionManager] Loading sessions...');
-      
+      // Loading sessions
       const [current, allSessions] = await Promise.all([
-        getCurrentSession(),
-        getActiveSessions()
+        getCurrentSessionRef.current(),
+        getActiveSessionsRef.current()
       ]);
-      
-      console.log('[SessionManager] Current session:', current);
-      console.log('[SessionManager] All sessions:', allSessions);
-      
+      // Loaded sessions
       setCurrentSession(current);
       setSessions(allSessions);
-    } catch (error) {
-      console.error('[SessionManager] Error loading sessions:', error);
+    } catch (err) {
+      console.error('Failed to load sessions:', err);
+      // Error loading sessions
     } finally {
       setLoading(false);
     }
-  }, [getCurrentSession, getActiveSessions]);
+  }, []); // No dependencies to prevent infinite loops
 
   // Load sessions on component mount
   useEffect(() => {
@@ -81,8 +88,9 @@ export default function SessionManager({
       } else {
         toast({ title: 'Error', description: 'Failed to log out from other devices. Please try again.', variant: 'error' });
       }
-    } catch (error) {
-      console.error('Error force logging out other devices:', error);
+    } catch (err) {
+      console.error('Failed to force logout other devices:', err);
+      // Error force logging out other devices
       toast({ title: 'Error', description: 'An error occurred while logging out from other devices.', variant: 'error' });
     } finally {
       setForceLogoutConfirm(false);
@@ -100,8 +108,9 @@ export default function SessionManager({
         // Redirect to login page
         window.location.href = '/login';
       }
-    } catch (error) {
-      console.error('Error ending current session:', error);
+    } catch (err) {
+      console.error('Failed to end current session:', err);
+      // Error ending current session
       toast({ title: 'Error', description: 'An error occurred while ending the session.', variant: 'error' });
       setEndSessionConfirm(false);
     }
@@ -109,15 +118,16 @@ export default function SessionManager({
 
   const handleExtendSession = async () => {
     try {
-      const success = await extendSession(2.5); // Extend by 2.5 hours
+      const success = await extendSession(); // Extend session
       if (success) {
         toast({ title: 'Success', description: 'Session extended successfully!', variant: 'success' });
         await loadSessions(); // Refresh the list
       } else {
         toast({ title: 'Error', description: 'Failed to extend session. Please try again.', variant: 'error' });
       }
-    } catch (error) {
-      console.error('Error extending session:', error);
+    } catch (err) {
+      console.error('Failed to extend session:', err);
+      // Error extending session
       toast({ title: 'Error', description: 'An error occurred while extending the session.', variant: 'error' });
     }
   };
@@ -226,16 +236,16 @@ export default function SessionManager({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
-                                           {getDeviceIcon(currentSession.device_type)}
+                    {getDeviceIcon(currentSession.device_type)}
                   </div>
                   <div>
-                                         <h4 className="font-medium text-blue-900">Current Session</h4>
-                     <p className="text-sm text-blue-700">
-                       {currentSession.device_name} • {currentSession.browser} on {currentSession.os}
-                     </p>
-                     <p className="text-xs text-blue-600">
-                       Logged in {getTimeAgo(currentSession.login_time)}
-                     </p>
+                    <h4 className="font-medium text-blue-900">Current Session</h4>
+                    <p className="text-sm text-blue-700">
+                      {currentSession.device_name} • {currentSession.browser} on {currentSession.os}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Logged in {getTimeAgo(currentSession.login_time)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -262,13 +272,13 @@ export default function SessionManager({
               <div key={session.session_id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                                         <div className={`p-2 rounded-lg ${
-                       session.session_id === currentSession?.session_id 
-                         ? 'bg-blue-100 text-blue-600' 
-                         : 'bg-gray-100 text-gray-600'
-                     }`}>
-                       {getDeviceIcon(session.device_type)}
-                     </div>
+                    <div className={`p-2 rounded-lg ${
+                      session.session_id === currentSession?.session_id 
+                        ? 'bg-blue-100 text-blue-600' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {getDeviceIcon(session.device_type)}
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-gray-900">
@@ -290,12 +300,12 @@ export default function SessionManager({
                     </div>
                   </div>
                   
-                                     {showDeviceInfo && (
-                     <div className="text-right text-xs text-gray-500">
-                       <div>IP: {session.ip_address || 'Unknown'}</div>
-                       <div>Expires: {formatTime(session.expires_at)}</div>
-                     </div>
-                   )}
+                  {showDeviceInfo && (
+                    <div className="text-right text-xs text-gray-500">
+                      <div>IP: {session.ip_address || 'Unknown'}</div>
+                      <div>Expires: {formatTime(session.expires_at)}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

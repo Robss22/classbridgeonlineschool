@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.order('day_of_week, start_time');
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to fetch timetables', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to fetch timetables', error as unknown as Record<string, unknown>);
     }
 
     // Cache the results
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       .or(`start_time.lt.${body.end_time},end_time.gt.${body.start_time}`);
 
     if (conflictError) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to check for conflicts', conflictError);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to check for conflicts', conflictError as unknown as Record<string, unknown>);
     }
 
     if (conflicts && conflicts.length > 0) {
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to create timetable', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to create timetable', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches
@@ -168,13 +168,13 @@ export async function PUT(request: NextRequest) {
         .from('timetables')
         .select('timetable_id')
         .eq('teacher_id', existing.teacher_id)
-        .eq('day_of_week', body.day_of_week || (existing as any).day_of_week)
+        .eq('day_of_week', body.day_of_week || (existing as Record<string, unknown>).day_of_week)
         .neq('timetable_id', timetableId)
         .eq('is_active', true)
-        .or(`start_time.lt.${body.end_time || (existing as any).end_time},end_time.gt.${body.start_time || (existing as any).start_time}`);
+        .or(`start_time.lt.${body.end_time || (existing as Record<string, unknown>).end_time},end_time.gt.${body.start_time || (existing as Record<string, unknown>).start_time}`);
 
       if (conflictError) {
-        throw errorHandler.createError('DATABASE_ERROR', 'Failed to check for conflicts', conflictError);
+        throw errorHandler.createError('DATABASE_ERROR', 'Failed to check for conflicts', conflictError as unknown as Record<string, unknown>);
       }
 
       if (conflicts && conflicts.length > 0) {
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to update timetable', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to update timetable', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches
@@ -245,7 +245,7 @@ export async function DELETE(request: NextRequest) {
       .eq('timetable_id', timetableId);
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to delete timetable', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to delete timetable', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches

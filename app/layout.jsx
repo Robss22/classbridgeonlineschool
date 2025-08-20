@@ -1,7 +1,4 @@
-import Link from 'next/link'; 
-import Image from 'next/image';
 import './globals.css';
-import ClientLayout from '../components/layout/ClientLayout';
 import AppLayoutWrapper from '../components/layout/AppLayoutWrapper';
 
 export const metadata = {

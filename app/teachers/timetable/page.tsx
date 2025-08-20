@@ -117,8 +117,9 @@ export default function TeacherTimetablePage() {
 
       if (lcError) throw lcError;
       setLiveClasses((data || []) as unknown as LiveClass[]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load timetable');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage || 'Failed to load timetable');
     }
   }, [teacherId, currentWeekStart]);
 
@@ -140,7 +141,7 @@ export default function TeacherTimetablePage() {
         }
       }
       setAutoStartStatus('idle');
-    } catch (e) {
+    } catch {
       setAutoStartStatus('error');
       setTimeout(() => setAutoStartStatus('idle'), 3000);
     }

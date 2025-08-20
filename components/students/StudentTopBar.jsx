@@ -1,7 +1,7 @@
 'use client';
+import Image from 'next/image';
 import { useStudent } from '@/contexts/StudentContext';
-import { Bell, LogOut, Menu, X } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { Menu, X } from 'lucide-react';
 import StudentNotifications from './StudentNotifications';
 
 export default function StudentTopBar({ isMobileMenuOpen, onMobileMenuToggle }) {
@@ -57,7 +57,7 @@ export default function StudentTopBar({ isMobileMenuOpen, onMobileMenuToggle }) 
           <StudentNotifications />
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gray-200 border-2 border-blue-200 flex items-center justify-center overflow-hidden">
             {photoUrl ? (
-              <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+              <Image src={photoUrl} alt="Profile" className="w-full h-full object-cover" width={64} height={64} />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-blue-400 to-green-400 flex items-center justify-center text-white font-bold text-lg">
                 {displayName.charAt(0).toUpperCase()}

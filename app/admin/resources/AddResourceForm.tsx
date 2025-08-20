@@ -5,19 +5,19 @@ import { supabase } from '@/lib/supabaseClient';
 import FileUpload from '@/components/FileUpload';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function AddResourceForm({ onClose, resource }: { onClose: () => void, resource?: any }) {
+export default function AddResourceForm({ onClose, resource }: { onClose: () => void, resource?: Record<string, unknown> }) {
   const { user } = useAuth();
   const [hydrated, setHydrated] = useState(false);
   const [programs, setPrograms] = useState<{ program_id: string; name: string }[]>([]);
   const [levels, setLevels] = useState<{ level_id: string; name: string }[]>([]);
-  const [selectedProgram, setSelectedProgram] = useState(resource?.program_id || '');
-  const [selectedLevel, setSelectedLevel] = useState(resource?.level_id || '');
-  const [selectedSubjectOfferingId, setSelectedSubjectOfferingId] = useState(resource?.subject_id || '');
-  const [actualSubjectId, setActualSubjectId] = useState('');
-  const [selectedPaper, setSelectedPaper] = useState(resource?.paper_id || '');
-  const [title, setTitle] = useState(resource?.title || '');
-  const [description, setDescription] = useState(resource?.description || '');
-  const [url, setUrl] = useState(resource?.url || '');
+  const [selectedProgram, setSelectedProgram] = useState<string>(String(resource?.program_id || ''));
+  const [selectedLevel, setSelectedLevel] = useState<string>(String(resource?.level_id || ''));
+  const [selectedSubjectOfferingId, setSelectedSubjectOfferingId] = useState<string>(String(resource?.subject_id || ''));
+  const [actualSubjectId, setActualSubjectId] = useState<string>('');
+  const [selectedPaper, setSelectedPaper] = useState<string>(String(resource?.paper_id || ''));
+  const [title, setTitle] = useState<string>(String(resource?.title || ''));
+  const [description, setDescription] = useState<string>(String(resource?.description || ''));
+  const [url, setUrl] = useState<string>(String(resource?.url || ''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fileUrl, setFileUrl] = useState('');
@@ -29,8 +29,8 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
     { value: 'video', label: 'Video' },
     { value: 'link', label: 'Link' },
   ];
-  const [resourceType, setResourceType] = useState(resource?.type || 'pdf');
-  const [subjectOfferings, setSubjectOfferings] = useState<any[]>([]);
+  const [resourceType, setResourceType] = useState<string>(String(resource?.type || 'pdf'));
+  const [subjectOfferings, setSubjectOfferings] = useState<Record<string, unknown>[]>([]);
   const [subjectsForDropdown, setSubjectsForDropdown] = useState<{ subject_offering_id: string; subject_id: string; name: string }[]>([]);
   const [papersForDropdown, setPapersForDropdown] = useState<{ paper_id: string; paper_code: string; paper_name: string }[]>([]);
 
@@ -38,62 +38,47 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
     p => p.program_id === selectedProgram && (p.name?.toLowerCase().includes('uneb') || p.name?.toLowerCase().includes('cambridge'))
   );
 
-  console.log('🔍 [AddResourceForm] Program academic check:', { 
-    selectedProgram, 
-    programs: programs.map(p => ({ id: p.program_id, name: p.name })),
-    currentProgramIsAcademic: currentProgramIsAcademic ? { id: currentProgramIsAcademic.program_id, name: currentProgramIsAcademic.name } : null
-  });
+
 
   useEffect(() => { 
     setHydrated(true); 
-    console.log('🔄 [AddResourceForm] Component hydrated');
   }, []);
 
   useEffect(() => {
-    console.log('🔄 [AddResourceForm] Resource prop changed:', resource);
+    // Resource prop changed
   }, [resource]);
 
   useEffect(() => {
     if (!hydrated) return;
-    console.log('🔍 [AddResourceForm] Fetching programs...');
     supabase.from('programs').select('program_id, name').then(({ data, error }) => {
       if (error) { 
-        console.error('❌ [AddResourceForm] Supabase error fetching programs:', error); 
-      } else {
-        console.log('✅ [AddResourceForm] Programs fetched:', data);
+        // Handle error silently
       }
       setPrograms(data || []);
-      if (resource?.program_id) {
-        setSelectedProgram(resource.program_id);
-      }
+              if (resource?.program_id) {
+          setSelectedProgram(String(resource.program_id));
+        }
     });
   }, [resource, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
-    console.log('🔍 [AddResourceForm] Checking program selection:', { selectedProgram, programs: programs.length });
     if (!selectedProgram) {
-      console.log('⚠️ [AddResourceForm] No program selected, clearing dependent data');
       setLevels([]); setSelectedLevel('');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
       return;
     }
-    console.log('🔍 [AddResourceForm] Current program is academic:', currentProgramIsAcademic);
     if (currentProgramIsAcademic) {
-      console.log('🔍 [AddResourceForm] Fetching levels for academic program:', selectedProgram);
       supabase.from('levels').select('level_id, name').eq('program_id', selectedProgram).then(({ data, error }) => {
         if (error) { 
-          console.error('❌ [AddResourceForm] Supabase error fetching levels:', error); 
-        } else {
-          console.log('✅ [AddResourceForm] Levels fetched:', data);
+          // Handle error silently
         }
         setLevels(data || []);
         if (resource?.level_id) {
-          setSelectedLevel(resource.level_id);
+          setSelectedLevel(String(resource.level_id));
         }
       });
     } else {
-      console.log('⚠️ [AddResourceForm] Non-academic program, clearing level-dependent data');
       setLevels([]); setSelectedLevel('');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
     }
@@ -101,13 +86,10 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
 
   useEffect(() => {
     if (!hydrated) return;
-    console.log('🔍 [AddResourceForm] Checking level and program for subject offerings:', { selectedLevel, selectedProgram, currentProgramIsAcademic });
     if (!selectedLevel || !currentProgramIsAcademic || !selectedProgram) {
-      console.log('⚠️ [AddResourceForm] Missing requirements for subject offerings, clearing data');
       setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
       return;
     }
-    console.log('🔍 [AddResourceForm] Fetching subject offerings for level:', selectedLevel, 'program:', selectedProgram);
     supabase
       .from('subject_offerings')
       .select('id, subject_id, is_compulsory')
@@ -115,40 +97,35 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
       .eq('program_id', selectedProgram)
       .then(async ({ data: offerings, error }) => {
         if (error) { 
-          console.error('❌ [AddResourceForm] Supabase error fetching subject_offerings:', error); 
-        } else {
-          console.log('✅ [AddResourceForm] Subject offerings fetched:', offerings);
+          // Handle error silently
         }
         if (!offerings || offerings.length === 0) {
-          console.log('⚠️ [AddResourceForm] No subject offerings found');
           setSubjectOfferings([]); setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
           return;
         }
         // Normalize to include subject_offering_id expected by UI
-        const normalized = (offerings || []).map((o: any) => ({ ...o, subject_offering_id: o.id }));
+        const normalized = (offerings || []).map((o: Record<string, unknown>) => ({ 
+          ...o, 
+          subject_offering_id: o.id,
+          subject_id: o.subject_id 
+        }));
         setSubjectOfferings(normalized);
-        const subjectIds = normalized.map(so => so.subject_id).filter(Boolean);
-        console.log('🔍 [AddResourceForm] Subject IDs extracted:', subjectIds);
+        const subjectIds = normalized.map(so => so.subject_id as string).filter(Boolean);
         if (!subjectIds.length) {
-          console.log('⚠️ [AddResourceForm] No valid subject IDs found');
           setSubjectsForDropdown([]); setSelectedSubjectOfferingId(''); setActualSubjectId(''); setPapersForDropdown([]); setSelectedPaper('');
           return;
         }
-        console.log('🔍 [AddResourceForm] Fetching subjects for IDs:', subjectIds);
         const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
           .select('subject_id, name')
           .in('subject_id', subjectIds);
         if (subjectsError) { 
-          console.error('❌ [AddResourceForm] Supabase error fetching subjects:', subjectsError); 
-        } else {
-          console.log('✅ [AddResourceForm] Subjects fetched:', subjectsData);
+          // Handle error silently
         }
         const mappedSubjects = (normalized || []).map(offering => {
-          const subj = (subjectsData || []).find(s => s.subject_id === offering.subject_id);
-          return subj ? { subject_offering_id: offering.subject_offering_id, subject_id: offering.subject_id, name: subj.name } : null;
+          const subj = (subjectsData || []).find(s => s.subject_id === (offering.subject_id as string));
+          return subj ? { subject_offering_id: offering.subject_offering_id as string, subject_id: offering.subject_id as string, name: subj.name } : null;
         }).filter((item): item is { subject_offering_id: string; subject_id: string; name: string } => item !== null);
-        console.log('✅ [AddResourceForm] Mapped subjects for dropdown:', mappedSubjects);
         setSubjectsForDropdown(mappedSubjects);
         if (resource && resource.subject_id && resource.level_id === selectedLevel && resource.program_id === selectedProgram) {
           const initialOffering = mappedSubjects.find(s => s.subject_id === resource.subject_id);
@@ -163,35 +140,28 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
 
   useEffect(() => {
     if (!hydrated) return;
-    console.log('🔍 [AddResourceForm] Checking subject offering for papers:', { selectedSubjectOfferingId, subjectOfferings: subjectOfferings.length });
     if (!selectedSubjectOfferingId) {
-      console.log('⚠️ [AddResourceForm] No subject offering selected, clearing papers');
       setPapersForDropdown([]);
       setSelectedPaper('');
       return;
     }
     const selectedOffering = subjectOfferings.find(so => so.subject_offering_id === selectedSubjectOfferingId);
-    console.log('🔍 [AddResourceForm] Selected offering:', selectedOffering);
     if (!selectedOffering || !selectedOffering.subject_id) {
-      console.log('⚠️ [AddResourceForm] Invalid selected offering, clearing papers');
       setPapersForDropdown([]);
       setSelectedPaper('');
       return;
     }
-    console.log('🔍 [AddResourceForm] Fetching papers for subject:', selectedOffering.subject_id);
     supabase
       .from('subject_papers')
       .select('paper_id, paper_code, paper_name')
-      .eq('subject_id', selectedOffering.subject_id)
+      .eq('subject_id', selectedOffering.subject_id as string)
       .then(({ data: papersData, error: papersError }) => {
         if (papersError) { 
-          console.error('❌ [AddResourceForm] Supabase error fetching papers:', papersError); 
-        } else {
-          console.log('✅ [AddResourceForm] Papers fetched:', papersData);
+          // Handle error silently
         }
         setPapersForDropdown(papersData || []);
         if (resource && resource.paper_id && (papersData || []).some(p => p.paper_id === resource.paper_id)) {
-          setSelectedPaper(resource.paper_id);
+          setSelectedPaper(String(resource.paper_id));
         }
       });
   }, [selectedSubjectOfferingId, subjectOfferings, resource, hydrated]);
@@ -223,7 +193,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError('');
-    let resourceUrl = url || fileUrl || resource?.url;
+    const resourceUrl = url || fileUrl || String(resource?.url || '');
     if (!resourceUrl) {
       setError('Please provide a file or a URL.');
       setLoading(false);
@@ -276,7 +246,7 @@ export default function AddResourceForm({ onClose, resource }: { onClose: () => 
     if (resource) {
       const { error: updateError } = await supabase.from('resources').update(
         normalizeForInsert<TablesInsert<'resources'>>(resourceData, allowedFields)
-      ).eq('resource_id', resource.resource_id);
+      ).eq('resource_id', resource.resource_id as string);
       if (updateError) {
         setError('Failed to update resource: ' + (updateError.message || 'Unknown error'));
         setLoading(false);

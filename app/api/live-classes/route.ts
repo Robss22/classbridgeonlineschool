@@ -45,7 +45,7 @@ const platformConfig = {
 };
 
 // Generate a meeting link based on platform with enhanced security
-function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string, config: any } {
+function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, platform: string, config: Record<string, unknown> } {
   const platformKey = (platform || 'Jitsi Meet').toLowerCase();
   
   switch (platformKey) {
@@ -187,7 +187,7 @@ export async function PUT(request: NextRequest) {
       .select()
       .single();
 
-    console.log('[API] Supabase update result:', { data, error });
+    // Supabase update result
     if (error) throw error;
 
     // Send notifications based on status change
@@ -210,7 +210,7 @@ export async function PUT(request: NextRequest) {
     // If class is being completed, terminate the meeting
     if (status === 'completed') {
       try {
-        console.log(`[API] Class completed, terminating meeting for live class: ${id}`);
+        // Class completed, terminating meeting
         
         // Terminate the meeting
         const terminationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/live-classes/terminate-meeting`, {
@@ -223,20 +223,19 @@ export async function PUT(request: NextRequest) {
         });
 
         if (terminationResponse.ok) {
-          const terminationResult = await terminationResponse.json();
-          console.log(`[API] Meeting terminated successfully:`, terminationResult.message);
+          await terminationResponse.json();
+          // Meeting terminated successfully
         } else {
-          console.warn('[API] Failed to terminate meeting:', await terminationResponse.text());
+          // Failed to terminate meeting
         }
-      } catch (terminationError) {
-        console.warn('Failed to terminate meeting:', terminationError);
+      } catch {
+        // Failed to terminate meeting
         // Don't fail the entire request if meeting termination fails
       }
     }
 
     return NextResponse.json({ data, success: true });
   } catch (error) {
-    console.error('[API] Error in PUT /api/live-classes:', error);
     const appError = errorHandler.handleSupabaseError(error, 'update_live_class', '');
     return NextResponse.json(
       { error: appError.message, success: false },
@@ -276,11 +275,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
       waiting_room_enabled = true
     } = body;
 
-    console.log('[API] POST /api/live-classes body:', body);
+    // Create live class request body
 
     // Validate required fields
     if (!title || !scheduled_date || !start_time || !end_time || !subject_id || !level_id || !teacher_id || !program_id) {
-      console.error('[API] Missing required fields', { title, scheduled_date, start_time, end_time, subject_id, level_id, teacher_id, program_id });
+      // Missing required fields
       return NextResponse.json(
         { error: 'Missing required fields', success: false },
         { status: 400 }
@@ -319,7 +318,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
       .select()
       .single();
 
-    console.log('[API] Supabase insert result:', { data, error });
+    // Supabase insert result
     if (error) throw error;
 
     // Schedule notifications (only if app URL is configured)
@@ -337,23 +336,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
                   recipients: 'both'
                 })
               });
-            } catch (e) {
+            } catch {
               // avoid crashing server on missing URL in dev
-              console.warn('Notification request failed:', e);
             }
           }, delayMs);
         };
 
         await notify(30 * 60 * 1000, 'reminder_30min');
         await notify(5 * 60 * 1000, 'reminder_5min');
-      } catch (notifError) {
-        console.warn('Failed to schedule notifications:', notifError);
+      } catch {
       }
     }
 
     return NextResponse.json({ data, success: true });
   } catch (error) {
-    console.error('[API] Error in POST /api/live-classes:', error);
     const appError = errorHandler.handleSupabaseError(error, 'create_live_class', '');
     return NextResponse.json(
       { error: appError.message, success: false },

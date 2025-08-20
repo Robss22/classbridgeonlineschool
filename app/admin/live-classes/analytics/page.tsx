@@ -25,6 +25,37 @@ import {
   Calendar
 } from 'lucide-react';
 
+interface LiveClass {
+  live_class_id: string;
+  title: string;
+  description: string;
+  scheduled_date: string;
+  start_time: string;
+  end_time: string;
+  meeting_link: string;
+  meeting_platform: string;
+  status: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  teacher_id: string;
+  program_id: string;
+  level_id: string;
+  subject_id: string;
+  paper_id: string;
+  live_class_participants?: LiveClassParticipant[];
+}
+
+interface LiveClassParticipant {
+  participant_id: string;
+  user_id: string;
+  live_class_id: string;
+  duration_minutes?: number;
+  connection_quality?: 'good' | 'fair' | 'poor';
+  participation_score?: number;
+  audio_enabled?: boolean;
+  video_enabled?: boolean;
+}
+
 interface AnalyticsData {
   totalClasses: number;
   totalParticipants: number;
@@ -71,7 +102,7 @@ export default function LiveClassAnalyticsPage() {
     return 'Below 60%';
   }, []);
 
-  const calculateAttendanceTrend = useCallback((liveClasses: any[]): Array<{ date: string; attendance: number; classes: number }> => {
+  const calculateAttendanceTrend = useCallback((liveClasses: LiveClass[]): Array<{ date: string; attendance: number; classes: number }> => {
     const trend: { [key: string]: { attendance: number; classes: number } } = {};
     
     liveClasses.forEach(liveClass => {
@@ -90,20 +121,20 @@ export default function LiveClassAnalyticsPage() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, []);
 
-  const processAnalyticsData = useCallback((liveClasses: any[]): AnalyticsData => {
+  const processAnalyticsData = useCallback((liveClasses: LiveClass[]): AnalyticsData => {
     let totalParticipants = 0;
     let totalDuration = 0;
-    let connectionQuality = { good: 0, fair: 0, poor: 0 };
-    let platformUsage = { 'Jitsi Meet': 0, 'Google Meet': 0, 'Zoom': 0 };
-    let participationScores: { [key: string]: number } = {};
-    let technicalIssues: { [key: string]: number } = {};
+    const connectionQuality = { good: 0, fair: 0, poor: 0 };
+    const platformUsage = { 'Jitsi Meet': 0, 'Google Meet': 0, 'Zoom': 0 };
+    const participationScores: { [key: string]: number } = {};
+    const technicalIssues: { [key: string]: number } = {};
 
     // Process each class
     liveClasses.forEach(liveClass => {
       platformUsage[liveClass.meeting_platform as keyof typeof platformUsage]++;
       
       if (liveClass.live_class_participants) {
-        liveClass.live_class_participants.forEach((participant: any) => {
+        liveClass.live_class_participants.forEach((participant: LiveClassParticipant) => {
           totalParticipants++;
           
           if (participant.duration_minutes) {
@@ -165,17 +196,33 @@ export default function LiveClassAnalyticsPage() {
 
       if (classesError) throw classesError;
 
-      // For now, use empty participants data until the table is created
-      const liveClassesWithParticipants = liveClasses?.map(liveClass => ({
-        ...liveClass,
+      // Transform database data to match LiveClass interface
+      const liveClassesWithParticipants: LiveClass[] = ((liveClasses || []) as Array<Record<string, unknown>>).map((liveClass) => ({
+        live_class_id: String(liveClass.live_class_id || ''),
+        title: String(liveClass.title || ''),
+        description: String(liveClass.description || ''),
+        scheduled_date: String(liveClass.scheduled_date || ''),
+        start_time: String(liveClass.start_time || ''),
+        end_time: String(liveClass.end_time || ''),
+        meeting_link: String(liveClass.meeting_link || ''),
+        meeting_platform: String(liveClass.meeting_platform || ''),
+        status: String(liveClass.status || ''),
+        started_at: (liveClass.started_at as string | null) ?? null,
+        ended_at: (liveClass.ended_at as string | null) ?? null,
+        teacher_id: String(liveClass.teacher_id || ''),
+        program_id: String(liveClass.program_id || ''),
+        level_id: String(liveClass.level_id || ''),
+        subject_id: String(liveClass.subject_id || ''),
+        paper_id: String(liveClass.paper_id || ''),
         live_class_participants: []
-      })) || [];
+      }));
 
       // Process analytics data
       const processedData = processAnalyticsData(liveClassesWithParticipants);
       setAnalyticsData(processedData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch analytics');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch analytics';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

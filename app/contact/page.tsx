@@ -32,8 +32,9 @@ export default function ContactPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to send message.');
       setSubmitted(true);
       setFormData({ name: '', email: '', phone: '', message: '' });
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to send message.');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send message.';
+      setErrorMsg(errorMessage);
     } finally {
       setSubmitting(false);
     }

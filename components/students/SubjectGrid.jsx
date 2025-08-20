@@ -8,7 +8,7 @@ export default function SubjectGrid({ subjects }) {
         <div className="text-gray-400">No enrolled subjects found.</div>
       ) : (
         <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          {subjects.map((s, i) => (
+          {subjects.map((s) => (
             <div key={s.subject_id} className="bg-white border rounded-xl shadow p-3 sm:p-4 flex flex-col gap-2 hover:shadow-lg transition">
               <div className="text-base sm:text-lg font-bold text-blue-800 flex items-center gap-2">
                 <span role="img" aria-label="Subject">📚</span> {s.name}

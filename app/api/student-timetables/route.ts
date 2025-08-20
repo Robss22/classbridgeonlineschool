@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.order('created_at');
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to fetch student timetables', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to fetch student timetables', error as unknown as Record<string, unknown>);
     }
 
     // Cache the results
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to create student timetable assignment', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to create student timetable assignment', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches
@@ -170,7 +170,7 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to update student timetable assignment', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to update student timetable assignment', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches
@@ -211,7 +211,7 @@ export async function DELETE(request: NextRequest) {
       .eq('id', assignmentId);
 
     if (error) {
-      throw errorHandler.createError('DATABASE_ERROR', 'Failed to delete student timetable assignment', error);
+      throw errorHandler.createError('DATABASE_ERROR', 'Failed to delete student timetable assignment', error as unknown as Record<string, unknown>);
     }
 
     // Clear related caches

@@ -28,9 +28,12 @@ export default function LiveClassForm({ level_id, program_id, subject_id, onClos
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [levels, setLevels] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [programs, setPrograms] = useState<any[]>([]);
+  type ProgramRow = { program_id: string; name?: string | null };
+  type LevelRow = { level_id: string; name?: string | null };
+  type SubjectRow = { subject_id: string; name?: string | null };
+  const [levels, setLevels] = useState<LevelRow[]>([]);
+  const [subjects, setSubjects] = useState<SubjectRow[]>([]);
+  const [programs, setPrograms] = useState<ProgramRow[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,9 +48,9 @@ export default function LiveClassForm({ level_id, program_id, subject_id, onClos
         if (subjectsRes.error) throw new Error('Error fetching subjects: ' + subjectsRes.error.message);
         if (programsRes.error) throw new Error('Error fetching programs: ' + programsRes.error.message);
 
-        setLevels(levelsRes.data || []);
-        setSubjects(subjectsRes.data || []);
-        setPrograms(programsRes.data || []);
+        setLevels((levelsRes.data || []) as unknown as LevelRow[]);
+        setSubjects((subjectsRes.data || []) as unknown as SubjectRow[]);
+        setPrograms((programsRes.data || []) as unknown as ProgramRow[]);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'An error occurred');
       }

@@ -18,29 +18,32 @@ export default async function AdminLiveClassesPage() {
       .order('start_time', { ascending: true })
   ]);
 
-  const normalize = (rows: any[] = []): LiveClass[] => rows.map((row: any) => ({
-    live_class_id: row.live_class_id ?? '',
-    title: row.title ?? '',
-    description: row.description ?? '',
-    scheduled_date: row.scheduled_date ?? '',
-    start_time: row.start_time ?? '',
-    end_time: row.end_time ?? '',
-    meeting_link: row.meeting_link ?? '',
-    meeting_platform: row.meeting_platform ?? 'Zoom',
-    status: row.status ?? 'scheduled',
-    started_at: row.started_at ?? null,
-    ended_at: row.ended_at ?? null,
-    teacher_id: row.teacher_id ?? '',
-    level_id: row.level_id ?? '',
-    subject_id: row.subject_id ?? '',
-    program_id: row.program_id ?? '',
-    paper_id: row.paper_id ?? '',
-    teachers: row.teachers ?? undefined,
-    levels: row.levels ?? undefined,
-    subjects: row.subjects ?? undefined,
-    programs: row.programs ?? undefined,
-    papers: row.papers ?? undefined,
-  }));
+  const normalize = (rows: unknown[] = []): LiveClass[] => rows.map((row: unknown) => {
+    const typedRow = row as Record<string, unknown>;
+    return {
+      live_class_id: (typedRow.live_class_id as string) || '',
+      title: (typedRow.title as string) || '',
+      description: (typedRow.description as string) || '',
+      scheduled_date: (typedRow.scheduled_date as string) || '',
+      start_time: (typedRow.start_time as string) || '',
+      end_time: (typedRow.end_time as string) || '',
+      meeting_link: (typedRow.meeting_link as string) || '',
+      meeting_platform: (typedRow.meeting_platform as string) || 'Zoom',
+      status: (typedRow.status as string) || 'scheduled',
+      started_at: (typedRow.started_at as string | null) || null,
+      ended_at: (typedRow.ended_at as string | null) || null,
+      teacher_id: (typedRow.teacher_id as string) || '',
+      level_id: (typedRow.level_id as string) || '',
+      subject_id: (typedRow.subject_id as string) || '',
+      program_id: (typedRow.program_id as string) || '',
+      paper_id: (typedRow.paper_id as string) || '',
+      teachers: typedRow.teachers as { users?: { first_name: string; last_name: string } } || undefined,
+      levels: typedRow.levels as { name: string } || undefined,
+      subjects: typedRow.subjects as { name: string } || undefined,
+      programs: typedRow.programs as { name: string } || undefined,
+      papers: (typedRow.papers ? (typedRow.papers as { paper_name: string; paper_code: string }) : { paper_name: '', paper_code: '' }),
+    };
+  });
 
   const initialLiveClasses = normalize(liveRes.data || []);
   const levels = levelsRes.data || [];

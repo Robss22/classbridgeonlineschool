@@ -88,37 +88,37 @@ export function TeacherProvider({ children }: { children: React.ReactNode }) {
       console.log('🔍 [TeacherContext] Raw assignments data:', assignmentsData);
 
       // Helper functions to extract names from joined data
-      const getSubjectName = (subjects: any): string | undefined => {
+      const getSubjectName = (subjects: Record<string, unknown>): string | undefined => {
         if (Array.isArray(subjects) && subjects.length > 0) {
-          return subjects[0]?.name;
+          return (subjects[0] as Record<string, unknown>)?.name as string;
         }
-        return subjects?.name;
+        return (subjects as Record<string, unknown>)?.name as string;
       };
       
-      const getLevelName = (levels: any): string | undefined => {
+      const getLevelName = (levels: Record<string, unknown>): string | undefined => {
         if (Array.isArray(levels) && levels.length > 0) {
-          return levels[0]?.name;
+          return (levels[0] as Record<string, unknown>)?.name as string;
         }
-        return levels?.name;
+        return (levels as Record<string, unknown>)?.name as string;
       };
       
-      const getProgramName = (programs: any): string | undefined => {
+      const getProgramName = (programs: Record<string, unknown>): string | undefined => {
         if (Array.isArray(programs) && programs.length > 0) {
-          return programs[0]?.name;
+          return (programs[0] as Record<string, unknown>)?.name as string;
         }
-        return programs?.name;
+        return (programs as Record<string, unknown>)?.name as string;
       };
 
       // Process assignments to extract unique subjects, levels, and programs
-      const processedAssignments: any[] = [];
+      const processedAssignments: Array<Record<string, unknown>> = [];
       const uniqueSubjects = new Set<string>();
       const uniqueLevels = new Set<string>();
       const uniquePrograms = new Set<string>();
 
-      (assignmentsData || []).forEach((assignment: any, index: number) => {
-        const subjectName = getSubjectName(assignment.subjects);
-        const levelName = getLevelName(assignment.levels);
-        const programName = getProgramName(assignment.programs);
+      (assignmentsData || []).forEach((assignment: Record<string, unknown>, index: number) => {
+        const subjectName = getSubjectName(assignment.subjects as Record<string, unknown>);
+        const levelName = getLevelName(assignment.levels as Record<string, unknown>);
+        const programName = getProgramName(assignment.programs as Record<string, unknown>);
 
         console.log(`🔍 [TeacherContext] Extracted names - Subject: ${subjectName}, Level: ${levelName}, Program: ${programName}`);
 
@@ -128,7 +128,7 @@ export function TeacherProvider({ children }: { children: React.ReactNode }) {
             level_id: assignment.level_id,
             subject_name: subjectName,
             level_name: levelName,
-            program_name: programName || (teacherRecord?.programs as any)?.name || '',
+            program_name: programName || ((teacherRecord?.programs as Record<string, unknown>)?.name as string) || '',
           });
 
           uniqueSubjects.add(subjectName);
@@ -150,13 +150,14 @@ export function TeacherProvider({ children }: { children: React.ReactNode }) {
         uniquePrograms: Array.from(uniquePrograms)
       });
 
-      setAssignments(processedAssignments);
+      setAssignments(processedAssignments as unknown as TeacherAssignment[]);
       setSubjects(Array.from(uniqueSubjects));
       setLevels(Array.from(uniqueLevels));
       setPrograms(Array.from(uniquePrograms));
 
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch assignments');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage || 'Failed to fetch assignments');
       console.error('Error fetching teacher assignments:', err);
     } finally {
       setLoading(false);

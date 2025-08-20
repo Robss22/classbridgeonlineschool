@@ -53,8 +53,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const publicUrl = publicData.publicUrl;
       onUpload(publicUrl);
       setUploaded(true);
-    } catch (err: any) {
-      setError(err.message || "Upload failed");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage || "Upload failed");
       setUploaded(false);
     } finally {
       setUploading(false);

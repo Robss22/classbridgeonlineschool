@@ -1,160 +1,148 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, Video, Clock, X, CheckCircle } from 'lucide-react';
-import { format, addMinutes } from 'date-fns';
+import { supabase } from '@/lib/supabaseClient';
+import { Bell, X, Check } from 'lucide-react';
 
-interface LiveClassNotification {
-  live_class_id: string;
-  title: string;
-  scheduled_date: string;
-  start_time: string;
-  end_time: string;
-  meeting_link: string;
-  subjects?: { name: string };
-  teachers?: { 
-    users?: { 
-      first_name: string; 
-      last_name: string 
-    } 
-  };
-}
-
-interface Notification {
+interface Message {
   id: string;
-  type: 'live_class' | 'general';
   title: string;
-  message: string;
-  timestamp: string;
+  body: string;
+  created_at: string;
   read: boolean;
-  action_url?: string;
-  live_class?: LiveClassNotification;
+  message_type?: string;
+  sender_type?: string;
+  recipient_type?: string;
 }
 
 export default function StudentNotifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const fetchMessages = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('recipient_id', user.id)
+        .eq('recipient_type', 'student')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      const messageList = (data || []).map((msg: Record<string, unknown>) => ({
+        id: String(msg.id || ''),
+        title: (() => {
+          const title = msg.subject || msg.body || 'Message';
+          const titleStr = typeof title === 'string' ? title : String(title);
+          return titleStr.length > 50 ? titleStr.substring(0, 50) : titleStr;
+        })(),
+        body: String(msg.body || ''),
+        created_at: String(msg.created_at || ''),
+        read: Boolean(msg.read || false),
+        message_type: String(msg.message_type || 'general'),
+        sender_type: String(msg.sender_type || 'system'),
+        recipient_type: String(msg.recipient_type || 'student')
+      })) as Message[];
+
+      setMessages(messageList);
+      setUnreadCount(messageList.filter((msg) => !msg.read).length);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
-
-    const fetchNotifications = async () => {
-      try {
-        setLoading(true);
-        
-        // Get student's program
-        const { data: authUser } = await supabase.auth.getUser();
-        if (!authUser?.user?.id) return;
-        
-        const userId = authUser.user.id;
-        
-        const { data: userData } = await supabase
-          .from('users')
-          .select('curriculum')
-          .eq('id', userId)
-          .single();
-        
-        const programId = userData?.curriculum;
-        
-        if (!programId) return;
-
-        // Fetch upcoming live classes for notifications
-        const now = new Date();
-        const thirtyMinutesFromNow = addMinutes(now, 30);
-        
-        const { data: liveClassData } = await supabase
-          .from('live_classes')
-          .select(`
-            live_class_id,
-            title,
-            scheduled_date,
-            start_time,
-            end_time,
-            meeting_link,
-            subjects:subject_id (name),
-            teachers:teacher_id (
-              users:user_id (first_name, last_name)
-            )
-          `)
-          .eq('program_id', programId)
-          .gte('scheduled_date', format(now, 'yyyy-MM-dd'))
-          .lte('scheduled_date', format(now, 'yyyy-MM-dd'))
-          .gte('start_time', format(now, 'HH:mm:ss'))
-          .lte('start_time', format(thirtyMinutesFromNow, 'HH:mm:ss'))
-          .eq('status', 'scheduled')
-          .order('start_time', { ascending: true });
-
-        // Create live class notifications
-        const liveClassNotifications: Notification[] = (liveClassData as any[] || []).map((liveClass: any) => {
-          const startTime = new Date(`${liveClass.scheduled_date}T${liveClass.start_time}`);
-          const timeUntilStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
-          
-          return {
-            id: `live_${liveClass.live_class_id}`,
-            type: 'live_class',
-            title: 'Live Class Starting Soon',
-            message: `${(liveClass.title || 'Live Class')} starts in ${timeUntilStart} minutes`,
-            timestamp: new Date().toISOString(),
-            read: false,
-            action_url: liveClass.meeting_link,
-            live_class: liveClass as LiveClassNotification
-          };
-        });
-
-        // Combine with any existing notifications
-        const allNotifications = [...liveClassNotifications];
-        setNotifications(allNotifications);
-        setUnreadCount(allNotifications.filter(n => !n.read).length);
-
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-
-    // Set up interval to check for new notifications every minute
-    const interval = setInterval(fetchNotifications, 60000);
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notificationId ? { ...n, read: true } : n
-      )
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setUnreadCount(0);
-  };
-
-  const getNotificationIcon = (notification: Notification) => {
-    if (notification.type === 'live_class') {
-      return <Video className="w-5 h-5 text-blue-600" />;
-    }
-    return <Bell className="w-5 h-5 text-gray-600" />;
-  };
-
-  const getTimeUntilClass = (liveClass: LiveClassNotification) => {
-    const now = new Date();
-    const startTime = new Date(`${liveClass.scheduled_date}T${liveClass.start_time}`);
-    const timeUntilStart = Math.floor((startTime.getTime() - now.getTime()) / (1000 * 60));
+    fetchMessages();
     
-    if (timeUntilStart <= 0) return 'Starting now';
-    if (timeUntilStart < 60) return `${timeUntilStart} minutes`;
-    const hours = Math.floor(timeUntilStart / 60);
-    const minutes = timeUntilStart % 60;
-    return `${hours}h ${minutes}m`;
+    // Set up real-time updates for messages
+    const channel = supabase
+      .channel('messages_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        () => {
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchMessages]);
+
+  const markAsRead = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ 
+          read: true, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, read: true }
+            : msg
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ 
+          read: true, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('recipient_id', user?.id || '')
+        .eq('read', false);
+
+      if (error) throw error;
+
+      setMessages(prev => 
+        prev.map(msg => ({ ...msg, read: true }))
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all messages as read:', error);
+    }
+  };
+
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMinutes > 0) return `${diffMinutes}m ago`;
+    return 'Just now';
   };
 
   if (!user) return null;
@@ -163,10 +151,11 @@ export default function StudentNotifications() {
     <div className="relative">
       {/* Notification Bell */}
       <button
-        onClick={() => setShowNotifications(!showNotifications)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        aria-label="Notifications"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -174,100 +163,78 @@ export default function StudentNotifications() {
         )}
       </button>
 
-      {/* Notifications Dropdown */}
-      {showNotifications && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+      {/* Dropdown */}
+      {showDropdown && (
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Mark all read
-                </button>
-              )}
+              <button
+                onClick={() => setShowDropdown(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                className="text-sm text-blue-600 hover:text-blue-800 mt-2"
+              >
+                Mark all as read
+              </button>
+            )}
           </div>
 
           <div className="p-2">
             {loading ? (
-              <div className="text-center py-4 text-gray-500">Loading...</div>
-            ) : notifications.length === 0 ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Bell className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>No notifications</p>
+                <p>No notifications yet</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {notifications.map((notification) => (
+                {messages.map((message) => (
                   <div
-                    key={notification.id}
+                    key={message.id}
                     className={`p-3 rounded-lg border transition-colors ${
-                      notification.read 
+                      message.read 
                         ? 'bg-gray-50 border-gray-200' 
                         : 'bg-blue-50 border-blue-200'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      {getNotificationIcon(notification)}
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-gray-900 mb-1">
-                              {notification.title}
-                            </h4>
-                            <p className="text-sm text-gray-600 mb-2">
-                              {notification.message}
-                            </p>
-                            
-                            {/* Live Class Specific Info */}
-                            {notification.type === 'live_class' && notification.live_class && (
-                              <div className="bg-white rounded p-2 mb-2">
-                                <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
-                                  <Clock className="w-3 h-3" />
-                                  <span>{getTimeUntilClass(notification.live_class)}</span>
-                                </div>
-                                <div className="text-xs text-gray-700">
-                                  <div>Subject: {notification.live_class.subjects?.name}</div>
-                                  <div>Teacher: {notification.live_class.teachers?.users?.first_name} {notification.live_class.teachers?.users?.last_name}</div>
-                                  <div>Time: {notification.live_class.start_time} - {notification.live_class.end_time}</div>
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="flex items-center gap-2">
-                              {notification.action_url && (
-                                <a
-                                  href={notification.action_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                                >
-                                  <Video className="w-3 h-3" />
-                                  Join Class
-                                </a>
-                              )}
-                              {!notification.read && (
-                                <button
-                                  onClick={() => markAsRead(notification.id)}
-                                  className="inline-flex items-center gap-1 px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 transition-colors"
-                                >
-                                  <CheckCircle className="w-3 h-3" />
-                                  Mark Read
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => markAsRead(notification.id)}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <h4 className={`font-medium text-sm ${
+                          message.read ? 'text-gray-700' : 'text-blue-900'
+                        }`}>
+                          {message.title}
+                        </h4>
+                        <p className={`text-xs mt-1 ${
+                          message.read ? 'text-gray-600' : 'text-blue-700'
+                        }`}>
+                          {message.body.length > 100 
+                            ? `${message.body.substring(0, 100)}...` 
+                            : message.body
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {formatTimeAgo(message.created_at)}
+                        </p>
                       </div>
+                      {!message.read && (
+                        <button
+                          onClick={() => markAsRead(message.id)}
+                          className="ml-2 p-1 text-blue-600 hover:text-blue-800 rounded"
+                          title="Mark as read"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -278,10 +245,10 @@ export default function StudentNotifications() {
       )}
 
       {/* Click outside to close */}
-      {showNotifications && (
+      {showDropdown && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setShowNotifications(false)}
+          onClick={() => setShowDropdown(false)}
         />
       )}
     </div>

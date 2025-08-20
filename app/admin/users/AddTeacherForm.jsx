@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; // Ensure this import is present
 
 export default function AddTeacherForm({ onSuccess }) {
-  const [programs, setPrograms] = useState([]);
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -20,14 +19,7 @@ export default function AddTeacherForm({ onSuccess }) {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    const fetchPrograms = async () => {
-      const res = await fetch('/api/programs');
-      const data = await res.json();
-      setPrograms(data.programs || []);
-    };
-    fetchPrograms();
-  }, []);
+
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });

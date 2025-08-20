@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Terminating meeting for live class: ${live_class_id}`);
+    // Terminate meeting for live class
 
     let terminationResult;
 
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
         .eq('live_class_id', live_class_id);
 
       if (updateError) {
-        console.warn('Failed to update live class status:', updateError);
       }
 
       return NextResponse.json({
@@ -66,7 +65,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('[API] Error terminating meeting:', error);
     return NextResponse.json(
       { 
         error: 'Failed to terminate meeting', 
@@ -116,8 +114,7 @@ export async function GET(request: NextRequest) {
         meeting_status: liveClass.meeting_status
       }
     });
-  } catch (error) {
-    console.error('[API] Error getting meeting status:', error);
+  } catch {
     return NextResponse.json(
       { 
         error: 'Failed to get meeting status', 

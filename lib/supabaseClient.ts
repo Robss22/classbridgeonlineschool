@@ -6,30 +6,69 @@ import { Database } from './supabase.types';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 
-// --- Important ---
-// Supabase Service Role Key (process.env.SUPABASE_SERVICE_ROLE_KEY)
-// should ONLY be used in server-side code (e.g., Next.js API Routes, Edge Functions)
-// Never expose it directly in client-side JavaScript.
-// Your existing code had a floating reference to it, which is now removed.
-// ---
-
-// Optional: Add a check for missing environment variables during development
-// This helps catch configuration issues early.
+// Enhanced validation and debugging for environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
+  const missingVars = [];
+  if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!supabaseAnonKey) missingVars.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  
+  // Missing required environment variables
+  // Current environment state
+  
   throw new Error(
-    'Supabase URL or Anon Key is missing! Please check your .env.local file and ensure you have restarted your development server.'
+    `Supabase configuration is incomplete! Missing: ${missingVars.join(', ')}. ` +
+    'Please check your .env.local file and ensure you have restarted your development server.'
   );
 }
 
 // Debug logging for development
 if (typeof window !== 'undefined') {
-  console.log('Supabase client initialization:', {
-    hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseAnonKey,
-    urlPrefix: supabaseUrl?.substring(0, 20) + '...'
-  });
+  // Supabase client initialization
 }
 
 // Create and export the Supabase client instance
 // This client uses the anonymous key and is safe for client-side operations.
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
+
+// Health check function to test database connectivity
+export const checkDatabaseHealth = async () => {
+  try {
+    const { error } = await supabase.from('users').select('count').limit(1);
+    if (error) {
+      return { healthy: false, error: error.message };
+    }
+    return { healthy: true };
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    return { healthy: false, error: errorMessage };
+  }
+};
+
+// Test the connection on client side
+if (typeof window !== 'undefined') {
+  // Test connection after a short delay
+  setTimeout(async () => {
+    try {
+      // Testing Supabase connection
+      const { error } = await supabase.from('users').select('count').limit(1);
+      if (error) {
+        // Supabase connection test failed
+      } else {
+        // Supabase connection test successful
+      }
+    } catch {
+      // Supabase connection test error
+    }
+  }, 1000);
+}

@@ -31,11 +31,8 @@ export default function Header() {
   }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
-    console.log('DEBUG [Logout] Logout button clicked');
     const { error } = await import('@/lib/supabaseClient').then(m => m.supabase.auth.signOut());
-    console.log('DEBUG [Logout] signOut finished, error:', error);
     if (!error) {
-      console.log('DEBUG [Logout] router.push(/login) called');
       router.push('/login');
     }
   };

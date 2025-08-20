@@ -161,89 +161,57 @@ function ChangePasswordPageInner() {
   };
 
   const handleSubmit = async () => {
-    console.log('handleSubmit called');
-    console.log('Form data:', formData);
-    console.log('Errors:', errors);
-    console.log('User object:', user);
     
     if (!validateForm()) {
-      console.log('❌ [handleSubmit] Form validation failed');
+      // validation failed
       return;
     }
 
     try {
-      console.log('🚀 [handleSubmit] Setting loading state');
       setIsLoading(true);
       setSubmitError('');
       setSubmitSuccess(false);
       
-      console.log('🚀 [handleSubmit] Form data:', { currentPassword: '***', newPassword: '***', confirmPassword: '***' });
-      console.log('🚀 [handleSubmit] changePassword function available:', !!changePassword);
-      console.log('🚀 [handleSubmit] User object:', user);
-      console.log('🚀 [handleSubmit] User email:', user?.email);
-      
       if (!changePassword) {
-        console.error('❌ [handleSubmit] changePassword function is not available');
         setSubmitError('Change password function not available');
         setIsLoading(false);
         return;
       }
       
       if (!user?.email) {
-        console.error('❌ [handleSubmit] User email not available');
         setSubmitError('User information not available. Please try logging in again.');
         setIsLoading(false);
         return;
       }
       
-      console.log('🚀 [handleSubmit] About to call changePassword function');
-      
       // Add a timeout wrapper to prevent infinite hanging
-      const changePasswordPromise = changePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
-      });
+      const changePasswordPromise = changePassword(formData.newPassword);
       
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          console.error('⏰ [handleSubmit] Timeout reached - 30 seconds');
           reject(new Error('Password change operation timed out after 30 seconds'));
         }, 30000);
       });
       
-      console.log('🚀 [handleSubmit] Waiting for changePassword result...');
       const result = await Promise.race([changePasswordPromise, timeoutPromise]) as ChangePasswordResult;
       
-      console.log('✅ [handleSubmit] changePassword completed with result:', result);
-      
       if (result.success) {
-        console.log('✅ [handleSubmit] Password change successful');
         setSubmitSuccess(true);
         
         // Show warning if there was a database update issue
         if (result.warning) {
-          console.log('⚠️ [handleSubmit] Warning message:', result.warning);
           setSubmitError(result.warning);
         }
         
         // Redirect after a short delay
-        console.log('🚀 [handleSubmit] Setting redirect timer');
         setTimeout(() => {
-          console.log('🚀 [handleSubmit] Redirecting to login');
           router.push('/login');
         }, 2000);
       } else {
-        console.error('❌ [handleSubmit] Password change failed:', result.error);
         setSubmitError(result.error || 'Failed to change password');
       }
     } catch (err) {
-      console.error('❌ [handleSubmit] Exception caught:', err);
-      
       const error = err as Error;
-      if (error.stack) {
-        console.error('❌ [handleSubmit] Error stack:', error.stack);
-      }
-      
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
         setSubmitError('The password change operation timed out. Please check your internet connection and try again.');
@@ -251,7 +219,6 @@ function ChangePasswordPageInner() {
         setSubmitError('An unexpected error occurred: ' + errorMessage);
       }
     } finally {
-      console.log('🏁 [handleSubmit] Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -271,7 +238,6 @@ function ChangePasswordPageInner() {
   };
 
   if (loadingAuth) {
-    console.log('loadingAuth true, showing spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -287,7 +253,7 @@ function ChangePasswordPageInner() {
     );
   }
 
-  console.log('Rendering change password form', { formData, errors, passwordStrength, submitSuccess, submitError });
+  // Rendering change password form
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

@@ -28,7 +28,7 @@ export default function TeacherProfilePage() {
         .select("id, email, full_name, first_name, last_name")
   .eq("auth_user_id", user?.id ?? "")
         .single();
-      setProfile(userData as any);
+      setProfile((userData as { id: string; email: string; full_name?: string | null; first_name?: string | null; last_name?: string | null }) ?? null);
       setAvatarUrl("");
       
       // First, get the teacher_id from the teachers table
@@ -53,14 +53,14 @@ export default function TeacherProfilePage() {
       setClasses([
         ...new Set(
           (assignData || [])
-            .map((a: any) => a?.levels?.name)
+            .map((a: Record<string, unknown>) => (a?.levels as { name?: string } | undefined)?.name)
             .filter(Boolean)
         ),
       ] as string[]);
       setSubjects([
         ...new Set(
           (assignData || [])
-            .map((a: any) => a?.subjects?.name)
+            .map((a: Record<string, unknown>) => (a?.subjects as { name?: string } | undefined)?.name)
             .filter(Boolean)
         ),
       ] as string[]);
@@ -105,8 +105,10 @@ export default function TeacherProfilePage() {
       setAvatarUrl(url);
       // Update user profile
       // No avatar_url column in users schema; storing only in storage/public URL state
-    } catch (err: any) {
-      alert("Avatar upload failed: " + (err?.message || err?.error_description || "Unknown error"));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorDescription = (err as Record<string, unknown>)?.error_description;
+      alert("Avatar upload failed: " + (errorMessage || errorDescription || "Unknown error"));
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -137,8 +139,10 @@ export default function TeacherProfilePage() {
       
       setPasswordMsg("Password updated successfully.");
       setPassword("");
-    } catch (err: any) {
-      setPasswordMsg("Error: " + (err?.message || err?.error_description || "Unknown error"));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorDescription = (err as Record<string, unknown>)?.error_description;
+      setPasswordMsg("Error: " + (errorMessage || errorDescription || "Unknown error"));
     } finally {
       setPasswordLoading(false);
     }

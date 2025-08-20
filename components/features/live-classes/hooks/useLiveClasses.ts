@@ -109,7 +109,7 @@ export function useUpdateLiveClass() {
       if (error) throw error
       return updatedClass
     },
-    onSuccess: (data) => {
+    onSuccess: (data: LiveClass) => {
       queryClient.invalidateQueries({ queryKey: liveClassKeys.detail(data.live_class_id) })
       queryClient.invalidateQueries({ queryKey: liveClassKeys.lists() })
     },

@@ -23,7 +23,7 @@ app.post('/api/student/change-password', async (req, res) => {
     });
     
     res.json({ message: 'Password changed successfully' });
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: 'Server error' });
   }
 });

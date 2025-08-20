@@ -61,29 +61,78 @@ const Login: React.FC = () => {
     }, 20000); // 20 seconds total timeout
 
     try {
+      // Step 0: Test Supabase connection
+      // Environment check
+      
+      try {
+        const { error: testError } = await supabase
+          .from('users')
+          .select('count')
+          .limit(1);
+        
+        if (testError) {
+          // Supabase connection test failed
+        } else {
+          // Supabase connection test successful
+        }
+      } catch {
+        // Supabase connection test error
+      }
+
       // Step 1: Authenticate with Supabase
-      const authPromise = supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      const authTimeoutPromise = new Promise<typeof authPromise>((_, reject) => {
-        setTimeout(() => reject(new Error('Authentication timeout after 10 seconds')), 10000);
-      });
+      // Starting Supabase authentication
       
-      const { data: authData, error: authError } = await Promise.race([authPromise, authTimeoutPromise]);
+      // Retry authentication up to 3 times with exponential backoff
+      let authData, authError;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          // Authentication attempt
+          
+          const authPromise = supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          const authTimeoutPromise = new Promise<typeof authPromise>((_, reject) => {
+            setTimeout(() => reject(new Error('Authentication is taking longer than expected. This might be due to network issues or server load. Please try again.')), 30000);
+          });
+          
+          const result = await Promise.race([authPromise, authTimeoutPromise]);
+          authData = result.data;
+          authError = result.error;
+          
+          if (!authError) {
+            // Authentication successful on attempt
+            break;
+          }
+          
+          if (attempt < 3) {
+            const delay = Math.pow(2, attempt) * 1000; // 2s, 4s delays
+            // Authentication failed, retrying
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        } catch (retryError: unknown) {
+          authError = retryError;
+          if (attempt < 3) {
+            const delay = Math.pow(2, attempt) * 1000;
+            // Authentication error, retrying
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
       
-      console.log('Auth response:', { user: authData?.user, authError });
+      // Auth response
 
       if (authError) {
-        console.error('Authentication error:', authError);
-        setError(`Login failed: ${authError.message}. Please check your credentials or try again later.`);
+        // Authentication error
+        const errorMessage = authError instanceof Error ? authError.message : 'Unknown authentication error';
+        setError(`Login failed: ${errorMessage}. Please check your credentials or try again later.`);
         setLoading(false);
         clearTimeout(loginTimeout);
         return;
       }
 
       if (!authData?.user) {
-        console.error('No user returned from authentication');
+        // No user returned from authentication
         setError('Login failed: No user data received. Please try again.');
         setLoading(false);
         clearTimeout(loginTimeout);
@@ -91,7 +140,7 @@ const Login: React.FC = () => {
       }
 
       // Step 2: Fetch user profile
-      console.log('Step 2: Fetching user profile for ID:', authData.user.id);
+      // Fetching user profile for ID
       
       const profilePromise = supabase
         .from('users')
@@ -100,17 +149,19 @@ const Login: React.FC = () => {
         .single();
       
       const profileTimeoutPromise = new Promise<typeof profilePromise>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Profile fetch timeout after 30 seconds')), 30000);
       });
       
-      let { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeoutPromise]);
+      const result = await Promise.race([profilePromise, profileTimeoutPromise]);
+      let profile = result.data;
+      const profileError = result.error;
       
-      console.log('Profile fetch result:', { profile, profileError });
+      // Profile fetch result
 
       if (profileError) {
-        console.error('Profile fetch error:', profileError);
+        // Profile fetch error
         // Try fallback query by email
-        console.log('Step 2b: Trying fallback query by email...');
+        // Step 2b: Trying fallback query by email
         const fallbackPromise = supabase
           .from('users')
           .select('full_name, first_name, last_name, role, password_changed, auth_user_id')
@@ -118,12 +169,12 @@ const Login: React.FC = () => {
           .single();
 
         const fallbackTimeoutPromise = new Promise<typeof fallbackPromise>((_, reject) => {
-          setTimeout(() => reject(new Error('Fallback profile fetch timeout after 10 seconds')), 10000);
+          setTimeout(() => reject(new Error('Fallback profile fetch timeout after 30 seconds')), 30000);
         });
 
         const { data: fallbackProfile, error: fallbackError } = await Promise.race([fallbackPromise, fallbackTimeoutPromise]);
         
-        console.log('Fallback profile result:', { fallbackProfile, fallbackError });
+        // Fallback profile result
         
         if (fallbackError || !fallbackProfile) {
           setError(`Failed to fetch user profile: ${profileError.message}. Please try again later or contact support.`);
@@ -137,7 +188,7 @@ const Login: React.FC = () => {
       }
 
       if (!profile) {
-        console.error('No profile data found');
+        // No profile data found
         setError('User profile not found in database. Please contact support.');
         setLoading(false);
         clearTimeout(loginTimeout);
@@ -145,7 +196,7 @@ const Login: React.FC = () => {
       }
 
       // Step 3: Set welcome message
-      console.log('Step 3: Setting welcome message...');
+      // Setting welcome message
       const displayName = (profile.full_name && profile.full_name.trim()) || 
                           ((profile.first_name && profile.last_name) ? 
                            (profile.first_name + ' ' + profile.last_name) : 
@@ -155,38 +206,35 @@ const Login: React.FC = () => {
       setShowWelcome(true);
 
       // Step 4: Navigate based on role
-      console.log('Step 4: Determining navigation...', { 
-        role: profile.role, 
-        passwordChanged: profile.password_changed 
-      });
-
+      // Determining navigation
+      
       // Clear the timeout since we're about to navigate
       clearTimeout(loginTimeout);
 
       // Immediate navigation without delay
-      console.log('Navigating immediately...');
+      // Navigating immediately
       try {
         switch (profile.role) {
           case 'admin':
-            console.log('Redirecting to admin dashboard');
+            // Redirecting to admin dashboard
             router.replace('/admin/dashboard');
             break;
           case 'teacher':
           case 'class_tutor':
-            console.log('Redirecting to teacher dashboard');
+            // Redirecting to teacher dashboard
             router.replace('/teachers/dashboard');
             break;
           case 'student':
-            console.log('Redirecting to student dashboard');
+            // Redirecting to student dashboard
             router.replace('/students/dashboard');
             break;
           default:
-            console.log('Unknown role, redirecting to student dashboard');
+            // Unknown role, redirecting to student dashboard
             router.replace('/students/dashboard');
             break;
         }
-      } catch (navError) {
-        console.error('Navigation error:', navError);
+      } catch {
+        // Navigation error
         setError('Navigation failed. Please try again.');
         setLoading(false);
         setShowWelcome(false);
