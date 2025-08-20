@@ -1,7 +1,8 @@
 ﻿
 
-@import "tailwindcss";
-@import 'react-phone-input-2/lib/style.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #ffffff;
