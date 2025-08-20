@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       to: 'info@classbridge.ac.ug',
       subject: 'New Contact Inquiry',
       html: emailHtml,
-      replyTo: email,
+      reply_to: email,
     });
     if (data.error) {
       return NextResponse.json({ error: data.error.message || 'Failed to send email.' }, { status: 500 });
