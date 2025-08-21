@@ -173,12 +173,36 @@ export default function TeacherLiveClassesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           live_class_id: liveClassId,
-          force_disconnect: true
+          force_disconnect: true  // Ensure all participants are disconnected
         })
       });
 
       if (!terminationResponse.ok) {
         const terminationResult = await terminationResponse.json();
+        
+        // If force disconnect fails, try simple termination as fallback
+        if (terminationResult.error) {
+          // Fallback: Try simple termination if force disconnect fails
+          const fallbackResponse = await fetch('/api/live-classes/terminate-meeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              live_class_id: liveClassId,
+              force_disconnect: false
+            })
+          });
+          
+          if (!fallbackResponse.ok) {
+            const fallbackResult = await fallbackResponse.json();
+            throw new Error(fallbackResult.error || 'Failed to terminate meeting even with fallback');
+          }
+          
+          const fallbackResult = await fallbackResponse.json();
+          alert(`Class ended successfully! ${fallbackResult.message}`);
+          fetchData();
+          return;
+        }
+        
         throw new Error(terminationResult.error || 'Failed to terminate meeting');
       }
 

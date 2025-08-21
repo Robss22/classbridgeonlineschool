@@ -1,56 +1,44 @@
--- QUICK SESSION CHECK
--- Simple diagnostic to identify the session creation problem
+-- Quick Check: What's in user_sessions and session_analytics?
+-- Run these to see what data we're working with
 
--- Check table structure
-SELECT 'Table Structure:' as info;
-SELECT column_name, data_type, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'user_sessions'
-ORDER BY ordinal_position;
-
--- Check RLS status
-SELECT 'RLS Status:' as info;
+-- 1. Quick overview of user_sessions
 SELECT 
-    tablename, 
-    rowsecurity,
-    CASE 
-        WHEN rowsecurity THEN 'ENABLED' 
-        ELSE 'DISABLED' 
-    END as status
-FROM pg_tables 
-WHERE tablename = 'user_sessions';
+    COUNT(*) as total_sessions,
+    COUNT(DISTINCT user_id) as unique_users,
+    MIN(created_at) as earliest_session,
+    MAX(created_at) as latest_session
+FROM user_sessions;
 
--- Check RLS policies
-SELECT 'RLS Policies:' as info;
-SELECT policyname, cmd, permissive
-FROM pg_policies 
-WHERE tablename = 'user_sessions';
+-- 2. Quick overview of session_analytics
+SELECT 
+    COUNT(*) as total_analytics,
+    COUNT(DISTINCT session_id) as unique_sessions,
+    MIN(created_at) as earliest_analytics,
+    MAX(created_at) as latest_analytics
+FROM session_analytics;
 
--- Check permissions
-SELECT 'Permissions:' as info;
-SELECT grantee, privilege_type
-FROM information_schema.role_table_grants 
-WHERE table_name = 'user_sessions';
+-- 3. Check for any live class related sessions
+SELECT 
+    session_type,
+    COUNT(*) as count
+FROM user_sessions 
+WHERE session_type IS NOT NULL
+GROUP BY session_type;
 
--- Test insert with error details
-SELECT 'Testing Insert:' as info;
-INSERT INTO user_sessions (
-    user_id, 
-    device_id, 
-    device_name, 
-    device_type, 
-    browser, 
-    os, 
-    user_agent
-) VALUES (
-    '00000000-0000-0000-0000-000000000000'::uuid,
-    'test-device-123',
-    'Test Device',
-    'desktop',
-    'Test Browser',
-    'Test OS',
-    'Test User Agent'
+-- 4. Check if there are any live class references
+SELECT 
+    column_name,
+    table_name
+FROM information_schema.columns 
+WHERE table_name IN ('user_sessions', 'session_analytics')
+AND (
+    column_name LIKE '%live%' 
+    OR column_name LIKE '%class%' 
+    OR column_name LIKE '%meeting%'
+    OR column_name LIKE '%participant%'
 );
 
--- Clean up test data
-DELETE FROM user_sessions WHERE device_id = 'test-device-123';
+-- 5. Sample of recent sessions
+SELECT * FROM user_sessions 
+ORDER BY created_at DESC 
+LIMIT 5;

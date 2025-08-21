@@ -28,22 +28,13 @@ export async function POST(request: NextRequest) {
       // Force disconnect all participants and terminate meeting
       terminationResult = await MeetingTerminationService.forceDisconnectParticipants(live_class_id);
     } else {
-      // Normal meeting termination
-      terminationResult = await MeetingTerminationService.terminateMeeting(live_class_id);
+      // Simple class ending without complex participant tracking
+      terminationResult = await MeetingTerminationService.endClassSimple(live_class_id);
     }
 
     if (terminationResult.success) {
-      // Update the live class status to completed if not already
-      const { error: updateError } = await supabase
-        .from('live_classes')
-        .update({ 
-          status: 'completed',
-          ended_at: new Date().toISOString()
-        })
-        .eq('live_class_id', live_class_id);
-
-      if (updateError) {
-      }
+      // The service already updates the live class status, so we don't need to do it again here
+      // Success logging removed for production
 
       return NextResponse.json({
         success: true,
