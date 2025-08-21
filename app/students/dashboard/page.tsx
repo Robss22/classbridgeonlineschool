@@ -357,10 +357,14 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center w-full">
-      <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-8 py-6">
-        {/* Page header line to keep content below top bar */}
-        <div className="h-0.5 bg-gray-200 mb-4" />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">Welcome back, {user?.user_metadata?.full_name || user?.email || 'Student'}</p>
+        </div>
+        
         {/* Main Body Content */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
           <TodaySchedule liveClasses={liveClasses} />

@@ -42,7 +42,18 @@ const nextConfig = {
   
   // Image optimization
   images: {
-    domains: ['localhost'],
+    domains: [
+      'localhost',
+      'qznfggcxumubmjfmudat.supabase.co', // Supabase storage
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
     formats: ['image/webp', 'image/avif'],
   },
   

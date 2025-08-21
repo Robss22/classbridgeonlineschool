@@ -68,19 +68,31 @@ export default function TeacherResourcesPage() {
       const subjectIds = (teacherAssignments || []).map((a) => a.subject_id).filter(Boolean) as (string | null)[];
       const levelIds = (teacherAssignments || []).map((a) => a.level_id).filter(Boolean) as (string | null)[];
 
+      // First, let's get all resources uploaded by this teacher
       let query = supabase
         .from("resources")
         .select("*, subjects:subject_id(name), levels:level_id(name)")
         .eq("uploaded_by", user.id);
 
-      if (subjectIds && subjectIds.length > 0) {
-        query = query.in("subject_id", subjectIds);
-      }
-      if (levelIds && levelIds.length > 0) {
-        query = query.in("level_id", levelIds);
+
+
+      // Only apply subject/level filtering if we have assignments
+      if (teacherAssignments && teacherAssignments.length > 0) {
+        if (subjectIds && subjectIds.length > 0) {
+          query = query.in("subject_id", subjectIds);
+        }
+        if (levelIds && levelIds.length > 0) {
+          query = query.in("level_id", levelIds);
+        }
       }
 
-      const { data: resourcesData } = await query.order("created_at", { ascending: false });
+      const { data: resourcesData, error: resourcesError } = await query.order("created_at", { ascending: false });
+      
+      if (resourcesError) {
+        console.error('Error fetching resources:', resourcesError);
+      }
+      
+
       setResources(resourcesData || []);
     } catch (error) {
       console.error("Error fetching resources:", error);

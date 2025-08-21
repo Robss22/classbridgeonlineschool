@@ -108,7 +108,7 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
       };
 
       const allowedFields: (keyof TablesInsert<'resources'>)[] = [
-        'title', 'description', 'url', 'program_id', 'level_id', 'uploaded_by', 'created_at', 'resource_id'
+        'title', 'description', 'url', 'type', 'program_id', 'level_id', 'subject_id', 'paper_id', 'uploaded_by', 'created_at', 'resource_id'
       ];
       if (resource?.resource_id) {
         // Update existing resource
@@ -125,6 +125,15 @@ export default function TeacherResourceForm({ onClose, resource, onSuccess }: Te
         if (insertError) throw insertError;
       }
 
+      // Show success message
+      if (resource?.resource_id) {
+        // Update existing resource
+        alert('Resource updated successfully!');
+      } else {
+        // Create new resource
+        alert('Resource created successfully!');
+      }
+      
       onSuccess?.();
       onClose();
     } catch (err: unknown) {

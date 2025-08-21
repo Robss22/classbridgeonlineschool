@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Users, Video, Play, BookOpen } from 'lucide-react';
+import { Calendar, Users, Video, Play, BookOpen, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 
@@ -49,6 +49,7 @@ export default function MySubjectsPage() {
   const [optionalSubjects, setOptionalSubjects] = useState<EnrolledOptional[]>([]);
   const [availableOptionalSubjects, setAvailableOptionalSubjects] = useState<SubjectOffering[]>([]);
   const [subjectLiveClasses, setSubjectLiveClasses] = useState<Record<string, LiveClass[]>>({});
+  const [subjectResources, setSubjectResources] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState<string | null>(null);
   const [showAvailableSubjects, setShowAvailableSubjects] = useState(false);
@@ -64,20 +65,22 @@ export default function MySubjectsPage() {
       if (!authUser?.user?.id) return;
       const userId = authUser.user.id;
 
-      // Get student's program and level from users table
-      const { data: userRow } = await supabase
-        .from('users')
-        .select('program_id, level_id')
-        .eq('id', userId)
-        .single();
-      const programId = (userRow as Record<string, unknown>)?.program_id as string | undefined;
-      const levelId = (userRow as Record<string, unknown>)?.level_id as string | undefined;
+              // Get student's program and level from users table
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('program_id, level_id')
+          .eq('id', userId)
+          .single();
+        const programId = (userRow as Record<string, unknown>)?.program_id as string | undefined;
+        const levelId = (userRow as Record<string, unknown>)?.level_id as string | undefined;
 
-      if (!programId || !levelId) {
-        console.warn('No program/level assigned to student');
-        setLoading(false);
-        return;
-      }
+
+
+        if (!programId || !levelId) {
+          console.warn('No program/level assigned to student');
+          setLoading(false);
+          return;
+        }
 
       // Determine if level is S1 or S2
       try {
@@ -218,6 +221,47 @@ export default function MySubjectsPage() {
         }
       }
 
+      // Fetch resources for all subjects
+      if (allSubjectIds.length > 0) {
+        // Fetch resources for all subjects
+
+        const { data: resourcesData, error: resourcesError } = await supabase
+          .from('resources')
+          .select(`
+            subject_id,
+            program_id,
+            level_id
+          `)
+          .eq('program_id', programId)
+          .eq('level_id', levelId);
+
+        if (resourcesError) {
+          console.error('Error fetching resources:', resourcesError);
+        }
+
+        if (resourcesData) {
+          const resourcesBySubject: Record<string, number> = {};
+          
+          // Initialize all subjects with 0 resources
+          allSubjectIds.forEach(subjectId => {
+            resourcesBySubject[subjectId] = 0;
+          });
+
+          // Since all resources have null subject_id, class_id, etc., they are general resources
+          // available to all subjects in the same program and level
+          const totalResources = resourcesData.length;
+          
+          if (totalResources > 0) {
+            // All resources are general (no specific subject), show total count for all subjects
+            allSubjectIds.forEach(subjectId => {
+              resourcesBySubject[subjectId] = totalResources;
+            });
+          }
+
+          setSubjectResources(resourcesBySubject);
+        }
+      }
+
       // Fetch available optional subjects for enrollment (program + level, non-compulsory)
       const { data: availableOptional } = await supabase
         .from('subject_offerings')
@@ -344,6 +388,10 @@ export default function MySubjectsPage() {
   const getSubjectCard = (subject: SubjectOffering, isCompulsory: boolean = true, enrollmentId?: string) => {
     const subjectId = subject.subjects.subject_id;
     const liveClasses = subjectLiveClasses[subjectId] || [];
+    const resourceCount = subjectResources[subjectId] || 0;
+    
+
+    
     const upcomingClasses = liveClasses.filter(lc => 
       lc.status === 'scheduled' || lc.status === 'ongoing'
     );
@@ -367,6 +415,10 @@ export default function MySubjectsPage() {
             <div className="flex items-center gap-2 justify-center">
               <Users className="w-4 h-4" />
               <span>Teacher: TBA</span>
+            </div>
+            <div className="flex items-center gap-2 justify-center">
+              <FileText className="w-4 h-4" />
+              <span>{resourceCount} general resource{resourceCount !== 1 ? 's' : ''} available</span>
             </div>
           </div>
 
