@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET!
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET) {
-  throw new Error('Missing Supabase environment variables for attendance endpoint')
+// Avoid build-time throws; lazily init client if env present
+let supabaseAdmin: SupabaseClient | null = null
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 }
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 type AttendanceEventBody = {
   live_class_id: string
@@ -29,14 +29,17 @@ type AttendanceEventBody = {
   }
 }
 
-function verifyToken(token: string): string {
+function verifyToken(token: string): string | null {
+  if (!SUPABASE_JWT_SECRET) return null
   const payload = jwt.verify(token, SUPABASE_JWT_SECRET) as { sub?: string }
-  if (!payload?.sub) throw new Error('Invalid token payload')
-  return payload.sub
+  return payload?.sub || null
 }
 
 export async function POST(request: NextRequest) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET || !supabaseAdmin) {
+      return NextResponse.json({ success: false, error: 'Attendance endpoint not configured' }, { status: 503 })
+    }
     const authHeader = request.headers.get('Authorization')
     if (!authHeader) {
       return NextResponse.json({ error: 'Missing authorization header' }, { status: 401 })
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace('Bearer ', '')
     const userId = verifyToken(token)
+    if (!userId) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
 
     const body: AttendanceEventBody = await request.json()
     const { live_class_id, event, timestamp } = body
@@ -56,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     if (event === 'join') {
       try {
-        const { error } = await supabaseAdmin
+        const { error } = await supabaseAdmin!
           .from('live_class_participants')
           .upsert(
             {
@@ -114,7 +120,7 @@ export async function POST(request: NextRequest) {
         // Compute duration if possible
         let durationMinutes: number | undefined = undefined
         try {
-          const { data: existing } = await supabaseAdmin
+          const { data: existing } = await supabaseAdmin!
             .from('live_class_participants')
             .select('join_time')
             .eq('live_class_id', live_class_id)
@@ -129,7 +135,7 @@ export async function POST(request: NextRequest) {
           }
         } catch {}
 
-        const { error } = await supabaseAdmin
+        const { error } = await supabaseAdmin!
           .from('live_class_participants')
           .update({ 
             leave_time: occurredAt,

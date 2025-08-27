@@ -6,7 +6,6 @@ const nextConfig = {
   },
   
   // Performance optimizations
-  swcMinify: true,
   compress: true,
   
   // Transpile packages that need special handling
@@ -42,11 +41,13 @@ const nextConfig = {
   
   // Image optimization
   images: {
-    domains: [
-      'localhost',
-      'qznfggcxumubmjfmudat.supabase.co', // Supabase storage
-    ],
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '',
+        pathname: '/**',
+      },
       {
         protocol: 'https',
         hostname: '*.supabase.co',

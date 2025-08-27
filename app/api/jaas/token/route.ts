@@ -1,24 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import jwt from 'jsonwebtoken'
 
 // Env requirements
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET!
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET
 
 const JAAS_APP_ID = process.env.JAAS_APP_ID // e.g., your vpaas-magic-cookie app id
 const JAAS_KID = process.env.JAAS_KID // key id from JaaS API key
 const JAAS_PRIVATE_KEY = process.env.JAAS_PRIVATE_KEY // PEM private key (can be single-line with \n)
 const JAAS_JWT_ALG = (process.env.JAAS_JWT_ALG as jwt.Algorithm) || 'RS256'
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET) {
-  throw new Error('Missing Supabase env for JaaS token endpoint')
+// Avoid build-time throws; lazily init Supabase client if env exists
+let supabaseAdmin: SupabaseClient | null = null
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 }
 
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
 function verifySupabaseToken(token: string): { sub: string } {
+  if (!SUPABASE_JWT_SECRET) throw new Error('Server not configured')
   const payload = jwt.verify(token, SUPABASE_JWT_SECRET) as { sub?: string }
   if (!payload?.sub) throw new Error('Invalid or expired token')
   return { sub: payload.sub }
@@ -39,6 +40,12 @@ interface UserProfile {
 
 export async function POST(req: NextRequest) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_JWT_SECRET || !supabaseAdmin) {
+      return NextResponse.json(
+        { error: 'Token endpoint not configured', code: 'CONFIG_MISSING' },
+        { status: 503 }
+      )
+    }
     if (!JAAS_APP_ID || !JAAS_PRIVATE_KEY || !JAAS_KID) {
       return NextResponse.json(
         { error: 'JaaS not configured on server', code: 'JAAS_CONFIG_MISSING' },
@@ -56,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch live class and resolve teacher's user id
-    const { data: liveClass, error: lcError } = await supabaseAdmin
+    const { data: liveClass, error: lcError } = await supabaseAdmin!
       .from('live_classes')
       .select(
         `live_class_id, title, teacher_id,
@@ -74,7 +81,7 @@ export async function POST(req: NextRequest) {
       : (liveClass as { teachers?: { user_id?: string } })?.teachers?.user_id
 
     // Fetch current user profile for display name/email
-    const { data: userProfile } = await supabaseAdmin
+    const { data: userProfile } = await supabaseAdmin!
       .from('users')
       .select('email, first_name, last_name, role')
       .eq('id', userId)

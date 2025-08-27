@@ -106,6 +106,56 @@ export default function StudentResources() {
           uploader: null 
         }));
       }
+      // Enrich uploader details if join failed (common when FK relationship isn't defined)
+      try {
+        const list = (resourcesData || []) as Resource[];
+        const uploaderIds = Array.from(new Set(list
+          .map(r => r.uploaded_by)
+          .filter((v): v is string => Boolean(v))));
+        if (uploaderIds.length > 0) {
+          // Try users table by id
+          const [usersByIdResp, usersByAuthIdResp] = await Promise.all([
+            supabase
+              .from('users')
+              .select('id, full_name, email, first_name, last_name')
+              .in('id', uploaderIds),
+            supabase
+              .from('users')
+              .select('auth_user_id, full_name, email, first_name, last_name')
+              .in('auth_user_id', uploaderIds),
+          ]);
+
+          const byId: Record<string, { full_name?: string | null; email?: string | null }> = {};
+          (usersByIdResp.data || []).forEach(u => {
+            const name = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+            if (u.id) byId[u.id] = { full_name: name || null, email: u.email };
+          });
+          (usersByAuthIdResp.data || []).forEach(u => {
+            const name = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+            if (u.auth_user_id) byId[u.auth_user_id] = { full_name: name || null, email: u.email };
+          });
+
+          // For any remaining IDs, try teachers_with_users
+          const remaining = uploaderIds.filter(id => !byId[id]);
+          if (remaining.length > 0) {
+            const { data: teacherUsers } = await supabase
+              .from('teachers_with_users')
+              .select('auth_user_id, full_name, email, first_name, last_name')
+              .in('auth_user_id', remaining);
+            (teacherUsers || []).forEach(u => {
+              const name = u.full_name || `${u.first_name || ''} ${u.last_name || ''}`.trim();
+              if (u.auth_user_id) byId[u.auth_user_id] = { full_name: name || null, email: u.email };
+            });
+          }
+
+          resourcesData = list.map(r => ({
+            ...r,
+            uploader: r.uploader || (r.uploaded_by ? byId[r.uploaded_by] || null : null)
+          }));
+        }
+      } catch {
+        // Silent enrichment failure; fall back to raw IDs
+      }
       setResources(resourcesData as Resource[]);
       setLoading(false);
     }

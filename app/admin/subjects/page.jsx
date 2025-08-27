@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
-import { normalizeForInsert as normalizeInsertLoose } from '@/utils/db';
+// import { normalizeForInsert as normalizeInsertLoose } from '@/utils/db';
 
 // Reusable Dropdown menu for actions
 function ActionsDropdown({ onEdit, onDelete, onManageOfferings, onAddOffering }) {
@@ -107,13 +107,55 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
   const [isCompulsory, setIsCompulsory] = useState(offeringItem?.is_compulsory || false);
   const [term, setTerm] = useState(offeringItem?.term || 'Annual');
   const [year, setYear] = useState(offeringItem?.year || '2025/2026');
+  const [selectedPaperIds, setSelectedPaperIds] = useState(
+    offeringItem?.paper_id ? [offeringItem.paper_id] : []
+  );
+  const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch papers for the selected subject
+  useEffect(() => {
+    async function fetchPapers() {
+      if (!subjectId) {
+        setPapers([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('subject_papers')
+          .select('paper_id, paper_code, paper_name')
+          .eq('subject_id', subjectId)
+          .order('paper_code');
+        
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('Error fetching papers:', error);
+          setPapers([]);
+        } else {
+          setPapers(data || []);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Error fetching papers:', err);
+        setPapers([]);
+      }
+    }
+    
+    fetchPapers();
+  }, [subjectId]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    if (!subjectId) {
+      setError('Subject is required for an offering.');
+      setLoading(false);
+      return;
+    }
 
     if (!programId || !levelId) {
       setError('Program and Level are required for an offering.');
@@ -123,24 +165,31 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
 
     // Check for existing offering with same subject, program, and level
     if (!offeringItem) {
-      const { data: existingOfferings, error: checkError } = await supabase
-        .from('subject_offerings')
-        .select('id')
-        .eq('subject_id', subjectId)
-        .eq('program_id', programId)
-        .eq('level_id', levelId);
+      try {
+        const { data: existingOfferings, error: checkError } = await supabase
+          .from('subject_offerings')
+          .select('id')
+          .eq('subject_id', subjectId)
+          .eq('program_id', programId)
+          .eq('level_id', levelId);
 
-      if (checkError) {
-        console.error('Error checking existing offerings:', checkError);
-        setError('Failed to check existing offerings: ' + checkError.message);
-        setLoading(false);
-        return;
-      }
+        if (checkError) {
+          // eslint-disable-next-line no-console
+          console.error('Error checking existing offerings:', checkError);
+          setError('Failed to check existing offerings: ' + checkError.message);
+          setLoading(false);
+          return;
+        }
 
-      if (existingOfferings && existingOfferings.length > 0) {
-        setError('An offering for this subject, program, and level combination already exists.');
-        setLoading(false);
-        return;
+        if (existingOfferings && existingOfferings.length > 0) {
+          setError('An offering for this subject, program, and level combination already exists.');
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Error in duplicate check:', err);
+        // Continue with save even if duplicate check fails
       }
     }
 
@@ -151,37 +200,112 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
       is_compulsory: isCompulsory,
       term: term.trim() || null,
       year: year.trim() || null,
+      // For now, use the first selected paper as the main paper_id (backward compatibility)
+      paper_id: selectedPaperIds.length > 0 ? selectedPaperIds[0] : null,
     };
 
     try {
+      // eslint-disable-next-line no-console
+      console.log('Saving offering with data:', dataToSave);
+      
       if (offeringItem) {
         // Edit existing offering
+        // eslint-disable-next-line no-console
+        console.log('Updating existing offering:', offeringItem.id);
         const { error: updateError } = await supabase
           .from('subject_offerings')
-          .update(normalizeInsertLoose(dataToSave))
+          .update(dataToSave)
           .eq('id', offeringItem.id);
-        if (updateError) throw updateError;
+        if (updateError) {
+          // eslint-disable-next-line no-console
+          console.error('Update error:', updateError);
+          throw updateError;
+        }
+        // eslint-disable-next-line no-console
+        console.log('Offering updated successfully');
+        
+        // Try to update paper associations (only if offering_papers table exists)
+        if (selectedPaperIds.length > 0) {
+          try {
+            // Remove existing paper associations
+            await supabase
+              .from('offering_papers')
+              .delete()
+              .eq('offering_id', offeringItem.id);
+            
+            // Add new paper associations
+            const paperAssociations = selectedPaperIds.map(paperId => ({
+              offering_id: offeringItem.id,
+              paper_id: paperId
+            }));
+            const { error: papersError } = await supabase
+              .from('offering_papers')
+              .insert(paperAssociations);
+            if (papersError) {
+              // eslint-disable-next-line no-console
+              console.warn('Paper associations failed, but offering was saved:', papersError);
+            }
+          } catch (paperErr) {
+            // eslint-disable-next-line no-console
+            console.warn('Paper associations table might not exist yet:', paperErr);
+          }
+        }
       } else {
         // Add new offering
-        const { error: insertError } = await supabase
+        // eslint-disable-next-line no-console
+        console.log('Creating new offering');
+        const { data: newOffering, error: insertError } = await supabase
           .from('subject_offerings')
-          .insert([normalizeInsertLoose(dataToSave)]);
-        if (insertError) throw insertError;
+          .insert([dataToSave])
+          .select('id')
+          .single();
+        if (insertError) {
+          // eslint-disable-next-line no-console
+          console.error('Insert error:', insertError);
+          throw insertError;
+        }
+        // eslint-disable-next-line no-console
+        console.log('New offering created:', newOffering);
+        
+        // Try to add paper associations if papers are selected (only if offering_papers table exists)
+        if (selectedPaperIds.length > 0 && newOffering) {
+          try {
+            const paperAssociations = selectedPaperIds.map(paperId => ({
+              offering_id: newOffering.id,
+              paper_id: paperId
+            }));
+            const { error: papersError } = await supabase
+              .from('offering_papers')
+              .insert(paperAssociations);
+            if (papersError) {
+              // eslint-disable-next-line no-console
+              console.warn('Paper associations failed, but offering was saved:', papersError);
+            }
+          } catch (paperErr) {
+            // eslint-disable-next-line no-console
+            console.warn('Paper associations table might not exist yet:', paperErr);
+          }
+        }
       }
+      // eslint-disable-next-line no-console
+      console.log('Save completed successfully');
       onSave();
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error saving offering:', err);
       setError('Failed to save offering: ' + err.message);
     } finally {
+      // eslint-disable-next-line no-console
+      console.log('Setting loading to false');
       setLoading(false);
     }
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
-                 <h2 className="text-2xl font-bold mb-4">{offeringItem ? 'Edit Offering' : 'Add New Offering'} for &quot;{subjectName}&quot;</h2>
+        <h2 className="text-2xl font-bold mb-4">{offeringItem ? 'Edit Offering' : 'Add New Offering'} for &quot;{subjectName}&quot;</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Program</label>
@@ -210,6 +334,49 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
                 <option key={l.level_id} value={l.level_id}>{l.name}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Papers (Optional)
+              {papers.length > 1 && (
+                <span className="ml-1 text-blue-600 font-semibold">+{papers.length} options</span>
+              )}
+            </label>
+            <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
+              {papers.length === 0 ? (
+                <p className="text-xs text-gray-500">No papers available for this subject</p>
+              ) : (
+                papers.map((p) => (
+                  <label key={p.paper_id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={selectedPaperIds.includes(p.paper_id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPaperIds([...selectedPaperIds, p.paper_id]);
+                        } else {
+                          setSelectedPaperIds(selectedPaperIds.filter(id => id !== p.paper_id));
+                        }
+                      }}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">
+                      {p.paper_code} - {p.paper_name}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+            {papers.length > 1 && (
+              <p className="text-xs text-blue-600 mt-1">
+                ✅ Select multiple papers if this class offers more than one paper
+              </p>
+            )}
+            {selectedPaperIds.length > 0 && (
+              <p className="text-xs text-green-600 mt-1">
+                Selected: {selectedPaperIds.length} paper{selectedPaperIds.length > 1 ? 's' : ''}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -264,16 +431,20 @@ function SubjectOfferingForm({ offeringItem, subjectId, subjectName, programs, l
 }
 
 // Modal for Adding a New Subject Offering
-function AddOfferingModal({ subject, onClose, onSave }) {
+function AddOfferingModal({ onClose, onSave }) {
   const [programs, setPrograms] = useState([]);
   const [levels, setLevels] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [subjectsWithPapers, setSubjectsWithPapers] = useState({});
 
-  const fetchProgramsAndLevels = useCallback(async () => {
+  const fetchProgramsLevelsAndSubjects = useCallback(async () => {
     try {
       const { data: programsData, error: programsError } = await supabase.from('programs').select('program_id, name');
       const { data: levelsData, error: levelsError } = await supabase.from('levels').select('level_id, name');
+      const { data: subjectsData, error: subjectsError } = await supabase.from('subjects').select('subject_id, name').order('name');
 
       if (programsError) {
         console.error('Error fetching programs:', programsError);
@@ -285,40 +456,88 @@ function AddOfferingModal({ subject, onClose, onSave }) {
         setError('Error fetching levels: ' + JSON.stringify(levelsError));
         return;
       }
+      if (subjectsError) {
+        console.error('Error fetching subjects:', subjectsError);
+        setError('Error fetching subjects: ' + JSON.stringify(subjectsError));
+        return;
+      }
 
       setPrograms(programsData);
       setLevels(levelsData);
+      setSubjects(subjectsData);
+      
+      // Fetch paper counts for each subject
+      if (subjectsData && subjectsData.length > 0) {
+        const paperCounts = {};
+        for (const subject of subjectsData) {
+          const { data: papersData } = await supabase
+            .from('subject_papers')
+            .select('paper_id')
+            .eq('subject_id', subject.subject_id);
+          paperCounts[subject.subject_id] = papersData?.length || 0;
+        }
+        setSubjectsWithPapers(paperCounts);
+      }
     } catch (err) {
-      console.error('Error fetching programs/levels:', err);
-      setError('Error fetching programs/levels: ' + (err?.message || JSON.stringify(err)));
+      console.error('Error fetching data:', err);
+      setError('Error fetching data: ' + (err?.message || JSON.stringify(err)));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchProgramsAndLevels();
-  }, [fetchProgramsAndLevels]);
+    fetchProgramsLevelsAndSubjects();
+  }, [fetchProgramsLevelsAndSubjects]);
+
+  const handleSubjectChange = (subjectId) => {
+    const subject = subjects.find(s => s.subject_id === subjectId);
+    setSelectedSubject(subject);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full relative">
+      <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
-        <h2 className="text-2xl font-bold mb-4">Add New Offering for &quot;{subject.name}&quot;</h2>
+        <h2 className="text-2xl font-bold mb-4">Add New Subject Offering</h2>
 
         {loading ? (
           <p className="text-center text-gray-500 py-4">Loading...</p>
         ) : error ? (
           <p className="text-red-500 text-center py-4">{error}</p>
         ) : (
-                     <SubjectOfferingForm
-             subjectId={subject.subject_id}
-             subjectName={subject.name}
-             programs={programs}
-             levels={levels}
-             onClose={onClose}
-             onSave={onSave}
-           />
+          <>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <select
+                value={selectedSubject?.subject_id || ''}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                required
+              >
+                <option value="">Select Subject</option>
+                {subjects.map((subject) => (
+                  <option key={subject.subject_id} value={subject.subject_id}>
+                    {subject.name}
+                    {subjectsWithPapers[subject.subject_id] > 1 && ` (+${subjectsWithPapers[subject.subject_id]} papers)`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {selectedSubject && (
+              <>
+                <SubjectOfferingForm
+                  subjectId={selectedSubject.subject_id}
+                  subjectName={selectedSubject.name}
+                  programs={programs}
+                  levels={levels}
+                  onClose={onClose}
+                  onSave={onSave}
+                />
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -350,9 +569,10 @@ function ManageOfferingsModal({ subject, onClose, onSave }) {
       const { data, error } = await supabase
         .from('subject_offerings')
         .select(`
-          id, is_compulsory, term, year,
+          id, is_compulsory, term, year, paper_id,
           programs(program_id, name),
-          levels(level_id, name)
+          levels(level_id, name),
+          subject_papers(paper_id, paper_code, paper_name)
         `)
         .eq('subject_id', subject.subject_id);
 
@@ -429,7 +649,7 @@ function ManageOfferingsModal({ subject, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full relative">
+      <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
         <h2 className="text-2xl font-bold mb-4">Manage Offerings for &quot;{subject.name}&quot;</h2>
 
@@ -446,6 +666,7 @@ function ManageOfferingsModal({ subject, onClose, onSave }) {
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Program</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Level</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Paper</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Compulsory</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Term</th>
                   <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Year</th>
@@ -457,6 +678,16 @@ function ManageOfferingsModal({ subject, onClose, onSave }) {
                   <tr key={off.id}>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{off.programs?.name || 'N/A'}</td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{off.levels?.name || 'N/A'}</td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {off.subject_papers ? (
+                        <span className="flex items-center gap-1">
+                          <span>{off.subject_papers.paper_code} - {off.subject_papers.paper_name}</span>
+                          <span className="text-blue-600 text-xs">✓</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">No specific paper</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{off.is_compulsory ? 'Yes' : 'No'}</td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{off.term || 'N/A'}</td>
                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{off.year || 'N/A'}</td>
@@ -510,6 +741,50 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
   const [description, setDescription] = useState(subjectItem?.description || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Success message (currently shown via parent callbacks); kept for future UI
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [successMessage, setSuccessMessage] = useState('');
+  // Dynamic papers to create together with a new subject
+  const [papers, setPapers] = useState([
+    { paper_code: '', paper_name: '', paper_type: '', max_marks: '', description: '' }
+  ]);
+  const [existingPapers, setExistingPapers] = useState([]);
+  const [deletePaperIds, setDeletePaperIds] = useState([]);
+
+  useEffect(() => {
+    async function loadExistingPapers() {
+      if (!subjectItem?.subject_id) return;
+      const { data } = await supabase
+        .from('subject_papers')
+        .select('paper_id, paper_code, paper_name')
+        .eq('subject_id', subjectItem.subject_id);
+      if (Array.isArray(data)) {
+        setExistingPapers(data);
+      }
+    }
+    if (subjectItem) {
+      loadExistingPapers();
+    }
+  }, [subjectItem]);
+
+  function toggleDeleteExistingPaper(paperId) {
+    setDeletePaperIds(prev => prev.includes(paperId)
+      ? prev.filter(id => id !== paperId)
+      : [...prev, paperId]
+    );
+  }
+
+  function addPaperRow() {
+    setPapers(prev => ([...prev, { paper_code: '', paper_name: '', paper_type: '', max_marks: '', description: '' }]));
+  }
+
+  function removePaperRow(index) {
+    setPapers(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function updatePaperField(index, field, value) {
+    setPapers(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -522,30 +797,49 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
       return;
     }
 
+    // Client-side check: duplicate paper codes within the same subject submission
+    const filledPapers = papers.filter(p => p.paper_code.trim() || p.paper_name.trim());
+    const codes = filledPapers.map(p => p.paper_code.trim()).filter(Boolean);
+    const hasDuplicateCodes = new Set(codes).size !== codes.length;
+    if (hasDuplicateCodes) {
+      setError('Duplicate paper codes found. Each paper code must be unique within the subject.');
+      setLoading(false);
+      return;
+    }
+
     const dataToSave = {
       name: name.trim(),
       description: description.trim() || null,
     };
 
     try {
-      if (subjectItem) {
-        // Edit existing subject
-        const { error: updateError } = await supabase
-          .from('subjects')
-          .update(normalizeInsertLoose(dataToSave))
-          .eq('subject_id', subjectItem.subject_id);
-        if (updateError) throw updateError;
-      } else {
-        // Add new subject
-        const { error: insertError } = await supabase
-          .from('subjects')
-          .insert([normalizeInsertLoose(dataToSave)]);
-        if (insertError) throw insertError;
+      const response = await fetch('/api/admin/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_id: subjectItem?.subject_id,
+          name: dataToSave.name,
+          description: dataToSave.description,
+          papers: filledPapers.map(p => ({
+            paper_code: p.paper_code.trim(),
+            paper_name: p.paper_name.trim(),
+            paper_type: (p.paper_type || '').trim() || null,
+            max_marks: p.max_marks === '' ? null : Number(p.max_marks),
+            description: (p.description || '').trim() || null,
+          })),
+          deletePaperIds,
+        })
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json?.error || 'Request failed');
       }
+      setSuccessMessage(subjectItem ? 'Subject updated successfully.' : 'Subject created successfully.');
       onSave();
     } catch (err) {
       console.error('Error saving subject:', err);
-      setError('Failed to save subject: ' + err.message);
+      setError('Failed to save subject: ' + (err?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -553,7 +847,7 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 text-xl">&times;</button>
         <h2 className="text-2xl font-bold mb-4">{subjectItem ? 'Edit Subject' : 'Add New Subject'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -575,6 +869,103 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
               rows={3}
               className="w-full border border-gray-300 rounded-md shadow-sm p-2"
             />
+          </div>
+          <div className="border-t pt-4">
+            <h3 className="text-lg font-semibold mb-2">Papers (optional)</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              {subjectItem
+                ? 'Add additional papers for this subject. Existing papers remain unchanged.'
+                : 'Add one or more papers for this subject. Paper Code and Paper Name are required for each added row.'}
+            </p>
+            {subjectItem && (
+              <div className="mb-3 border rounded p-2 bg-gray-50">
+                <p className="text-xs text-gray-600 mb-2">Existing papers</p>
+                <div className="space-y-2 max-h-40 overflow-auto">
+                  {existingPapers.length === 0 ? (
+                    <p className="text-xs text-gray-400">No existing papers.</p>
+                  ) : (
+                    existingPapers.map(ep => (
+                      <div key={ep.paper_id} className="flex items-center gap-2 text-sm">
+                        <span className="inline-block min-w-[80px] font-mono">{ep.paper_code}</span>
+                        <span className="flex-1">{ep.paper_name}</span>
+                        <label className="flex items-center gap-1 text-red-700">
+                          <input
+                            type="checkbox"
+                            checked={deletePaperIds.includes(ep.paper_id)}
+                            onChange={() => toggleDeleteExistingPaper(ep.paper_id)}
+                          />
+                          Remove
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+              <div className="space-y-3">
+                {papers.map((paper, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-start">
+                    <div className="md:col-span-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Paper Code</label>
+                      <input
+                        type="text"
+                        value={paper.paper_code}
+                        onChange={(e) => updatePaperField(idx, 'paper_code', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="e.g., ENG101"
+                      />
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Paper Name</label>
+                      <input
+                        type="text"
+                        value={paper.paper_name}
+                        onChange={(e) => updatePaperField(idx, 'paper_name', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="e.g., Composition"
+                      />
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Paper Type</label>
+                      <select
+                        value={paper.paper_type}
+                        onChange={(e) => updatePaperField(idx, 'paper_type', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                      >
+                        <option value="">Select type</option>
+                        <option value="Theory">Theory</option>
+                        <option value="Practical">Practical</option>
+                        <option value="Coursework">Coursework</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Max Marks</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={paper.max_marks}
+                        onChange={(e) => updatePaperField(idx, 'max_marks', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                        placeholder="e.g., 100"
+                      />
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={paper.description}
+                          onChange={(e) => updatePaperField(idx, 'description', e.target.value)}
+                          className="w-full border border-gray-300 rounded-md shadow-sm p-2"
+                          placeholder="Optional"
+                        />
+                        <button type="button" onClick={() => removePaperRow(idx)} className="px-2 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100">Remove</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={addPaperRow} className="px-3 py-2 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-50">+ Add Another Paper</button>
+              </div>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex justify-end gap-3">
@@ -680,6 +1071,12 @@ export default function SubjectsPage() {
         >
           + Add New Subject
         </button>
+        <button
+          onClick={() => setAddingOfferingForSubject({})}
+          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-semibold shadow-md transition duration-200 ease-in-out flex-shrink-0"
+        >
+          + Add New Offering
+        </button>
       </div>
 
       {loading ? (
@@ -749,7 +1146,6 @@ export default function SubjectsPage() {
 
         {addingOfferingForSubject && (
           <AddOfferingModal
-            subject={addingOfferingForSubject}
             onClose={() => setAddingOfferingForSubject(null)}
             onSave={() => { setAddingOfferingForSubject(null); }}
           />
