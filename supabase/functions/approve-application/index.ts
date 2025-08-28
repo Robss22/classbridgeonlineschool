@@ -37,6 +37,10 @@ serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let body: any;
+  let application_id: string;
+  let test_mode: boolean;
+  
   try {
     console.log("🚀 Starting application approval process");
     console.log("🔧 Environment check:", {
@@ -53,10 +57,12 @@ serve(async (req: Request) => {
       });
     }
     
-    const body = await req.json();
+    body = await req.json();
     console.log("📝 Request body:", body);
     
-    const { application_id, test_mode } = body;
+    const { application_id: appId, test_mode: testMode } = body;
+    application_id = appId;
+    test_mode = testMode;
     
     if (!application_id && !test_mode) {
       return new Response(JSON.stringify({ error: 'Missing application_id' }), { 
@@ -487,34 +493,51 @@ async function generateUniqueStudentEmail(firstName: string, lastName: string): 
   const cleanFirstName = firstName.toLowerCase().replace(/[^a-z]/g, '');
   const cleanLastName = lastName.toLowerCase().replace(/[^a-z]/g, '');
   
-  // Try different patterns
-  const patterns = [
-    `${cleanLastName.charAt(0)}${cleanFirstName}10@classbridge.ac.ug`,
-    `${cleanFirstName}${cleanLastName}${new Date().getFullYear().toString().slice(-2)}@classbridge.ac.ug`,
-    `${cleanFirstName}.${cleanLastName}${Math.floor(Math.random() * 1000)}@classbridge.ac.ug`,
-    `${cleanLastName}${cleanFirstName}${Date.now().toString().slice(-4)}@classbridge.ac.ug`
-  ];
+  // Base email pattern: {lastNameFirstLetter}{firstName}@classbridge.ac.ug
+  const baseEmail = `${cleanLastName.charAt(0)}${cleanFirstName}@classbridge.ac.ug`;
   
-  for (const email of patterns) {
-    // Check uniqueness in both applications and users tables
-    const { data: existingApp } = await supabase
-      .from('applications')
-      .select('student_email')
-      .eq('student_email', email)
-      .maybeSingle();
-      
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', email)
-      .maybeSingle();
-      
-    if (!existingApp && !existingUser) {
-      return email;
-    }
+  // Check if base email exists
+  const { data: existingApp } = await supabase
+    .from('applications')
+    .select('student_email')
+    .eq('student_email', baseEmail)
+    .maybeSingle();
+    
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('email')
+    .eq('email', baseEmail)
+    .maybeSingle();
+    
+  if (!existingApp && !existingUser) {
+    return baseEmail;
   }
   
-  // Final fallback with timestamp
+  // If base email exists, try with incremental numbers
+  let counter = 1;
+  while (counter <= 999) { // Limit to prevent infinite loop
+    const emailWithNumber = `${cleanLastName.charAt(0)}${cleanFirstName}${counter}@classbridge.ac.ug`;
+    
+    const { data: existingAppWithNumber } = await supabase
+      .from('applications')
+      .select('student_email')
+      .eq('student_email', emailWithNumber)
+      .maybeSingle();
+      
+    const { data: existingUserWithNumber } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', emailWithNumber)
+      .maybeSingle();
+      
+    if (!existingAppWithNumber && !existingUserWithNumber) {
+      return emailWithNumber;
+    }
+    
+    counter++;
+  }
+  
+  // Final fallback with timestamp (should never reach here)
   const timestamp = Date.now().toString();
   return `student${timestamp.slice(-8)}@classbridge.ac.ug`;
 }
@@ -607,13 +630,14 @@ function generateApprovalEmailHTML(fullName: string, programName: string, creden
 }
 
 function getCurriculumCode(curriculum: string): string {
-  const codes = {
-    'uneb': 'U',
-    'cambridge': 'C',
-    'coaching': 'CO',
-    'tech skills': 'T'
-  };
-  return codes[curriculum?.toLowerCase()] || 'G';
+  const curriculumLower = curriculum?.toLowerCase() || '';
+  
+  if (curriculumLower.includes('uneb')) return 'U';
+  if (curriculumLower.includes('cambridge')) return 'C';
+  if (curriculumLower.includes('coaching')) return 'CO';
+  if (curriculumLower.includes('tech skills')) return 'T';
+  
+  return 'G';
 }
 
 function getClassCode(studentClass: string): string {

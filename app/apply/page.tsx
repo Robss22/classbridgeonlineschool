@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react'; // Import useRef
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getNames } from 'country-list';
-import dynamic from 'next/dynamic';
-const PhoneInput = dynamic(() => import('react-phone-input-2'), { ssr: false });
 
 export default function ApplyPage() {
   const router = useRouter();
@@ -24,6 +22,7 @@ export default function ApplyPage() {
     about: '',
     consent: false,
     academicDocs: null as File | null,
+    countryCode: '+256', // Added for country code
   });
 
   const [loading, setLoading] = useState(false);
@@ -107,6 +106,69 @@ export default function ApplyPage() {
     // END: Logging for initial data fetch in useEffect
   }, []);
 
+  // Add custom styles for PhoneInput alignment
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .react-tel-input .form-control {
+        height: 42px !important;
+        border-radius: 0.375rem !important;
+        border: 1px solid #d1d5db !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 1rem !important;
+        line-height: 1.5 !important;
+        width: 100% !important;
+        border-left: none !important;
+        border-top-left-radius: 0 !important;
+        border-bottom-left-radius: 0 !important;
+      }
+      .react-tel-input .flag-dropdown {
+        border-radius: 0.375rem 0 0 0.375rem !important;
+        border: 1px solid #d1d5db !important;
+        background-color: #f9fafb !important;
+        height: 42px !important;
+        border-right: 2px solid #d1d5db !important;
+        margin-right: 0 !important;
+        width: auto !important;
+        min-width: 80px !important;
+      }
+      .react-tel-input .form-control:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 1px #3b82f6 !important;
+        outline: none !important;
+      }
+      .react-tel-input .flag-dropdown.open {
+        border-color: #3b82f6 !important;
+        border-right-color: #3b82f6 !important;
+      }
+      .react-tel-input .selected-flag {
+        height: 42px !important;
+        padding: 0 0.75rem !important;
+        border-radius: 0.375rem 0 0 0.375rem !important;
+      }
+      .react-tel-input .form-control {
+        padding-left: 0.75rem !important;
+      }
+      .react-tel-input {
+        display: flex !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        max-width: 400px !important;
+        width: 100% !important;
+      }
+      .react-tel-input .form-control:focus + .flag-dropdown,
+      .react-tel-input .form-control:focus ~ .flag-dropdown {
+        border-color: #3b82f6 !important;
+        border-right-color: #3b82f6 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   function handleNationalityChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setForm((f) => ({ ...f, nationality: value }));
@@ -144,10 +206,6 @@ export default function ApplyPage() {
         return { ...f, [name]: value };
       });
     }
-  }
-
-  function handlePhoneChange(value: string) {
-    setForm((f) => ({ ...f, parentContact: value }));
   }
 
   // New function to handle "OK" click on success message
@@ -224,7 +282,7 @@ export default function ApplyPage() {
           program_id: form.curriculum,     // Store the program_id for normalization
           class: form.className,
           parent_name: form.parentName,
-          parent_contact: form.parentContact,
+          parent_contact: `${form.countryCode}${form.parentContact}`,
           parent_email: form.email,
           about_student: form.about,
           consent: form.consent,
@@ -276,7 +334,7 @@ export default function ApplyPage() {
       setForm({
         firstName: '', lastName: '', gender: '', dob: '', nationality: 'Uganda',
         curriculum: '', curriculumName: '', className: '', parentName: '', parentContact: '', email: '',
-        about: '', consent: false, academicDocs: null,
+        about: '', consent: false, academicDocs: null, countryCode: '+256',
       });
       
       // Clear the file input field by resetting its value via ref
@@ -294,173 +352,298 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300 flex items-center justify-center py-12 px-2 pb-32">
-      <div className="max-w-3xl w-full mx-auto p-6 bg-white rounded shadow">
-        <h1 className="text-2xl font-bold mb-2 text-center">Student Application Form</h1>
-        <p className="mb-6 text-center text-gray-600">
-          Please complete the form below with accurate information and click <span className='font-semibold'>Submit</span> to send your application. Our admissions team will review your submission and contact you as soon as possible with the next steps. If you have any questions, feel free to reach out to us.
-        </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            Student Application Form
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Join Class Bridge Online School and start your educational journey today
+          </p>
+        </div>
 
-        {/* Success Message Overlay */}
-        {showSuccessOverlay && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md mx-4 text-center">
-              <div className="mb-4">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        {/* Form Container */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10">
+          {message && (
+            <div className={`mb-6 p-4 rounded-lg ${message.includes('Error') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
+              {message}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Student Info */}
+            <div className="space-y-4">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Student Information
+              </h2>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <input 
+                  type="text" 
+                  name="firstName" 
+                  placeholder="First Name" 
+                  value={form.firstName} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                />
+                <input 
+                  type="text" 
+                  name="lastName" 
+                  placeholder="Last Name" 
+                  value={form.lastName} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <select 
+                  name="gender" 
+                  value={form.gender} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="">Select Gender</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                </select>
+                <input 
+                  type="date" 
+                  name="dob" 
+                  value={form.dob} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                />
+              </div>
+              
+              <div className="relative">
+                <input 
+                  type="text" 
+                  name="nationality" 
+                  placeholder="Nationality" 
+                  value={form.nationality} 
+                  onChange={handleNationalityChange} 
+                  autoComplete="off" 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                />
+                {filteredCountries.length > 0 && (
+                  <ul className="absolute z-10 max-h-48 w-full overflow-auto border border-gray-200 bg-white rounded-lg shadow-lg mt-1">
+                    {filteredCountries.map((country) => (
+                      <li key={country} className="cursor-pointer px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0" onClick={() => selectCountry(country)}>
+                        {country}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              
+              {/* Curriculum and Class selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <select 
+                  name="curriculum" 
+                  value={form.curriculum} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                >
+                  <option value="">Select Curriculum</option>
+                  {curricula.map((p) => ( 
+                    <option key={p.program_id} value={p.program_id}>{p.name}</option> 
+                  ))}
+                </select>
+                <select 
+                  name="className" 
+                  value={form.className} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                  disabled={!form.curriculum}
+                >
+                  <option value="">Select Class</option>
+                  {form.curriculum && (() => {
+                    const selectedProgram = curricula.find(p => p.program_id === form.curriculum);
+                    const programName = selectedProgram?.name || '';
+                    return classesByCurriculum[programName]?.map((cls) => ( 
+                      <option key={cls} value={cls}> {cls} </option> 
+                    )) || <option value="">No classes available</option>;
+                  })()}
+                </select>
+              </div>
+            </div>
+            
+            {/* Academic Documents */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Academic Documents</h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">
+                  Upload Academic Documents (PDF, JPG, PNG):
+                </label>
+                <input
+                  type="file"
+                  name="academicDocs"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleChange}
+                  required
+                  className="hidden"
+                  ref={fileInputRef}
+                />
+                <button
+                  type="button"
+                  onClick={handleButtonClick}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                   </svg>
+                  {form.academicDocs ? 'Change File' : 'Choose File'}
+                </button>
+              </div>
+              {form.academicDocs && (
+                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                  <span className="font-medium">Selected:</span> {form.academicDocs.name}
+                </div>
+              )}
+            </div>
+            
+            {/* Parent Info */}
+            <div className="space-y-4">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Parent / Guardian Information
+              </h2>
+              
+              <input 
+                type="text" 
+                name="parentName" 
+                placeholder="Parent / Guardian Name" 
+                value={form.parentName} 
+                onChange={handleChange} 
+                required 
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              />
+              
+              {/* Custom Phone Input Layout */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="w-full sm:w-32">
+                  <select 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 h-[50px] bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    value={form.countryCode || '+256'}
+                    onChange={(e) => setForm(f => ({ ...f, countryCode: e.target.value }))}
+                  >
+                    <option value="+256">🇺🇬 +256</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+86">🇨🇳 +86</option>
+                    <option value="+81">🇯🇵 +81</option>
+                    <option value="+49">🇩🇪 +49</option>
+                    <option value="+33">🇫🇷 +33</option>
+                    <option value="+39">🇮🇹 +39</option>
+                    <option value="+34">🇪🇸 +34</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <input 
+                    type="tel" 
+                    name="parentContact" 
+                    placeholder="Phone Number" 
+                    value={form.parentContact} 
+                    onChange={(e) => setForm(f => ({ ...f, parentContact: e.target.value }))}
+                    required 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 h-[50px] focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  />
                 </div>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Application Submitted!</h3>
-              <p className="text-sm text-gray-600 mb-4 whitespace-pre-line">{successMessageContent}</p> {/* Use whitespace-pre-line to respect \n */}
-              <button
-                onClick={handleSuccessOk}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                OK
-              </button>
+              
+              <input 
+                type="email" 
+                name="email" 
+                placeholder="Email Address" 
+                value={form.email} 
+                onChange={handleChange} 
+                required 
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              />
             </div>
-          </div>
-        )}
-
-        {message && (
-          <div className={`mb-4 p-3 rounded-lg border ${
-            message.startsWith('Error') || message.includes('failed') 
-              ? 'bg-red-50 border-red-200 text-red-700' 
-              : message.includes('successfully') 
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-          }`}>
-            <div className="flex items-center gap-2">
-              {message.includes('successfully') ? (
-                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : message.startsWith('Error') || message.includes('failed') ? (
-                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            
+            {/* About the student */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">About the Student</label>
+              <textarea 
+                name="about" 
+                placeholder="Tell us about the student..." 
+                value={form.about} 
+                onChange={handleChange} 
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none" 
+                rows={4} 
+              />
+            </div>
+            
+            {/* Consent */}
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  name="consent" 
+                  checked={form.consent} 
+                  onChange={handleChange} 
+                  required 
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">
+                  I agree to the terms and conditions and consent to the processing of my personal data for the purpose of this application.
+                </span>
+              </label>
+            </div>
+            
+            {/* Submit Button */}
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Submitting...
+                </>
               ) : (
-                <svg className="w-5 h-5 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+                'Submit Application'
               )}
-              <span className="font-medium">{message}</span>
-            </div>
-          </div>
-        )}
+            </button>
+          </form>
+        </div>
+      </div>
 
-        {/* Progress indicator during submission */}
-        {loading && !message.includes('successfully') && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      {/* Success Overlay */}
+      {showSuccessOverlay && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+            <div className="text-green-500 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-              <span className="font-medium">Please wait while we process your application...</span>
             </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Application Submitted!</h3>
+            <p className="text-gray-600 mb-6">{successMessageContent}</p>
+            <button
+              onClick={handleSuccessOk}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              OK
+            </button>
           </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Student Info */}
-        <h2 className="font-semibold text-lg">Student Information</h2>
-        <div className="flex gap-4">
-          <input type="text" name="firstName" placeholder="First Name" value={form.firstName} onChange={handleChange} required className="flex-1 border rounded px-3 py-2" />
-          <input type="text" name="lastName" placeholder="Last Name" value={form.lastName} onChange={handleChange} required className="flex-1 border rounded px-3 py-2" />
         </div>
-        <div className="flex gap-4">
-          <select name="gender" value={form.gender} onChange={handleChange} required className="flex-1 border rounded px-3 py-2">
-            <option value="">Select Gender</option>
-            <option>Male</option>
-            <option>Female</option>
-          </select>
-          <input type="date" name="dob" value={form.dob} onChange={handleChange} required className="flex-1 border rounded px-3 py-2" />
-        </div>
-        <div className="relative w-full">
-          <input type="text" name="nationality" placeholder="Nationality" value={form.nationality} onChange={handleNationalityChange} autoComplete="off" required className="w-full border rounded px-3 py-2" />
-          {filteredCountries.length > 0 && (
-            <ul className="absolute z-10 max-h-48 w-full overflow-auto border bg-white rounded shadow mt-1">
-              {filteredCountries.map((country) => (
-                <li key={country} className="cursor-pointer px-3 py-2 hover:bg-blue-100" onClick={() => selectCountry(country)}>
-                  {country}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {/* Curriculum and Class selectors */}
-        <div className="flex gap-4">
-          <select name="curriculum" value={form.curriculum} onChange={handleChange} required className="flex-1 border rounded px-3 py-2">
-            <option value="">Select Curriculum</option>
-            {curricula.map((p) => ( <option key={p.program_id} value={p.program_id}>{p.name}</option> ))}
-          </select>
-          <select name="className" value={form.className} onChange={handleChange} required className="flex-1 border rounded px-3 py-2" disabled={!form.curriculum}>
-            <option value="">Select Class</option>
-            {form.curriculum && (() => {
-              const selectedProgram = curricula.find(p => p.program_id === form.curriculum);
-              const programName = selectedProgram?.name || '';
-              return classesByCurriculum[programName]?.map((cls) => ( <option key={cls} value={cls}> {cls} </option> )) || <option value="">No classes available</option>;
-            })()}
-          </select>
-        </div>
-        
-        {/* Academic Documents - Styled Button */}
-        <div className="flex items-center space-x-3">
-          <label className="block font-semibold">
-            Upload Academic Documents (PDF, JPG, PNG):
-          </label>
-          <input
-            type="file"
-            name="academicDocs"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={handleChange}
-            required
-            className="hidden"
-            ref={fileInputRef}
-          />
-          <button
-            type="button"
-            onClick={handleButtonClick}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-            {form.academicDocs ? 'Change File' : 'Choose File'}
-          </button>
-          {form.academicDocs && (
-            <span className="text-sm text-gray-700 truncate max-w-[200px] md:max-w-xs font-medium">{form.academicDocs.name}</span>
-          )}
-        </div>
-        {/* Parent Info */}
-        <h2 className="font-semibold text-lg">Parent / Guardian Information</h2>
-        <input type="text" name="parentName" placeholder="Parent / Guardian Name" value={form.parentName} onChange={handleChange} required className="w-full border rounded px-3 py-2" />
-        <PhoneInput country="ug" value={form.parentContact} onChange={handlePhoneChange} inputProps={{ name: 'parentContact', required: true, }} containerClass="mb-4" />
-        {/* Email */}
-        <input type="email" name="email" placeholder="Email Address" value={form.email} onChange={handleChange} required className="w-full border rounded px-3 py-2" />
-        {/* About the student */}
-        <textarea name="about" placeholder="Tell us about the student..." value={form.about} onChange={handleChange} className="w-full border rounded px-3 py-2" rows={4} />
-        {/* Consent */}
-        <label className="inline-flex items-center gap-2">
-          <input type="checkbox" name="consent" checked={form.consent} onChange={handleChange} required />
-          <span>I agree to the terms and conditions.</span>
-        </label>
-        <button type="submit" disabled={!!loading} className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
-          {loading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Submitting...
-            </>
-          ) : (
-            'Submit Application'
-          )}
-        </button>
-      </form>
+      )}
     </div>
-  </div>
   );
 }
