@@ -325,7 +325,7 @@ export default function ApplyPage() {
         setSuccessMessageContent('Your application has been submitted successfully! \n However, we encountered an issue sending the confirmation email. Please contact support if you do not receive it within an hour. \n Your Application will be processed after confirmation of the Application fee: Ugx 50000/= \n For help 0747808222');
       }
 
-      // Mark submission as completed and show success
+      // Mark submission as as completed and show success
       submissionCompletedRef.current = true;
       setMessage('Application submitted successfully!');
       setShowSuccessOverlay(true);
