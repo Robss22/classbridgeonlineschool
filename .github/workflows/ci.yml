@@ -17,18 +17,13 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci
-        working-directory: ./classbridgeonlineschool
       - name: Type check
         run: npm run typecheck
-        working-directory: ./classbridgeonlineschool
       - name: Lint
         run: npm run lint
-        working-directory: ./classbridgeonlineschool
       - name: Build
         run: npm run build
-        working-directory: ./classbridgeonlineschool
       - name: Unit tests
         run: npm test -- --ci
-        working-directory: ./classbridgeonlineschool
 
 
