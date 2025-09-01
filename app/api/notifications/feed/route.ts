@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const { data: classes } = await supabaseAdmin
       .from('live_classes')
       .select('live_class_id, title, scheduled_date, start_time, end_time, meeting_link, subjects:subject_id(name), teachers:teacher_id(users: user_id(first_name,last_name))')
-      .eq('program_id', programId)
+      .eq('program_id', programId || '')
       .eq('scheduled_date', yyyy)
       .gte('start_time', hhmmss)
       .lte('start_time', new Date(now.getTime() + 30 * 60000).toTimeString().slice(0,8))

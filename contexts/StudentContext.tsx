@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient'; // Assuming this is correctly configured
+import { getUserFriendlyErrorMessage, logTechnicalError } from '../utils/errorHandler';
 
 // Define a type for the student information coming from StudentContext
 // This interface MUST match the 'Student' interface defined in your StudentContext.tsx
@@ -51,8 +52,9 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        setStudentError('No user found or error: ' + (userError?.message || userError));
-        console.log("No user found or error:", userError);
+        logTechnicalError(userError, 'StudentContext User Fetch');
+        const userFriendlyMessage = getUserFriendlyErrorMessage(userError);
+        setStudentError(userFriendlyMessage);
         setLoading(false);
         return;
       }
@@ -62,8 +64,9 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         .eq('email', user.email as string)
         .single();
       if (error || !data) {
-        setStudentError('Error fetching user profile: ' + (error?.message || error));
-        console.log("Error fetching user profile:", error);
+        logTechnicalError(error, 'StudentContext Profile Fetch');
+        const userFriendlyMessage = getUserFriendlyErrorMessage(error);
+        setStudentError(userFriendlyMessage);
         setLoading(false);
         return;
       }
@@ -97,7 +100,19 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (studentError) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600 text-lg">{studentError}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 max-w-md">
+          <div className="text-red-600 text-lg mb-4">{studentError}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const setStudentPhotoUrl = (url: string) => {

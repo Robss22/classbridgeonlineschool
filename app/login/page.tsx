@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRouter, usePathname } from 'next/navigation';
+import { getUserFriendlyErrorMessage, logTechnicalError } from '../../utils/errorHandler';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -177,7 +178,9 @@ const Login: React.FC = () => {
         // Fallback profile result
         
         if (fallbackError || !fallbackProfile) {
-          setError(`Failed to fetch user profile: ${profileError.message}. Please try again later or contact support.`);
+          logTechnicalError(profileError, 'Login Profile Fetch');
+          const userFriendlyMessage = getUserFriendlyErrorMessage(profileError);
+          setError(userFriendlyMessage);
           setLoading(false);
           clearTimeout(loginTimeout);
           return;
@@ -241,14 +244,11 @@ const Login: React.FC = () => {
       }
 
     } catch (err) {
-      console.error('Unexpected error during login:', err);
+      logTechnicalError(err, 'Login General Error');
       clearTimeout(loginTimeout);
       
-      if (err instanceof Error && err.message.includes('timeout')) {
-        setError('Login timed out. The server may be busy or unreachable. Please check your connection and try again.');
-      } else {
-        setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      }
+      const userFriendlyMessage = getUserFriendlyErrorMessage(err);
+      setError(userFriendlyMessage);
       setLoading(false);
     }
   };

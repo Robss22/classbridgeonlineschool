@@ -15,7 +15,9 @@ export default function NotificationsBell() {
       const res = await fetch('/api/notifications/feed', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       const json = await res.json();
       if (res.ok) setItems(json.data || []);
-    } catch {}
+    } catch {
+      // Ignore notification fetch errors
+    }
   };
 
   useEffect(() => {

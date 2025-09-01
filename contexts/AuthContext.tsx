@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase, checkDatabaseHealth } from '../lib/supabaseClient';
+import { getUserFriendlyErrorMessage, logTechnicalError, getAuthErrorMessage } from '../utils/errorHandler';
 
 // Define types for the auth context
 interface UserMetadata {
@@ -86,8 +87,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        console.error('❌ [AuthProvider] Session error:', sessionError);
-        setAuthError(sessionError.message);
+        logTechnicalError(sessionError, 'AuthProvider Session');
+        const userFriendlyMessage = getUserFriendlyErrorMessage(sessionError);
+        setAuthError(userFriendlyMessage);
         return;
       }
 
@@ -118,9 +120,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('🔐 [AuthProvider] Auth initialization completed successfully');
 
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ [AuthProvider] Auth initialization failed:', error);
-      setAuthError(errorMessage || 'Authentication initialization failed');
+      logTechnicalError(error, 'AuthProvider Initialization');
+      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
+      setAuthError(userFriendlyMessage);
     } finally {
       setLoading(false);
       isInitializing.current = false;
@@ -194,6 +196,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
+        logTechnicalError(error, 'AuthContext Profile Fetch');
         throw new Error(`Failed to fetch user profile: ${error.message}`);
       }
       
@@ -215,9 +218,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(userProfile);
       
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ [AuthContext] Error in fetchUserProfile:', error);
-      setAuthError(errorMessage);
+      logTechnicalError(error, 'AuthContext fetchUserProfile');
+      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
+      setAuthError(userFriendlyMessage);
       
       // Set basic user info even if profile fetch fails
       const metadata = authUser.user_metadata as UserMetadata || {};
@@ -247,9 +250,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       if (error) {
-        console.error('❌ [AuthProvider] Sign in error:', error);
-        setAuthError(error.message);
-        return { success: false, error: error.message };
+        logTechnicalError(error, 'AuthProvider SignIn');
+        const userFriendlyMessage = getAuthErrorMessage(error);
+        setAuthError(userFriendlyMessage);
+        return { success: false, error: userFriendlyMessage };
       }
       
       if (data?.user) {
@@ -257,15 +261,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await fetchUserProfile(data.user);
         return { success: true };
       } else {
-        setAuthError('No user data received');
-        return { success: false, error: 'No user data received' };
+        const userFriendlyMessage = "We're having trouble loading user data right now. Please try again later. If the problem persists, contact us at info@classbridge.ac.ug";
+        setAuthError(userFriendlyMessage);
+        return { success: false, error: userFriendlyMessage };
       }
       
     } catch (error: any) {
-      console.error('❌ [AuthProvider] Sign in exception:', error);
-      const errorMessage = error.message || 'Sign in failed';
-      setAuthError(errorMessage);
-      return { success: false, error: errorMessage };
+      logTechnicalError(error, 'AuthProvider SignIn Exception');
+      const userFriendlyMessage = getAuthErrorMessage(error);
+      setAuthError(userFriendlyMessage);
+      return { success: false, error: userFriendlyMessage };
     } finally {
       setLoading(false);
     }
@@ -278,8 +283,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setAuthError('');
     } catch (error: any) {
-      console.error('❌ [AuthProvider] Sign out error:', error);
-      setAuthError(error.message || 'Sign out failed');
+      logTechnicalError(error, 'AuthProvider SignOut');
+      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
+      setAuthError(userFriendlyMessage);
     }
   }, []);
 

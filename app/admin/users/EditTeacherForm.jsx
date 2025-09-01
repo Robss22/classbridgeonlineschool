@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { normalizeForInsert } from '@/utils/normalizeForInsert';
 import bcrypt from 'bcryptjs';
 
 export default function TeacherForm({ teacher, onSuccess, onCancel }) {

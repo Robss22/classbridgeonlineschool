@@ -121,6 +121,7 @@ export default function StudentSidebar({ className = "", isMobileMenuOpen, onMob
                   try {
                     await supabase.auth.signOut();
                   } catch {
+                    // Ignore logout errors
                   } finally {
                     router.replace('/login');
                   }
@@ -169,6 +170,7 @@ export default function StudentSidebar({ className = "", isMobileMenuOpen, onMob
               try {
                 await supabase.auth.signOut();
               } catch {
+                // Ignore logout errors
               } finally {
                 router.replace('/login');
               }

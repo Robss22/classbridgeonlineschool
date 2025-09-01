@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { errorHandler } from '@/lib/errorHandler';
+import { canStartLiveClass } from '@/utils/timeValidation';
 
 // Generate a random meeting ID for Google Meet using 3-4-3 pattern (e.g., abc-defg-hij)
 function generateMeetingId(): string {
@@ -50,21 +51,23 @@ function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, p
   
   switch (platformKey) {
     case 'jitsi':
-    case 'jitsi meet':
+    case 'jitsi meet': {
       const config = platformConfig['Jitsi Meet'];
       return {
         link: config.generateLink(),
         platform: 'Jitsi Meet',
         config: config.embedConfig
       };
+    }
     case 'google meet':
-    case 'google':
+    case 'google': {
       const googleConfig = platformConfig['Google Meet'];
       return {
         link: googleConfig.generateLink(),
         platform: 'Google Meet',
         config: googleConfig.embedConfig
       };
+    }
     case 'zoom': {
       const zoomConfig = platformConfig['Zoom'];
       return {
@@ -73,13 +76,14 @@ function generateMeetingLink(platform: string = 'Jitsi Meet'): { link: string, p
         config: zoomConfig.embedConfig
       };
     }
-    default:
+    default: {
       const defaultConfig = platformConfig['Jitsi Meet'];
       return {
         link: defaultConfig.generateLink(),
         platform: 'Jitsi Meet',
         config: defaultConfig.embedConfig
       };
+    }
   }
 }
 
@@ -173,6 +177,34 @@ export async function PUT(request: NextRequest) {
         { error: 'Status is required', success: false },
         { status: 400 }
       );
+    }
+
+    // If trying to start a class, validate the time first
+    if (status === 'ongoing') {
+      // Get the live class details to check scheduled time
+      const { data: liveClassData, error: fetchError } = await supabase
+        .from('live_classes')
+        .select('scheduled_date, start_time')
+        .eq('live_class_id', id)
+        .single();
+
+      if (fetchError) {
+        return NextResponse.json(
+          { error: 'Failed to fetch live class details', success: false },
+          { status: 500 }
+        );
+      }
+
+      if (liveClassData && liveClassData.scheduled_date) {
+        const validation = canStartLiveClass(liveClassData.scheduled_date || '', liveClassData.start_time || '', false);
+        
+        if (!validation.canStart) {
+          return NextResponse.json(
+            { error: validation.reason, success: false },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     // Update the live class status
@@ -345,6 +377,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LiveClass
         await notify(30 * 60 * 1000, 'reminder_30min');
         await notify(5 * 60 * 1000, 'reminder_5min');
       } catch {
+        // Ignore notification scheduling errors
       }
     }
 

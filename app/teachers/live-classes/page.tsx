@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Video, Trash2, Play, Clock, Users, Bell, AlertCircle } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
+import { canStartLiveClass, getStartTimeMessage } from '@/utils/timeValidation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LiveClass {
@@ -139,8 +140,18 @@ export default function TeacherLiveClassesPage() {
     }
   }, [fetchData]);
 
-  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string) => {
+  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string) => {
     try {
+      // If trying to start a class, validate the time first
+      if (newStatus === 'ongoing' && scheduledDate && startTime) {
+        const validation = canStartLiveClass(scheduledDate, startTime, false);
+        
+        if (!validation.canStart) {
+          setError(validation.reason);
+          return;
+        }
+      }
+
       const response = await fetch(`/api/live-classes?id=${liveClassId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -237,7 +248,7 @@ export default function TeacherLiveClassesPage() {
     
     // Update status to ongoing if not already
     if (liveClass.status === 'scheduled') {
-      await handleUpdateStatus(liveClass.live_class_id, 'ongoing');
+      await handleUpdateStatus(liveClass.live_class_id, 'ongoing', liveClass.scheduled_date, liveClass.start_time);
     }
   }, [handleGenerateMeetingLink, handleUpdateStatus, fetchData]);
 
@@ -529,6 +540,11 @@ export default function TeacherLiveClassesPage() {
                               Started: {new Date(liveClass.started_at).toLocaleTimeString()}
                             </div>
                           )}
+                          {liveClass.status === 'scheduled' && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              {getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time)}
+                            </div>
+                          )}
                           {/* TODO: Uncomment when meeting_terminated_at field is added to database
                           {liveClass.status === 'completed' && liveClass.meeting_terminated_at && (
                             <div className="text-xs text-green-600 font-medium mt-1">
@@ -541,13 +557,19 @@ export default function TeacherLiveClassesPage() {
                           <div className="flex gap-2 flex-wrap">
                             {liveClass.status === 'scheduled' && (
                               <>
-                                <button
-                                  onClick={() => handleUpdateStatus(liveClass.live_class_id, 'ongoing')}
-                                  className="p-1 text-green-600 hover:text-green-800"
-                                  title="Start Class"
-                                >
-                                  <Play className="w-4 h-4" />
-                                </button>
+                                {(() => {
+                                  const validation = canStartLiveClass(liveClass.scheduled_date, liveClass.start_time, false);
+                                  return (
+                                    <button
+                                      onClick={() => handleUpdateStatus(liveClass.live_class_id, 'ongoing', liveClass.scheduled_date, liveClass.start_time)}
+                                      className={`p-1 ${validation.canStart ? 'text-green-600 hover:text-green-800' : 'text-gray-400 cursor-not-allowed'}`}
+                                      title={getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time)}
+                                      disabled={!validation.canStart}
+                                    >
+                                      <Play className="w-4 h-4" />
+                                    </button>
+                                  );
+                                })()}
                                 {autoJoinEnabled && isStartingSoon && (
                                   <button
                                     onClick={() => handleAutoJoin(liveClass)}

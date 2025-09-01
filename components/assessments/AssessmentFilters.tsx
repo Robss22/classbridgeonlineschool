@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import type { AssessmentFilters } from '@/types/assessments';
+import type { AssessmentFilters as AssessmentFiltersType } from '@/types/assessments';
 import { ASSESSMENT_TYPES } from '@/types/assessments';
 
 interface AssessmentFiltersProps {
-  filters: AssessmentFilters;
-  onFiltersChange: (filters: AssessmentFilters) => void;
+  filters: AssessmentFiltersType;
+  onFiltersChange: (filters: AssessmentFiltersType) => void;
   subjects?: Array<{ subject_id: string; name: string }>;
   levels?: Array<{ level_id: string; name: string }>;
   programs?: Array<{ program_id: string; name: string }>;
@@ -21,7 +21,7 @@ export default function AssessmentFilters({
   programs = [],
   showAdvancedFilters = false
 }: AssessmentFiltersProps) {
-  const handleFilterChange = (key: keyof AssessmentFilters, value: string) => {
+  const handleFilterChange = (key: keyof AssessmentFiltersType, value: string) => {
     onFiltersChange({
       ...filters,
       [key]: value || undefined

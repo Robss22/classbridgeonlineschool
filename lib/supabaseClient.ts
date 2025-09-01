@@ -3,8 +3,8 @@ import { Database } from './supabase.types';
 
 // Load Supabase URL and Anon Key from environment variables
 // These variables must be prefixed with NEXT_PUBLIC_ to be accessible in the browser
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qznfggcxumubmjfmudat.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6bmZnZ2N4dW11Ym1qZm11ZGF0Iiwicm9sZSI6ImFub24iLCJleHAiOjIwNjYxNTk3MDJ9.ff';
 
 // Enhanced validation and debugging for environment variables
 if (!supabaseUrl || !supabaseAnonKey) {

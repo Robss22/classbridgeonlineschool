@@ -1,387 +1,196 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-
-import AssignClassForm from './AssignClassForm';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { normalizeForInsert } from '@/utils/normalizeForInsert';
 
+import { useUsers } from './hooks/useUsers';
+import UserTable from './components/UserTable';
+import EditUserModal from './components/EditUserModal';
+import SuccessMessage from './components/SuccessMessage';
+import AssignClassForm from './AssignClassForm';
 
-
-export default function TeachersPage() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function UsersManagementPage() {
   const router = useRouter();
-  const [editUser, setEditUser] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', password: '', role: '' });
-  const [editLoading, setEditLoading] = useState(false);
+  const {
+    users,
+    loading,
+    error,
+    fetchUsers,
+    updateUser,
+    deleteUser,
+    toggleUserStatus,
+  } = useUsers();
 
+  // UI State
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const [showAdmins, setShowAdmins] = useState(false);
-  const [showTeachers, setShowTeachers] = useState(false);
-  const [showStudents, setShowStudents] = useState(false);
-  // Assign class modal state
+  const [showAdmins, setShowAdmins] = useState(true);
+  const [showTeachers, setShowTeachers] = useState(true);
+  const [showStudents, setShowStudents] = useState(true);
+  
+  // Modal States
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
-  // Success message state
+  const [editUser, setEditUser] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  
+  // Success Message State
   const [successMessage, setSuccessMessage] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-
-  // Function to create teacher record if it doesn't exist
-  const ensureTeacherRecord = async (userId) => {
-    try {
-      // Check if teacher record already exists
-      const { data: existingTeacher, error: checkError } = await supabase
-        .from('teachers')
-        .select('teacher_id')
-        .eq('user_id', userId)
-        .single();
-      
-      if (checkError && checkError.code !== 'PGRST116') {
-        // Error checking existing teacher
-        return null;
-      }
-      
-      if (existingTeacher) {
-        // Teacher record already exists for user
-        return existingTeacher.teacher_id;
-      }
-      
-      // Create new teacher record
-      const { data: newTeacher, error: createError } = await supabase
-        .from('teachers')
-        .insert([{ user_id: userId }])
-        .select('teacher_id')
-        .single();
-      
-      if (createError) {
-        // Error creating teacher record
-        return null;
-      }
-      
-      // Created new teacher record
-      return newTeacher.teacher_id;
-    } catch {
-      // Unexpected error
-      return null;
-    }
-  };
-
-  // Use useCallback to avoid unnecessary re-renders
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      // Fetch admins and students from users table
-      const { data: regularUsers, error: regularError } = await supabase
-      .from('users')
-        .select('*')
-        .in('role', ['admin', 'student']);
-      if (regularError) {
-        setError('Failed to load users: ' + regularError.message);
-        setUsers([]);
-        setLoading(false);
-        return;
-      }
-
-      // First, try to fetch from teachers_with_users view
-      let teachersData = null;
-      
-      const { data: viewData, error: viewError } = await supabase
-        .from('teachers_with_users')
-      .select('*');
-      
-      // teachers_with_users view result
-      
-      if (viewError) {
-        // teachers_with_users view failed, trying fallback approach
-      } else if (viewData && viewData.length > 0) {
-        teachersData = viewData;
-        // Using teachers_with_users view data
-      } else {
-        // teachers_with_users view is empty, trying fallback approach
-      }
-
-      // Fallback: If view is empty or fails, fetch teachers from users table and join with teachers table
-      if (!teachersData || teachersData.length === 0) {
-        // Using fallback: fetching teachers from users table
-        
-        // Get all users with role 'teacher'
-        const { data: teacherUsers, error: teacherUsersError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('role', 'teacher');
-        
-        if (teacherUsersError) {
-          // Failed to fetch teacher users
-          setError('Failed to load teachers: ' + teacherUsersError.message);
-          setUsers([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Teacher users found
-        
-        if (teacherUsers && teacherUsers.length > 0) {
-          // For each teacher user, try to get their teacher record or create one if it doesn't exist
-          const teacherPromises = teacherUsers.map(async (user) => {
-            const { data: teacherRecord, error: teacherError } = await supabase
-              .from('teachers')
-              .select('*')
-              .eq('user_id', user?.id ?? '')
-              .single();
-            
-            let finalTeacherRecord = teacherRecord;
-            
-            if (teacherError && teacherError.code === 'PGRST116') { // PGRST116 = no rows returned
-              // No teacher record found for user, creating one
-              const newTeacherId = await ensureTeacherRecord(user.id);
-              if (newTeacherId) {
-                // Fetch the newly created teacher record
-                const { data: newTeacherRecord } = await supabase
-                  .from('teachers')
-                  .select('*')
-                  .eq('teacher_id', newTeacherId)
-                  .single();
-                finalTeacherRecord = newTeacherRecord;
-              }
-            } else if (teacherError) {
-              // Error fetching teacher record for user
-            }
-            
-            return {
-              user,
-              teacherRecord: finalTeacherRecord
-            };
-          });
-          
-          const teacherResults = await Promise.all(teacherPromises);
-          // Teacher results
-          
-          // Transform the data to match expected format
-          teachersData = teacherResults.map(({ user, teacherRecord }) => {
-            const transformed = {
-              // User data
-              id: user.id,
-              email: user.email,
-              full_name: user.full_name,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              role: 'teacher',
-              phone: user.phone,
-              status: user.status,
-              // Teacher data (if exists)
-              teacher_id: teacherRecord?.teacher_id || null,
-              user_id: user.id,
-              program_id: teacherRecord?.program_id || null,
-              bio: teacherRecord?.bio || null,
-            };
-            
-            // Warning if teacher_id is still null after creation attempt
-            if (!transformed.teacher_id) {
-              // Teacher record creation failed for user
-            }
-            
-            return transformed;
-          });
-          
-          // Transformed teacher data
-        } else {
-          teachersData = [];
-          // No teacher users found in users table
-        }
-      }
-
-      // Transform teachers data to match the expected format (if not already transformed)
-      const transformedTeachers = (teachersData || []).map(teacher => {
-        const transformed = {
-          id: teacher.user_id || teacher.id, // This is the user ID from users table
-          teacher_id: teacher.teacher_id, // This is the teacher ID from teachers table
-          user_id: teacher.user_id || teacher.id, // This is the user ID for the users table operations
-          email: teacher.email,
-          full_name: teacher.full_name,
-          first_name: teacher.first_name,
-          last_name: teacher.last_name,
-          role: 'teacher',
-          phone: teacher.phone,
-          status: teacher.status,
-          program_id: teacher.program_id,
-          bio: teacher.bio,
-        };
-        // Transformed teacher
-        return transformed;
-      });
-
-      // Combine regular users and transformed teachers
-      const allUsers = [...(regularUsers || []), ...transformedTeachers];
-      // Final combined users array
-      setUsers(allUsers);
-    } catch (err) {
-      // Unexpected error
-      setError('An unexpected error occurred: ' + (err instanceof Error ? err.message : 'Unknown error'));
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-
-
-  // Handler for successful subject assignment
-  const handleAssignClassSuccess = () => {
-    const teacherName = selectedTeacher?.full_name || `${selectedTeacher?.first_name || ''} ${selectedTeacher?.last_name || ''}`.trim();
-    
-    // Extract form data from the current form state
-    const extractFormData = () => {
-      try {
-        const modal = document.querySelector('.fixed.inset-0.bg-black.bg-opacity-30');
-        const form = modal?.querySelector('form');
-        if (!form) return {};
-        
-        const formData = {};
-        
-        // Get all select elements
-        const selects = form.querySelectorAll('select');
-        
-        // Get level (second select element)
-        if (selects.length >= 2) {
-          const levelSelect = selects[1];
-          if (levelSelect && levelSelect.value) {
-            const selectedOption = levelSelect.options[levelSelect.selectedIndex];
-            if (selectedOption && selectedOption.text !== 'Select Level') {
-              formData.level = selectedOption.text;
-            }
-          }
-        }
-        
-        // Get subject (third select element)
-        if (selects.length >= 3) {
-          const subjectSelect = selects[2];
-          if (subjectSelect && subjectSelect.value) {
-            const selectedOption = subjectSelect.options[subjectSelect.selectedIndex];
-            if (selectedOption && selectedOption.text !== 'Select Subject') {
-              formData.subject = selectedOption.text;
-            }
-          }
-        }
-        
-        // Get class teacher status
-        const classTutorCheckbox = form.querySelector('input[type="checkbox"]');
-        if (classTutorCheckbox) {
-          formData.isClassTeacher = classTutorCheckbox.checked;
-        }
-        
-        return formData;
-      } catch (error) {
-        console.error('Error extracting form data:', error);
-        return {};
-      }
-    };
-    
-    // Extract form data
-    const formData = extractFormData();
-    
-    // Build comprehensive success message
-    let message = `Teacher "${teacherName}" has been successfully assigned`;
-    
-    if (formData.level) {
-      message += ` to ${formData.level}`;
-    }
-    
-    if (formData.subject) {
-      if (formData.level) {
-        message += ` for ${formData.subject}`;
-      } else {
-        message += ` for ${formData.subject}`;
-      }
-    }
-    
-    if (formData.isClassTeacher) {
-      message += ` and as Class Teacher`;
-    }
-    
-    message += "!";
-    
-    setSuccessMessage(message);
-    setShowSuccessMessage(true);
-    
-    // Close modal and refresh data
-    setShowAssignModal(false);
-    setSelectedTeacher(null);
-    fetchUsers();
-  };
-
-  // Handle edit modal open
-  const handleOpenEdit = (user) => {
-    setEditUser(user);
-    setEditForm({
-      name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`,
-      phone: user.phone || '',
-      password: '',
-      role: user.role || 'student',
-    });
-    setShowEditModal(true);
-  };
-
-  // Handle edit form submit
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    setEditLoading(true);
-    // Update name, phone, and role
-    const updates = {
-      full_name: editForm.name,
-      phone: editForm.phone,
-      role: editForm.role,
-    };
-    let error = null;
-    // Secure password change
-    if (editForm.password) {
-      try {
-        const res = await fetch('/api/admin/change-user-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: editUser.id, newPassword: editForm.password }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Password change failed');
-        alert('Password updated successfully.');
-      } catch (err) {
-        alert('Password update error: ' + err.message);
-        setEditLoading(false);
-        return;
-      }
-    }
-    const { error: updateError } = await supabase.from('users').update(normalizeForInsert(updates)).eq('id', editUser.id);
-    error = updateError;
-    if (error) alert('Update error: ' + error.message);
-    else {
-      setShowEditModal(false);
-      fetchUsers();
-    }
-    setEditLoading(false);
-  };
-
-  if (loading) return <div className="py-12 text-center text-lg text-gray-700">Loading teachers...</div>;
-  if (error) return <div className="text-red-600 py-12 text-center">{error}</div>;
-
-  // Group users by role
+  // Filter users by role
   const admins = users.filter(u => u.role === 'admin');
   const teachers = users.filter(u => u.role === 'teacher');
   const students = users.filter(u => u.role === 'student');
 
+  // Event Handlers
+  const handleEditUser = (user) => {
+    setEditUser(user);
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (formData) => {
+    setEditLoading(true);
+    
+    try {
+      // Handle password change if provided
+      if (formData.password) {
+        const res = await fetch('/api/admin/change-user-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: editUser.id, 
+            newPassword: formData.password 
+          }),
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Password change failed');
+        }
+      }
+      
+      // Update user data
+      const updates = {
+        full_name: formData.name,
+        phone: formData.phone,
+        role: formData.role,
+      };
+      
+      const result = await updateUser(editUser.id, normalizeForInsert(updates, ['full_name', 'phone', 'role']));
+      
+      if (result.success) {
+        showSuccess(`User "${formData.name}" updated successfully!`);
+        setShowEditModal(false);
+        setEditUser(null);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (err) {
+      alert('Update error: ' + err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user) => {
+    const userType = user.role === 'teacher' ? 'teacher' : user.role === 'student' ? 'student' : 'admin';
+    const warningMessage = user.role === 'teacher' 
+      ? `Are you sure you want to delete this teacher? This will also delete all their live classes, timetables, and related data. This action cannot be undone.`
+      : user.role === 'student'
+      ? `Are you sure you want to delete this student? This will also delete all their class enrollments and participation records. This action cannot be undone.`
+      : `Are you sure you want to delete this admin? This action cannot be undone.`;
+    
+    if (!confirm(warningMessage)) {
+      return;
+    }
+    
+    const result = await deleteUser(user.id);
+    
+    if (result.success) {
+      showSuccess(`${userType.charAt(0).toUpperCase() + userType.slice(1)} "${user.full_name || user.email}" deleted successfully!`);
+    } else {
+      alert(`Delete error: ${result.error}`);
+    }
+    
+    setOpenDropdownId(null);
+  };
+
+  const handleToggleStatus = async (user) => {
+    const action = user.status !== 'inactive' ? 'deactivate' : 'activate';
+    
+    if (!confirm(`Are you sure you want to ${action} this user?`)) {
+      return;
+    }
+    
+    const result = await toggleUserStatus(user.id, user.status);
+    
+    if (result.success) {
+      showSuccess(`User ${action}d successfully!`);
+    } else {
+      alert(`${action.charAt(0).toUpperCase() + action.slice(1)} error: ` + result.error);
+    }
+    
+    setOpenDropdownId(null);
+  };
+
+  const handleAssignClass = (teacher) => {
+    setSelectedTeacher(teacher);
+    setShowAssignModal(true);
+  };
+
+  const handleAssignClassSuccess = () => {
+    const teacherName = selectedTeacher?.full_name || 
+      `${selectedTeacher?.first_name || ''} ${selectedTeacher?.last_name || ''}`.trim();
+    
+    showSuccess(`Teacher "${teacherName}" has been successfully assigned!`);
+    setShowAssignModal(false);
+    setSelectedTeacher(null);
+  };
+
+  const showSuccess = (message) => {
+    setSuccessMessage(message);
+    setShowSuccessMessage(true);
+    setTimeout(() => {
+      setShowSuccessMessage(false);
+      setSuccessMessage('');
+    }, 3000);
+  };
+
+  // Loading and Error States
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="py-12 text-center text-lg text-gray-700">
+          Loading users...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-red-600 py-12 text-center">{error}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-xl font-inter">
+      {/* Header */}
       <div className="mb-8 pb-4 border-b-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Users Management</h1>
-            <p className="text-lg text-gray-600">Manage teacher and admin accounts and assignments</p>
+            <p className="text-lg text-gray-600">
+              Manage teacher and admin accounts and assignments
+            </p>
           </div>
           <div className="flex gap-4">
             <button
@@ -399,229 +208,90 @@ export default function TeachersPage() {
           </div>
         </div>
       </div>
-      {/* Admins Section - Collapsible */}
+
+      {/* Admins Section */}
       <div className="mb-6">
         <button
           className="flex items-center gap-2 text-blue-700 font-semibold focus:outline-none"
           onClick={() => setShowAdmins(v => !v)}
         >
-          <span>Admins</span>
+          <span>Admins ({admins.length})</span>
           <span className={`transform transition-transform ${showAdmins ? 'rotate-180' : ''}`}>▼</span>
         </button>
         {showAdmins && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow mt-2">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {admins.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.full_name || `${user.first_name || ''} ${user.last_name || ''}`}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.phone || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.status || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 relative">
-                      <button
-                        className="text-blue-600 hover:underline"
-                        onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}
-                      >Actions ▾</button>
-                      {openDropdownId === user.id && (
-                        <div className="absolute right-0 mt-2 bg-white border rounded shadow z-10 w-32">
-                          <button className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100" onClick={() => { setOpenDropdownId(null); handleOpenEdit(user); }}>Edit</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (confirm('Are you sure you want to delete this user?')) { setLoading(true); const { error } = await supabase.from('users').delete().eq('id', user.id); if (error) alert('Delete error: ' + error.message); else fetchUsers(); setLoading(false); } }}>Delete</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (user.status === 'inactive') { if (confirm('Activate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'active' }).eq('id', user.id); if (error) alert('Activate error: ' + error.message); else fetchUsers(); setLoading(false); } } else { if (confirm('Deactivate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id); if (error) alert('Deactivate error: ' + error.message); else fetchUsers(); setLoading(false); } } }}> {user.status === 'inactive' ? 'Activate' : 'Deactivate'}</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <UserTable
+            users={admins}
+            role="admin"
+            onEdit={handleEditUser}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            openDropdownId={openDropdownId}
+            setOpenDropdownId={setOpenDropdownId}
+          />
         )}
       </div>
-      {/* Teachers Section - Collapsible */}
+
+      {/* Teachers Section */}
       <div className="mb-6">
         <button
           className="flex items-center gap-2 text-blue-700 font-semibold focus:outline-none"
           onClick={() => setShowTeachers(v => !v)}
         >
-          <span>Teachers</span>
+          <span>Teachers ({teachers.length})</span>
           <span className={`transform transition-transform ${showTeachers ? 'rotate-180' : ''}`}>▼</span>
         </button>
         {showTeachers && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow mt-2">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {teachers.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.full_name || `${user.first_name || ''} ${user.last_name || ''}`}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.phone || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.status || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 relative">
-                      <button className="text-blue-600 hover:underline" onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}>Actions ▾</button>
-                      {openDropdownId === user.id && (
-                        <div className="absolute right-0 mt-2 bg-white border rounded shadow z-10 w-40">
-                          <button className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100" onClick={() => { setOpenDropdownId(null); handleOpenEdit(user); }}>Edit</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (confirm('Are you sure you want to delete this user?')) { setLoading(true); const { error } = await supabase.from('users').delete().eq('id', user.id); if (error) alert('Delete error: ' + error.message); else fetchUsers(); setLoading(false); } }}>Delete</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (user.status === 'inactive') { if (confirm('Activate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'active' }).eq('id', user.id); if (error) alert('Activate error: ' + error.message); else fetchUsers(); setLoading(false); } } else { if (confirm('Deactivate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id); if (error) alert('Deactivate error: ' + error.message); else fetchUsers(); setLoading(false); } } }}> {user.status === 'inactive' ? 'Activate' : 'Deactivate'}</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-gray-100" onClick={() => { setOpenDropdownId(null); setSelectedTeacher(user); setShowAssignModal(true); }}>Assign Class/Subject</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <UserTable
+            users={teachers}
+            role="teacher"
+            onEdit={handleEditUser}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            onAssignClass={handleAssignClass}
+            openDropdownId={openDropdownId}
+            setOpenDropdownId={setOpenDropdownId}
+          />
         )}
       </div>
+
+      {/* Students Section */}
       <div className="mb-6">
         <button
           className="flex items-center gap-2 text-blue-700 font-semibold focus:outline-none"
           onClick={() => setShowStudents(v => !v)}
         >
-          <span>Students</span>
+          <span>Students ({students.length})</span>
           <span className={`transform transition-transform ${showStudents ? 'rotate-180' : ''}`}>▼</span>
         </button>
         {showStudents && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow mt-2">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-blue-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {students.map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.full_name || `${user.first_name || ''} ${user.last_name || ''}`}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.phone || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{user.status || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 relative">
-                      <button className="text-blue-600 hover:underline" onClick={() => setOpenDropdownId(openDropdownId === user.id ? null : user.id)}>Actions ▾</button>
-                      {openDropdownId === user.id && (
-                        <div className="absolute right-0 mt-2 bg-white border rounded shadow z-10 w-32">
-                          <button className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100" onClick={() => { setOpenDropdownId(null); handleOpenEdit(user); }}>Edit</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (confirm('Are you sure you want to delete this user?')) { setLoading(true); const { error } = await supabase.from('users').delete().eq('id', user.id); if (error) alert('Delete error: ' + error.message); else fetchUsers(); setLoading(false); } }}>Delete</button>
-                          <button className="block w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-gray-100" onClick={async () => { setOpenDropdownId(null); if (user.status === 'inactive') { if (confirm('Activate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'active' }).eq('id', user.id); if (error) alert('Activate error: ' + error.message); else fetchUsers(); setLoading(false); } } else { if (confirm('Deactivate this user?')) { setLoading(true); const { error } = await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id); if (error) alert('Deactivate error: ' + error.message); else fetchUsers(); setLoading(false); } } }}> {user.status === 'inactive' ? 'Activate' : 'Deactivate'}</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <UserTable
+            users={students}
+            role="student"
+            onEdit={handleEditUser}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            openDropdownId={openDropdownId}
+            setOpenDropdownId={setOpenDropdownId}
+          />
         )}
       </div>
-      
+
       {/* Success Message */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-md">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-medium">{successMessage}</span>
-            </div>
-            <button
-              onClick={() => { setShowSuccessMessage(false); setSuccessMessage(''); }}
-              className="ml-4 text-white hover:text-gray-200"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-      
+      <SuccessMessage
+        message={successMessage}
+        isVisible={showSuccessMessage}
+        onClose={() => setShowSuccessMessage(false)}
+      />
+
       {/* Edit User Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
-              onClick={() => setShowEditModal(false)}
-              title="Close"
-            >&times;</button>
-            <h2 className="text-xl font-bold mb-4">Edit User</h2>
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  className="w-full border rounded px-3 py-2"
-                  value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  className="w-full border rounded px-3 py-2"
-                  value={editForm.phone}
-                  onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={editForm.role}
-                  onChange={e => setEditForm({ ...editForm, role: e.target.value })}
-                  required
-                >
-                  <option value="admin">Admin</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="student">Student</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">New Password</label>
-                <input
-                  type="password"
-                  className="w-full border rounded px-3 py-2"
-                  value={editForm.password}
-                  onChange={e => setEditForm({ ...editForm, password: e.target.value })}
-                  placeholder="Leave blank to keep current password"
-                />
-              </div>
-              <button
-                type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
-                disabled={!!editLoading}
-              >{editLoading ? 'Saving...' : 'Save Changes'}</button>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditUserModal
+        user={editUser}
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleEditSubmit}
+        loading={editLoading}
+      />
+
       {/* Assign Class Modal */}
       {showAssignModal && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
@@ -630,7 +300,9 @@ export default function TeachersPage() {
               className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
               onClick={() => { setShowAssignModal(false); setSelectedTeacher(null); }}
               title="Close"
-            >&times;</button>
+            >
+              &times;
+            </button>
             {!selectedTeacher ? (
               <div>
                 <h2 className="text-lg font-semibold mb-4">Select Teacher</h2>
@@ -661,7 +333,6 @@ export default function TeachersPage() {
           </div>
         </div>
       )}
-      {/* Remove modal logic */}
     </div>
   );
 }

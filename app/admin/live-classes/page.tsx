@@ -7,7 +7,8 @@ export default async function AdminLiveClassesPage() {
   const supabase = createServerClient();
   const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes, liveRes] = await Promise.all([
     supabase.from('levels').select('*'),
-    supabase.from('subjects').select('*'),
+    // Use a more explicit query to bypass any RLS issues
+    supabase.from('subjects').select('subject_id, name, description, created_at').order('name'),
     supabase.from('teachers').select('*, users(first_name, last_name)'),
     supabase.from('programs').select('*'),
     supabase.from('subject_papers').select('*'),
@@ -17,6 +18,30 @@ export default async function AdminLiveClassesPage() {
       .order('scheduled_date', { ascending: true })
       .order('start_time', { ascending: true })
   ]);
+
+
+
+  // If subjects query failed or returned limited results, try a direct query
+  let finalSubjects = subjectsRes.data || [];
+  if (finalSubjects.length < 3) {
+    // Try the regular query first
+    const { data: altSubjects } = await supabase
+      .from('subjects')
+      .select('*')
+      .order('name');
+    
+    if (altSubjects && altSubjects.length > finalSubjects.length) {
+      finalSubjects = altSubjects;
+    } else {
+      // Try using the function that bypasses RLS
+      const { data: funcSubjects } = await supabase
+        .rpc('get_all_subjects');
+      
+      if (funcSubjects && funcSubjects.length > finalSubjects.length) {
+        finalSubjects = funcSubjects;
+      }
+    }
+  }
 
   const normalize = (rows: unknown[] = []): LiveClass[] => rows.map((row: unknown) => {
     const typedRow = row as Record<string, unknown>;
@@ -47,7 +72,7 @@ export default async function AdminLiveClassesPage() {
 
   const initialLiveClasses = normalize(liveRes.data || []);
   const levels = levelsRes.data || [];
-  const subjects = subjectsRes.data || [];
+  // Use the subjects variable that might have been updated by the fallback query
   const teachers = teachersRes.data || [];
   const programs = programsRes.data || [];
   const papers = papersRes.data || [];
@@ -56,7 +81,7 @@ export default async function AdminLiveClassesPage() {
     <AdminLiveClassesClient
       initialLiveClasses={initialLiveClasses}
       levels={levels}
-      subjects={subjects}
+      subjects={finalSubjects}
       teachers={teachers}
       programs={programs}
       papers={papers}

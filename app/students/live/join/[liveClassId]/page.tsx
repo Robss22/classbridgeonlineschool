@@ -115,7 +115,9 @@ export default function JoinLiveClassPage() {
             if (resp.ok && json?.meeting_link) {
               link = json.meeting_link
             }
-          } catch {}
+          } catch {
+            // Ignore fetch errors
+          }
         }
 
         if (!link) {
@@ -127,19 +129,7 @@ export default function JoinLiveClassPage() {
         // Force: do not use JaaS for students to avoid lobby/knock – rely on public Jitsi link
         setJaas(null)
 
-        // Load Jitsi script
-        if (!document.getElementById('jitsi-script')) {
-          const script = document.createElement('script')
-          script.id = 'jitsi-script'
-          script.src = (jaas ? `https://${jaas.domain}/external_api.js` : 'https://meet.jit.si/external_api.js')
-          script.async = true
-          script.onload = () => initJitsi()
-          document.body.appendChild(script)
-        } else {
-          initJitsi()
-        }
-
-        async function sendAttendance(event: 'join' | 'leave') {
+        const sendAttendance = async (event: 'join' | 'leave') => {
           try {
             await fetch('/api/attendance/event', {
               method: 'POST',
@@ -159,7 +149,7 @@ export default function JoinLiveClassPage() {
           }
         }
 
-        function initJitsi() {
+        const initJitsi = () => {
           if (!window.JitsiMeetExternalAPI || !containerRef.current) return
 
           // Extract room name from the Jitsi link or use JaaS room
@@ -231,34 +221,24 @@ export default function JoinLiveClassPage() {
             sendAttendance('join')
           })
 
-          let hasJoined = false
-          api.addListener('videoConferenceJoined', () => {
-            hasJoined = true
-            sendAttendance('join')
-          })
-
           api.addListener('videoConferenceLeft', () => {
             sendAttendance('leave')
-            if (hasJoined) router.push('/students/live-classes')
-          })
-
-          // Monitor connection quality
-          api.addListener('connectionQualityChanged', (quality?: Record<string, unknown>) => {
-            const qualityMap: { [key: string]: 'good' | 'fair' | 'poor' } = {
-              'good': 'good',
-              'fair': 'fair',
-              'poor': 'poor'
-            }
-            
-            setTechnicalData((prev: Record<string, unknown>) => ({
-              ...prev,
-              technical_data: {
-                ...(prev.technical_data as Record<string, unknown> | undefined),
-                connection_quality: qualityMap[String(quality)] || 'fair'
-              }
-            }))
           })
         }
+
+        // Load Jitsi script
+        if (!document.getElementById('jitsi-script')) {
+          const script = document.createElement('script')
+          script.id = 'jitsi-script'
+          script.src = (jaas ? `https://${jaas.domain}/external_api.js` : 'https://meet.jit.si/external_api.js')
+          script.async = true
+          script.onload = () => initJitsi()
+          document.body.appendChild(script)
+        } else {
+          initJitsi()
+        }
+
+
       } catch (err) {
         console.error('Error loading live class:', err)
         setError('Failed to load live class')
@@ -268,7 +248,6 @@ export default function JoinLiveClassPage() {
     }
 
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveClassId])
 
   // Test connection quality

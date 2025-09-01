@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
       const { error: profileError } = await supabaseAdmin
         .from('users')
         .upsert({
-          id: authData.user.id,
           auth_user_id: authData.user.id,
           first_name: validated.first_name,
           last_name: validated.last_name,
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
           department: validated.department,
           password_changed: validated.role === 'student' ? false : true,
           created_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+        }, { onConflict: 'auth_user_id' });
 
       if (profileError) {
         // Rollback Auth user creation on failure
@@ -92,8 +91,8 @@ export async function POST(request: NextRequest) {
       // Option 1: Check if profile exists before insert
       const { data: existingProfile, error: profileFetchError } = await supabaseAdmin
         .from('users')
-        .select('id')
-        .eq('id', authData.user.id)
+        .select('auth_user_id')
+        .eq('auth_user_id', authData.user.id)
         .single();
 
       if (profileFetchError && profileFetchError.code !== 'PGRST116') {
@@ -109,7 +108,6 @@ export async function POST(request: NextRequest) {
         const { error: profileError } = await supabaseAdmin
           .from('users')
           .insert({
-            id: authData.user.id,
             auth_user_id: authData.user.id,
             first_name: validated.first_name,
             last_name: validated.last_name,

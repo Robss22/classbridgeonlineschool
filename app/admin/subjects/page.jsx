@@ -742,8 +742,7 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   // Success message (currently shown via parent callbacks); kept for future UI
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [successMessage, setSuccessMessage] = useState('');
+  // const [successMessage, setSuccessMessage] = useState('');
   // Dynamic papers to create together with a new subject
   const [papers, setPapers] = useState([
     { paper_code: '', paper_name: '', paper_type: '', max_marks: '', description: '' }
@@ -835,7 +834,7 @@ function SubjectForm({ subjectItem, onClose, onSave }) {
       if (!response.ok) {
         throw new Error(json?.error || 'Request failed');
       }
-      setSuccessMessage(subjectItem ? 'Subject updated successfully.' : 'Subject created successfully.');
+      // setSuccessMessage(subjectItem ? 'Subject updated successfully.' : 'Subject created successfully.');
       onSave();
     } catch (err) {
       console.error('Error saving subject:', err);

@@ -25,6 +25,11 @@ export default function AdminLiveClassModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fetchedPapers, setFetchedPapers] = useState<Array<Record<string, unknown>>>([]);
+  const [filteredTeachers, setFilteredTeachers] = useState<Array<Record<string, unknown>>>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  
+
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -41,6 +46,74 @@ export default function AdminLiveClassModal({
     paper_id: '',
     status: 'scheduled',
   });
+
+  // Function to fetch teachers based on level and subject
+  const fetchTeachersForLevelAndSubject = async (levelId: string, subjectId: string) => {
+    if (!levelId || !subjectId) {
+      setFilteredTeachers([]);
+      return;
+    }
+
+    setLoadingTeachers(true);
+    try {
+      const { data, error } = await supabase
+        .from('teacher_assignments')
+        .select(`
+          teacher_id,
+          teachers!inner (
+            teacher_id,
+            users!inner (
+              id,
+              first_name,
+              last_name,
+              email
+            )
+          )
+        `)
+        .eq('level_id', levelId)
+        .eq('subject_id', subjectId);
+
+      if (error) {
+        console.error('Error fetching teachers:', error);
+        setFilteredTeachers([]);
+        return;
+      }
+
+      // Transform the data and remove duplicates based on teacher_id
+      const teacherMap = new Map();
+      (data || []).forEach((assignment: Record<string, unknown>) => {
+        const teacherId = assignment.teacher_id;
+        if (!teacherMap.has(teacherId)) {
+          teacherMap.set(teacherId, {
+            teacher_id: assignment.teacher_id,
+            users: (assignment.teachers as Record<string, unknown>)?.users
+          });
+        }
+      });
+
+      const transformedTeachers = Array.from(teacherMap.values());
+      setFilteredTeachers(transformedTeachers);
+    } catch (err) {
+      console.error('Error fetching teachers:', err);
+      setFilteredTeachers([]);
+    } finally {
+      setLoadingTeachers(false);
+    }
+  };
+
+  // Effect to fetch teachers when level or subject changes
+  useEffect(() => {
+    if (formData.level_id && formData.subject_id) {
+      fetchTeachersForLevelAndSubject(formData.level_id, formData.subject_id);
+    } else {
+      setFilteredTeachers([]);
+    }
+  }, [formData.level_id, formData.subject_id]);
+
+  // Effect to clear teacher selection when level or subject changes
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, teacher_id: '' }));
+  }, [formData.level_id, formData.subject_id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,10 +162,12 @@ export default function AdminLiveClassModal({
       }
     };
     loadPapersIfMissing();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.subject_id]);
 
   const allPapers = useMemo(() => [...papers, ...fetchedPapers], [papers, fetchedPapers]);
+
+  // Get the teachers to display (filtered or all if no filtering applied)
+  const teachersToDisplay = formData.level_id && formData.subject_id ? filteredTeachers : teachers;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
@@ -142,9 +217,7 @@ export default function AdminLiveClassModal({
                 required
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Start Time</label>
               <input
@@ -155,7 +228,9 @@ export default function AdminLiveClassModal({
                 required
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">End Time</label>
               <input
@@ -166,6 +241,20 @@ export default function AdminLiveClassModal({
                 required
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Max Participants</label>
+              <input
+                type="number"
+                value={formData.max_participants}
+                onChange={(e) =>
+                  setFormData({ ...formData, max_participants: parseInt(e.target.value, 10) || 0 })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                min={1}
+                max={100}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -174,21 +263,15 @@ export default function AdminLiveClassModal({
               <select
                 value={formData.program_id}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    program_id: e.target.value,
-                    level_id: '',
-                    subject_id: '',
-                    paper_id: '',
-                  })
+                  setFormData({ ...formData, program_id: e.target.value, level_id: '', subject_id: '', paper_id: '' })
                 }
                 className="w-full border rounded-lg px-3 py-2"
                 required
               >
                 <option value="">Select Program</option>
-                {programs.map((p: Record<string, unknown>) => (
-                  <option key={p.program_id as string} value={p.program_id as string}>
-                    {p.name as string}
+                {programs.map((program: Record<string, unknown>) => (
+                  <option key={program.program_id as string} value={program.program_id as string}>
+                    {program.name as string}
                   </option>
                 ))}
               </select>
@@ -256,23 +339,44 @@ export default function AdminLiveClassModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Teacher</label>
+            <label className="block text-sm font-medium mb-1">
+              Teacher
+              {formData.level_id && formData.subject_id && (
+                <span className="text-sm text-gray-500 ml-2">
+                  (Filtered for {(levels.find(l => l.level_id === formData.level_id) as Record<string, unknown>)?.name as string} - {(subjects.find(s => s.subject_id === formData.subject_id) as Record<string, unknown>)?.name as string})
+                </span>
+              )}
+            </label>
             <select
               value={formData.teacher_id}
               onChange={(e) => setFormData({ ...formData, teacher_id: e.target.value })}
               className="w-full border rounded-lg px-3 py-2"
               required
+              disabled={!formData.level_id || !formData.subject_id || loadingTeachers}
             >
-              <option value="">Select Teacher</option>
-              {teachers.map((teacher: Record<string, unknown>) => (
+              <option value="">
+                {loadingTeachers 
+                  ? 'Loading teachers...' 
+                  : formData.level_id && formData.subject_id 
+                    ? 'Select Teacher' 
+                    : 'Select Level and Subject first'
+                }
+              </option>
+              {teachersToDisplay.map((teacher: Record<string, unknown>) => (
                 <option key={teacher.teacher_id as string} value={teacher.teacher_id as string}>
                   {(teacher.users as Record<string, unknown>)?.first_name as string} {(teacher.users as Record<string, unknown>)?.last_name as string}
                 </option>
               ))}
             </select>
+            {formData.level_id && formData.subject_id && teachersToDisplay.length === 0 && !loadingTeachers && (
+              <p className="text-sm text-orange-600 mt-1">
+                ⚠️ No teachers are currently assigned to teach {(subjects.find(s => s.subject_id === formData.subject_id) as Record<string, unknown>)?.name as string} at {(levels.find(l => l.level_id === formData.level_id) as Record<string, unknown>)?.name as string} level. 
+                Please assign a teacher first in the Admin → Users section.
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Meeting Platform</label>
               <select
@@ -283,20 +387,6 @@ export default function AdminLiveClassModal({
                 <option value="Jitsi Meet">Jitsi Meet</option>
               </select>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Max Participants</label>
-              <input
-                type="number"
-                value={formData.max_participants}
-                onChange={(e) =>
-                  setFormData({ ...formData, max_participants: parseInt(e.target.value, 10) || 0 })
-                }
-                className="w-full border rounded-lg px-3 py-2"
-                min={1}
-                max={100}
-              />
-            </div>
           </div>
 
           <div>
@@ -306,33 +396,28 @@ export default function AdminLiveClassModal({
               value={formData.meeting_link}
               onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="https://..."
+              placeholder="https://meet.google.com/..."
             />
           </div>
-
-
         </form>
         </div>
-        
-        {/* Fixed footer for buttons */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <div className="flex gap-4">
-            <button
-              type="submit"
-              form="live-class-form"
-              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
-              disabled={loading}
-            >
-              {loading ? 'Scheduling…' : 'Schedule Class'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </div>
+
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="live-class-form"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Scheduling...' : 'Schedule Class'}
+          </button>
         </div>
       </div>
     </div>

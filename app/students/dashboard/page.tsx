@@ -28,6 +28,16 @@ interface LiveClass {
   };
 }
 
+interface ScheduledClass {
+  timetable_id: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  subject_id: string;
+  subjects?: { name: string };
+  meeting_link?: string;
+}
+
 interface Announcement {
   id: string;
   title: string;
@@ -35,11 +45,25 @@ interface Announcement {
   created_at: string;
 }
 
-function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
+function TodaySchedule({ liveClasses, scheduledClasses }: { liveClasses: LiveClass[]; scheduledClasses: ScheduledClass[] }) {
+  // Use the same date logic as the main query - check both local and UTC dates
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const todayUTC = format(new Date().toISOString().split('T')[0], 'yyyy-MM-dd');
+  
   const todayClasses = liveClasses.filter(liveClass => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    return format(parseISO(liveClass.scheduled_date), 'yyyy-MM-dd') === today;
+    const classDate = format(parseISO(liveClass.scheduled_date), 'yyyy-MM-dd');
+    return classDate === today || classDate === todayUTC;
   });
+  
+
+
+  // Get today's day of week
+  const todayDate = new Date();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const todayDayName = dayNames[todayDate.getDay()];
+  
+  // Filter scheduled classes for today
+  const todaysScheduledClasses = scheduledClasses.filter(cls => cls.day_of_week === todayDayName);
 
   const getClassStatus = (liveClass: LiveClass) => {
     const now = new Date();
@@ -73,7 +97,7 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
     return (status === 'ongoing' || status === 'upcoming') && liveClass.meeting_link;
   };
 
-  if (todayClasses.length === 0) {
+  if (todayClasses.length === 0 && todaysScheduledClasses.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow p-4 mb-4">
         <div className="flex items-center mb-2">
@@ -90,10 +114,11 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
       <div className="bg-white rounded-xl shadow p-4 mb-4 cursor-pointer">
         <div className="flex items-center mb-4">
           <Calendar className="w-5 h-5 mr-2 text-blue-600" />
-          <span className="font-semibold">Today&apos;s Live Classes</span>
-          <span className="ml-2 text-sm text-gray-500">({todayClasses.length})</span>
+          <span className="font-semibold">Today&apos;s Schedule</span>
+          <span className="ml-2 text-sm text-gray-500">({todayClasses.length + todaysScheduledClasses.length})</span>
         </div>
         <div className="space-y-3">
+          {/* Live Classes */}
           {todayClasses.map((liveClass) => {
             const status = getClassStatus(liveClass);
             const isLive = status === 'ongoing';
@@ -138,6 +163,42 @@ function TodaySchedule({ liveClasses }: { liveClasses: LiveClass[] }) {
               </div>
             );
           })}
+          
+          {/* Regular Scheduled Classes */}
+          {todaysScheduledClasses.map((scheduledClass) => (
+            <div
+              key={scheduledClass.timetable_id}
+              className="p-3 rounded-lg border-l-4 border-purple-400 bg-purple-50"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-medium text-gray-900">Regular Class</h4>
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      Scheduled
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    {scheduledClass.subjects?.name || 'Subject'} • {scheduledClass.start_time} - {scheduledClass.end_time}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Regular scheduled class
+                  </div>
+                </div>
+                {scheduledClass.meeting_link && (
+                  <a
+                    href={scheduledClass.meeting_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors"
+                  >
+                    <Play className="w-3 h-3" />
+                    Join
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </Link>
@@ -203,6 +264,18 @@ function LatestResources({ resources }: { resources: Array<{ title?: string; sub
             <div className="text-gray-600">{String(resource.subject || '')}</div>
           </div>
         ))}
+        
+        {/* View All Resources Link */}
+        {resources.length > 0 && (
+          <div className="pt-2 border-t border-gray-100">
+            <Link 
+              href="/resources" 
+              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              View All Resources →
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -211,6 +284,7 @@ function LatestResources({ resources }: { resources: Array<{ title?: string; sub
 export default function StudentDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
   const [teachers, setTeachers] = useState<Array<Record<string, unknown>>>([]);
   const [resources, setResources] = useState<Array<Record<string, unknown>>>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]); // Added state for announcements
@@ -238,14 +312,30 @@ export default function StudentDashboard() {
         const programId = userData?.curriculum;
         
         if (!programId) {
-          console.warn('No program assigned to student');
           setLoading(false);
           return;
         }
 
-        // Fetch today's live classes
+        // Fetch today's live classes - use UTC to avoid timezone issues
         const today = format(new Date(), 'yyyy-MM-dd');
-        const { data: liveClassData } = await supabase
+        const todayUTC = format(new Date().toISOString().split('T')[0], 'yyyy-MM-dd');
+        
+
+        
+        // Get student's actual program_id and level_id from the database
+        const { data: studentData } = await supabase
+          .from('users')
+          .select('program_id, level_id')
+          .eq('id', userId)
+          .single();
+        
+        const actualProgramId = studentData?.program_id;
+        const actualLevelId = studentData?.level_id;
+        
+
+        
+        // Build the query with proper Supabase syntax
+        let liveClassQuery = supabase
           .from('live_classes')
           .select(`
             *,
@@ -255,11 +345,23 @@ export default function StudentDashboard() {
               users:user_id (first_name, last_name)
             )
           `)
-          .eq('program_id', programId)
-          .gte('scheduled_date', today)
-          .lte('scheduled_date', today)
+          .or(`scheduled_date.eq.${today},scheduled_date.eq.${todayUTC}`)
           .order('start_time', { ascending: true });
+        
+        // Add filters for program_id OR level_id
+        if (actualProgramId && actualLevelId) {
+          // Use or() for different columns with proper syntax
+          liveClassQuery = liveClassQuery.or(`program_id.eq.${actualProgramId},level_id.eq.${actualLevelId}`);
+        } else if (actualProgramId) {
+          liveClassQuery = liveClassQuery.eq('program_id', actualProgramId);
+        } else if (actualLevelId) {
+          liveClassQuery = liveClassQuery.eq('level_id', actualLevelId);
+        }
+        
+        const { data: liveClassData } = await liveClassQuery;
 
+
+        
         if (liveClassData) {
           const processedClasses: LiveClass[] = liveClassData.map((item: Record<string, unknown>) => ({
             ...item,
@@ -271,7 +373,34 @@ export default function StudentDashboard() {
           setLiveClasses(processedClasses);
         }
 
-        // Fetch real teachers data
+        // Fetch student's timetable
+        const { data: timetableData } = await supabase
+          .from('timetables')
+          .select(`
+            timetable_id,
+            day_of_week,
+            start_time,
+            end_time,
+            subject_id,
+            subjects:subject_id (name),
+            meeting_link
+          `)
+          .eq('user_id', userId);
+
+        if (timetableData) {
+          const processedTimetable: ScheduledClass[] = timetableData.map((item: Record<string, unknown>) => ({
+            timetable_id: item.timetable_id as string,
+            day_of_week: item.day_of_week as string,
+            start_time: item.start_time as string,
+            end_time: item.end_time as string,
+            subject_id: item.subject_id as string,
+            subjects: item.subjects as { name: string },
+            meeting_link: item.meeting_link as string
+          }));
+          setScheduledClasses(processedTimetable);
+        }
+
+        // Fetch real teachers data using actual program_id
         const { data: teachersData } = await supabase
           .from('teachers')
           .select(`
@@ -279,11 +408,11 @@ export default function StudentDashboard() {
             users:user_id (first_name, last_name),
             program_id
           `)
-          .eq('program_id', programId);
+          .eq('program_id', actualProgramId || '');
 
         if (teachersData) {
           const uniqueTeachers = teachersData
-            .filter(t => t.users && t.program_id === programId)
+            .filter(t => t.users && t.program_id === actualProgramId)
             .map(t => ({
               name: `${t.users?.first_name || ''} ${t.users?.last_name || ''}`.trim() || 'Unknown Teacher',
               subject: 'Assigned Teacher' // We'll get subjects from teacher_assignments if needed
@@ -292,9 +421,11 @@ export default function StudentDashboard() {
               index === self.findIndex(t => t.name === teacher.name)
             );
           setTeachers(uniqueTeachers);
+          
+
         }
 
-        // Fetch real resources data
+                // Fetch real resources data using actual program_id
         const { data: resourcesData } = await supabase
           .from('resources')
           .select(`
@@ -302,7 +433,7 @@ export default function StudentDashboard() {
             subjects:subject_id (name),
             created_at
           `)
-          .eq('program_id', programId)
+          .eq('program_id', actualProgramId || '')
           .order('created_at', { ascending: false })
           .limit(5);
 
@@ -313,6 +444,8 @@ export default function StudentDashboard() {
             created_at: resource.created_at as string
           }));
           setResources(processedResources);
+          
+
         }
 
         // Fetch announcements from messages table
@@ -338,8 +471,8 @@ export default function StudentDashboard() {
           setAnnouncements(processedAnnouncements);
         }
 
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+      } catch {
+        // Error handling
       } finally {
         setLoading(false);
       }
@@ -367,7 +500,7 @@ export default function StudentDashboard() {
         
         {/* Main Body Content */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-          <TodaySchedule liveClasses={liveClasses} />
+          <TodaySchedule liveClasses={liveClasses} scheduledClasses={scheduledClasses} />
           <TeachersAssigned teachers={teachers} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

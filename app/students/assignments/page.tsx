@@ -283,7 +283,9 @@ export default function AssignmentsPage() {
       if (j?.signedUrl) {
         window.open(j.signedUrl, '_blank');
       }
-    } catch {}
+    } catch {
+      // Ignore download errors
+    }
   };
 
   const filtered = assignments.filter(a => {

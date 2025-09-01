@@ -51,7 +51,9 @@ export default function TeacherJoinLiveClassPage() {
             return
           }
         }
-      } catch {}
+      } catch {
+        // Ignore class validation errors
+      }
 
       // Resolve or generate meeting link
       const { data, error } = await supabase
@@ -74,7 +76,9 @@ export default function TeacherJoinLiveClassPage() {
           if (resp.ok && json?.meeting_link) {
             link = json.meeting_link
           }
-        } catch {}
+        } catch {
+          // Ignore API errors
+        }
       }
 
       if (!link) { setError('No meeting link available'); return }
@@ -137,7 +141,9 @@ export default function TeacherJoinLiveClassPage() {
           if (typeof anyApi.enableLobby === 'function') {
             anyApi.enableLobby(false)
           }
-        } catch {}
+        } catch {
+          // Ignore lobby errors
+        }
 
         let hasJoined = false
         api.addListener('videoConferenceJoined', () => {
@@ -150,7 +156,6 @@ export default function TeacherJoinLiveClassPage() {
     }
 
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveClassId])
 
   if (error) {

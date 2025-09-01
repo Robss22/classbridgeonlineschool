@@ -133,7 +133,9 @@ export async function POST(request: NextRequest) {
               durationMinutes = Math.round((end - start) / 60000)
             }
           }
-        } catch {}
+        } catch {
+          // Ignore errors when computing duration
+        }
 
         const { error } = await supabaseAdmin!
           .from('live_class_participants')

@@ -5,6 +5,7 @@ import { Plus, Video, Play, Pause, Trash2, TrendingUp, Clock, Users, Bell, Alert
 import AdminLiveClassModal from '@/components/AdminLiveClassModal';
 import { useToast } from '@/components/ui/ToastProvider';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { canStartLiveClass, getStartTimeMessage } from '@/utils/timeValidation';
 
 export interface LiveClass {
   live_class_id: string;
@@ -66,8 +67,19 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
     }
   }, [toast]);
 
-  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string) => {
+  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string) => {
     try {
+      // If trying to start a class, validate the time first
+      if (newStatus === 'ongoing' && scheduledDate && startTime) {
+        const validation = canStartLiveClass(scheduledDate, startTime, false);
+        
+        if (!validation.canStart) {
+          setError(validation.reason);
+          toast({ title: 'Cannot Start Class', description: validation.reason, variant: 'error' });
+          return;
+        }
+      }
+
       setLoading(true);
       const response = await fetch(`/api/live-classes?id=${liveClassId}`, {
         method: 'PUT',
@@ -150,7 +162,7 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
       return;
     }
     window.open(lc.meeting_link, '_blank');
-    if (lc.status === 'scheduled') await handleUpdateStatus(lc.live_class_id, 'ongoing');
+    if (lc.status === 'scheduled') await handleUpdateStatus(lc.live_class_id, 'ongoing', lc.scheduled_date, lc.start_time);
   }, [handleGenerateMeetingLink, handleUpdateStatus, fetchData]);
 
   const getStatusColor = (status: string) => {
@@ -272,19 +284,38 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
                         <div className="text-sm text-gray-500">{lc.start_time} - {lc.end_time}</div>
                         {lc.status === 'scheduled' && <div className="text-xs text-blue-600 font-medium mt-1">{timeUntilClass}</div>}
                       </td>
-                      <td className="p-3">{lc.subjects?.name}</td>
+                      <td className="p-3">
+                        {lc.subjects?.name || lc.papers?.paper_name || 'Not specified'}
+                      </td>
                       <td className="p-3">{lc.levels?.name}</td>
                       <td className="p-3">{lc.teachers?.users?.first_name} {lc.teachers?.users?.last_name}</td>
                       <td className="p-3">{lc.meeting_platform}</td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(lc.status)}`}>{lc.status}</span>
                         {lc.started_at && <div className="text-xs text-gray-500 mt-1">Started: {new Date(lc.started_at).toLocaleTimeString()}</div>}
+                        {lc.status === 'scheduled' && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            {getStartTimeMessage(lc.scheduled_date, lc.start_time)}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3">
                         <div className="flex gap-2 flex-wrap">
                           {lc.status === 'scheduled' && (
                             <>
-                              <button onClick={() => handleUpdateStatus(lc.live_class_id, 'ongoing')} className="p-1 text-green-600 hover:text-green-800" title="Start Class"><Play className="w-4 h-4" /></button>
+                              {(() => {
+                                const validation = canStartLiveClass(lc.scheduled_date, lc.start_time, false);
+                                return (
+                                  <button 
+                                    onClick={() => handleUpdateStatus(lc.live_class_id, 'ongoing', lc.scheduled_date, lc.start_time)} 
+                                    className={`p-1 ${validation.canStart ? 'text-green-600 hover:text-green-800' : 'text-gray-400 cursor-not-allowed'}`} 
+                                    title={getStartTimeMessage(lc.scheduled_date, lc.start_time)}
+                                    disabled={!validation.canStart}
+                                  >
+                                    <Play className="w-4 h-4" />
+                                  </button>
+                                );
+                              })()}
                               {autoJoinEnabled && isStartingNow && (
                                 <button onClick={() => handleAutoJoin(lc)} className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-purple-600 text-white hover:bg-purple-700" title="Auto-Join Class"><Users className="w-3.5 h-3.5" /> Auto-Join</button>
                               )}
