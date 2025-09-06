@@ -3,6 +3,11 @@ import { createServerClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { subject_id, name, description, papers, deletePaperIds } = body as {
       subject_id?: string;

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, Clock, Users, Video, AlertCircle, CheckCircle, Play, Bell } from 'lucide-react';
 import { format, parseISO, isAfter } from 'date-fns';
+import { getTimeUntilClass } from '@/utils/timeValidation';
 
 interface LiveClass {
   live_class_id: string;
@@ -187,7 +188,7 @@ export default function StudentLiveClassesPage() {
     
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0];
+    const currentTime = now.toTimeString().split(' ')[0] || '';
     
     const nextClass = liveClasses.find(lc => {
       if (lc.status !== 'scheduled') return false;
@@ -197,6 +198,7 @@ export default function StudentLiveClassesPage() {
     
     if (nextClass) {
       const [hours, minutes] = nextClass.start_time.split(':');
+      if (!hours || !minutes) return;
       const classTime = new Date();
       classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
@@ -249,6 +251,10 @@ export default function StudentLiveClassesPage() {
     const [startHour, startMinute] = liveClass.start_time.split(':').map(Number);
     const [endHour, endMinute] = liveClass.end_time.split(':').map(Number);
     
+    if (startHour === undefined || startMinute === undefined || endHour === undefined || endMinute === undefined) {
+      return 'scheduled';
+    }
+    
     const startTime = new Date(classDate);
     startTime.setHours(startHour, startMinute, 0, 0);
     
@@ -264,22 +270,6 @@ export default function StudentLiveClassesPage() {
     return 'scheduled';
   };
 
-  const getTimeUntilClass = (scheduledDate: string, startTime: string) => {
-    const now = new Date();
-    const classDate = new Date(scheduledDate);
-    const [hours, minutes] = startTime.split(':');
-    classDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    
-    const diffMs = classDate.getTime() - now.getTime();
-    if (diffMs <= 0) return 'Starting now';
-    
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    if (diffMinutes < 60) return `in ${diffMinutes} min`;
-    
-    const diffHours = Math.floor(diffMinutes / 60);
-    const remainingMinutes = diffMinutes % 60;
-    return `in ${diffHours}h ${remainingMinutes}m`;
-  };
 
   const getFilteredClasses = () => {
     const now = new Date();

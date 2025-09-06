@@ -158,18 +158,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           );
         })}
       </div>
-      <style jsx>{`
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
     </ToastContext.Provider>
   );
 }

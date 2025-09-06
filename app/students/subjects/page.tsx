@@ -215,7 +215,10 @@ export default function MySubjectsPage() {
             if (!classesBySubject[processedClass.subject_id]) {
               classesBySubject[processedClass.subject_id] = [];
             }
-            classesBySubject[processedClass.subject_id].push(processedClass);
+            const subjectClasses = classesBySubject[processedClass.subject_id];
+            if (subjectClasses) {
+              subjectClasses.push(processedClass);
+            }
           });
           setSubjectLiveClasses(classesBySubject);
         }

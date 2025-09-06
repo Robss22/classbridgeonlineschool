@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useRouter, usePathname } from 'next/navigation';
 import { getUserFriendlyErrorMessage, logTechnicalError } from '../../utils/errorHandler';
+import ClientOnly from '../../components/ClientOnly';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -47,12 +48,9 @@ const Login: React.FC = () => {
       return;
     }
 
-    // Check Supabase config
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setError('Login service is not configured. Please contact support.');
-      setLoading(false);
-      return;
-    }
+    // Check Supabase config - these should always be available since we have fallbacks
+    // The supabaseClient.ts already handles missing environment variables with fallbacks
+    // So we can proceed with the login attempt
 
     // Set a maximum timeout for the entire login process
     const loginTimeout = setTimeout(() => {
@@ -265,29 +263,11 @@ const Login: React.FC = () => {
   if (!isClient) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
-        <div style={{
-          backgroundColor: 'white',
-          padding: '40px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-          maxWidth: '400px',
-          width: '100%',
-          boxSizing: 'border-box',
-          textAlign: 'center'
-        }}>
-          <div style={{ 
-            display: 'inline-block',
-            border: '2px solid #f3f3f3',
-            borderTop: '2px solid #0070f3',
-            borderRadius: '50%',
-            width: '30px',
-            height: '30px',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '20px'
-          }} />
-          <p>Loading...</p>
+        <div className="bg-white p-10 rounded-lg shadow-lg max-w-sm w-full text-center">
+          <div className="inline-block w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-5" />
+          <p className="text-gray-700">Loading...</p>
           {offline && (
-            <p style={{ color: 'red', marginTop: '10px' }}>You are offline. Please check your internet connection.</p>
+            <p className="text-red-500 mt-2">You are offline. Please check your internet connection.</p>
           )}
         </div>
       </div>
@@ -296,161 +276,92 @@ const Login: React.FC = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
-      <div style={{
-        backgroundColor: 'white',
-        padding: '48px 40px',
-        borderRadius: '16px',
-        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
-        maxWidth: '420px',
-        width: '100%',
-        boxSizing: 'border-box',
-        border: '1px solid rgba(160, 132, 232, 0.1)'
-      }}>
-        {showWelcome ? (
-          <div>
-            <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>
-              Welcome back, <span style={{ color: 'green', fontWeight: 'bold' }}>{fullName}</span> 👋
-            </h2>
-            <div style={{ textAlign: 'center', color: '#666' }}>
-              <p>Redirecting you to your dashboard...</p>
-              <div style={{ 
-                display: 'inline-block',
-                border: '2px solid #f3f3f3',
-                borderTop: '2px solid #0070f3',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                animation: 'spin 1s linear infinite',
-                marginTop: '10px'
-              }} />
-            </div>
+      <ClientOnly fallback={
+        <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-md w-full border border-purple-100">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-5" />
+            <p className="text-gray-700">Loading...</p>
           </div>
-        ) : (
-          <>
-            <h2 style={{ textAlign: 'center', marginBottom: '24px', color: '#1a1a1a', fontSize: '24px', fontWeight: 'bold' }}>
-              Welcome to Class Bridge Online School
-            </h2>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {offline && (
-                <div style={{ color: 'red', textAlign: 'center', marginBottom: '10px' }}>
-                  You are offline. Please check your internet connection.
+        </div>
+      }>
+        <div className="bg-white p-12 rounded-2xl shadow-2xl max-w-md w-full border border-purple-100">
+          {showWelcome ? (
+            <div>
+              <h2 className="text-center mb-5 text-gray-800">
+                Welcome back, <span className="text-green-600 font-bold">{fullName}</span> 👋
+              </h2>
+              <div className="text-center text-gray-600">
+                <p>Redirecting you to your dashboard...</p>
+                <div className="inline-block w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mt-2" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-center mb-6 text-gray-900 text-2xl font-bold">
+                Welcome to Class Bridge Online School
+              </h2>
+              <form onSubmit={handleLogin} className="flex flex-col gap-5">
+                {offline && (
+                  <div className="text-red-500 text-center mb-2">
+                    You are offline. Please check your internet connection.
+                  </div>
+                )}
+                <label className="flex flex-col text-gray-700 font-medium">
+                  Email:
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={!!loading}
+                    required
+                    className="px-4 py-3 mt-1.5 border-2 border-gray-300 rounded-lg text-base opacity-100 transition-colors duration-300 outline-none focus:border-purple-400 disabled:opacity-60"
+                  />
+                </label>
+                <label className="flex flex-col text-gray-700 font-medium">
+                  Password:
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={!!loading}
+                    required
+                    className="px-4 py-3 mt-1.5 border-2 border-gray-300 rounded-lg text-base opacity-100 transition-colors duration-300 outline-none focus:border-purple-400 disabled:opacity-60"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className={`px-6 py-3.5 text-white border-none rounded-lg text-base font-bold mt-4 w-full transition-all duration-300 relative ${
+                    loading 
+                      ? 'bg-blue-300 cursor-not-allowed opacity-70' 
+                      : 'bg-purple-500 hover:bg-purple-600 hover:-translate-y-0.5 hover:shadow-lg'
+                  }`}
+                  disabled={!!loading}
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center">
+                      <span className="w-4.5 h-4.5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mr-2 inline-block" />
+                      Logging in...
+                    </span>
+                  ) : 'Login'}
+                </button>
+              </form>
+              {error && (
+                <div className="mt-5">
+                  <p className="text-red-500 text-center">{error}</p>
+                  <button 
+                    onClick={resetForm}
+                    className="mt-2.5 px-4 py-2 bg-red-500 text-white border-none rounded cursor-pointer text-sm w-full hover:bg-red-600 transition-colors"
+                  >
+                    Try Again
+                  </button>
                 </div>
               )}
-              <label style={{ display: 'flex', flexDirection: 'column', color: '#374151', fontWeight: '500' }}>
-                Email:
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={!!loading}
-                  required
-                  style={{
-                    padding: '12px 16px',
-                    marginTop: '6px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    opacity: loading ? 0.6 : 1,
-                    transition: 'border-color 0.3s ease',
-                    outline: 'none'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#A084E8'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', color: '#374151', fontWeight: '500' }}>
-                Password:
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={!!loading}
-                  required
-                  style={{
-                    padding: '12px 16px',
-                    marginTop: '6px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    opacity: loading ? 0.6 : 1,
-                    transition: 'border-color 0.3s ease',
-                    outline: 'none'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#A084E8'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                />
-              </label>
-              <button
-                type="submit"
-                style={{
-                  padding: '14px 24px',
-                  backgroundColor: loading ? '#b3c6e6' : '#A084E8',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  marginTop: '15px',
-                  width: '100%',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  opacity: loading ? 0.7 : 1,
-                  boxShadow: '0 4px 6px rgba(160, 132, 232, 0.2)'
-                }}
-                disabled={!!loading}
-                onMouseOver={e => { if (!loading) e.currentTarget.style.backgroundColor = '#8B6FD8'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(160, 132, 232, 0.3)'; }}
-                onMouseOut={e => { if (!loading) e.currentTarget.style.backgroundColor = '#A084E8'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(160, 132, 232, 0.2)'; }}
-              >
-                {loading ? (
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span className="loader" style={{
-                      border: '2px solid #f3f3f3',
-                      borderTop: '2px solid #0070f3',
-                      borderRadius: '50%',
-                      width: '18px',
-                      height: '18px',
-                      marginRight: '8px',
-                      animation: 'spin 1s linear infinite',
-                      display: 'inline-block',
-                    }} />
-                    Logging in...
-                  </span>
-                ) : 'Login'}
-              </button>
-            </form>
-            {error && (
-              <div style={{ marginTop: '20px' }}>
-                <p style={{ color: 'red', textAlign: 'center' }}>{error}</p>
-                <button 
-                  onClick={resetForm}
-                  style={{
-                    marginTop: '10px',
-                    padding: '8px 16px',
-                    backgroundColor: '#f44336',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    width: '100%'
-                  }}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-      <style jsx global>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
+            </>
+          )}
+        </div>
+      </ClientOnly>
     </div>
   );
-};
+}
 
 export default Login;

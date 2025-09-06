@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Use fallback API key to prevent build errors
+const resendApiKey = process.env.RESEND_API_KEY || 'fallback-key-for-build';
+const resend = new Resend(resendApiKey);
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if Resend API key is properly configured
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+    }
+
     const { name, email, phone, message } = await req.json();
     if (!name || !email || !message) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });

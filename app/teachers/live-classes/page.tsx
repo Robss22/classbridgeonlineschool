@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Video, Trash2, Play, Clock, Users, Bell, AlertCircle } from 'lucide-react';
 import { errorHandler } from '@/lib/errorHandler';
-import { canStartLiveClass, getStartTimeMessage } from '@/utils/timeValidation';
+import { canStartLiveClass, getStartTimeMessage, getClassStatus, getTimeUntilClass } from '@/utils/timeValidation';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LiveClass {
@@ -140,11 +140,11 @@ export default function TeacherLiveClassesPage() {
     }
   }, [fetchData]);
 
-  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string) => {
+  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string, endTime?: string) => {
     try {
       // If trying to start a class, validate the time first
-      if (newStatus === 'ongoing' && scheduledDate && startTime) {
-        const validation = canStartLiveClass(scheduledDate, startTime, false);
+      if (newStatus === 'ongoing' && scheduledDate && startTime && endTime) {
+        const validation = canStartLiveClass(scheduledDate, startTime, endTime, false);
         
         if (!validation.canStart) {
           setError(validation.reason);
@@ -295,7 +295,7 @@ export default function TeacherLiveClassesPage() {
     
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0];
+    const currentTime = now.toTimeString().split(' ')[0] || '';
     
     const nextClass = liveClasses.find(lc => {
       if (lc.status !== 'scheduled') return false;
@@ -305,6 +305,7 @@ export default function TeacherLiveClassesPage() {
     
     if (nextClass) {
       const [hours, minutes] = nextClass.start_time.split(':');
+      if (!hours || !minutes) return;
       const classTime = new Date();
       classTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
@@ -322,9 +323,56 @@ export default function TeacherLiveClassesPage() {
   }, [liveClasses]);
 
   // Initial data fetch - only run once on mount
+  // Function to automatically update class statuses based on time
+  const updateClassStatuses = useCallback(async () => {
+    const classesToUpdate = liveClasses.filter(liveClass => {
+      const newStatus = getClassStatus(
+        liveClass.scheduled_date,
+        liveClass.start_time,
+        liveClass.end_time,
+        liveClass.status
+      );
+      return newStatus !== liveClass.status;
+    });
+
+    if (classesToUpdate.length > 0) {
+      try {
+        const updatePromises = classesToUpdate.map(async (liveClass) => {
+          const newStatus = getClassStatus(
+            liveClass.scheduled_date,
+            liveClass.start_time,
+            liveClass.end_time,
+            liveClass.status
+          );
+          
+          const response = await fetch(`/api/live-classes?id=${liveClass.live_class_id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to update status for class ${liveClass.live_class_id}`);
+          }
+        });
+
+        await Promise.all(updatePromises);
+        fetchData(); // Refresh data after updates
+      } catch (error) {
+        console.error('Error updating class statuses:', error);
+      }
+    }
+  }, [liveClasses, fetchData]);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Include fetchData to satisfy ESLint
+  }, [fetchData]);
+
+  // Update class statuses every minute
+  useEffect(() => {
+    const interval = setInterval(updateClassStatuses, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [updateClassStatuses]); // Include fetchData to satisfy ESLint
 
   // Set up automatic status checking every 30 seconds
   useEffect(() => {
@@ -366,22 +414,6 @@ export default function TeacherLiveClassesPage() {
     }
   };
 
-  const getTimeUntilClass = (scheduledDate: string, startTime: string) => {
-    const now = new Date();
-    const classDate = new Date(scheduledDate);
-    const [hours, minutes] = startTime.split(':');
-    classDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    
-    const diffMs = classDate.getTime() - now.getTime();
-    if (diffMs <= 0) return 'Starting now';
-    
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    if (diffMinutes < 60) return `in ${diffMinutes} min`;
-    
-    const diffHours = Math.floor(diffMinutes / 60);
-    const remainingMinutes = diffMinutes % 60;
-    return `in ${diffHours}h ${remainingMinutes}m`;
-  };
 
   if (loading) {
     return (
@@ -542,7 +574,7 @@ export default function TeacherLiveClassesPage() {
                           )}
                           {liveClass.status === 'scheduled' && (
                             <div className="text-xs text-blue-600 mt-1">
-                              {getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time)}
+                              {getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time, liveClass.end_time)}
                             </div>
                           )}
                           {/* TODO: Uncomment when meeting_terminated_at field is added to database
@@ -558,12 +590,12 @@ export default function TeacherLiveClassesPage() {
                             {liveClass.status === 'scheduled' && (
                               <>
                                 {(() => {
-                                  const validation = canStartLiveClass(liveClass.scheduled_date, liveClass.start_time, false);
+                                  const validation = canStartLiveClass(liveClass.scheduled_date, liveClass.start_time, liveClass.end_time, false);
                                   return (
                                     <button
                                       onClick={() => handleUpdateStatus(liveClass.live_class_id, 'ongoing', liveClass.scheduled_date, liveClass.start_time)}
                                       className={`p-1 ${validation.canStart ? 'text-green-600 hover:text-green-800' : 'text-gray-400 cursor-not-allowed'}`}
-                                      title={getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time)}
+                                      title={getStartTimeMessage(liveClass.scheduled_date, liveClass.start_time, liveClass.end_time)}
                                       disabled={!validation.canStart}
                                     >
                                       <Play className="w-4 h-4" />

@@ -49,109 +49,69 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState('');
   
-  // CRITICAL FIX: Use refs to prevent infinite loops
-  const isInitializing = useRef(false);
-  const hasInitialized = useRef(false);
-  const authListener = useRef<{ data: { subscription: { unsubscribe: () => void } } } | null>(null);
-
-  // Debug logging for component lifecycle
+  // Simplified initialization
   useEffect(() => {
-    console.log('🔐 [AuthProvider] Component mounted');
-    return () => {
-      console.log('🔐 [AuthProvider] Component unmounting');
-      // Clean up auth listener properly
-      if (authListener.current?.data?.subscription) {
-        authListener.current.data.subscription.unsubscribe();
+    let mounted = true;
+    
+    const initializeAuth = async (): Promise<void> => {
+      try {
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          if (mounted) {
+            setAuthError('Authentication service unavailable');
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session?.user && mounted) {
+          await fetchUserProfile(session.user);
+        } else if (mounted) {
+          setUser(null);
+        }
+
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+          
+          if (event === 'SIGNED_IN' && session?.user) {
+            await fetchUserProfile(session.user);
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setAuthError('');
+          }
+        });
+
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted) {
+          setAuthError('Failed to initialize authentication');
+          setLoading(false);
+        }
       }
+    };
+
+    initializeAuth();
+
+    return () => {
+      mounted = false;
     };
   }, []);
 
-  // CRITICAL FIX: Prevent multiple initializations
-  const initializeAuth = useCallback(async () => {
-    if (isInitializing.current || hasInitialized.current) {
-      console.log('🔐 [AuthProvider] Already initializing or initialized, skipping...');
+  // Simplified fetchUserProfile
+  const fetchUserProfile = useCallback(async (authUser: { id: string; email?: string | undefined; user_metadata?: Record<string, any> }) => {
+    if (!authUser?.id) {
+      console.error('Invalid auth user object:', authUser);
       return;
     }
-
-    isInitializing.current = true;
-    console.log('🔐 [AuthProvider] Starting auth initialization...');
-
-    try {
-      // Test database connection first
-      const isHealthy = await checkDatabaseHealth();
-      if (!isHealthy) {
-        throw new Error('Database connection failed');
-      }
-
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        logTechnicalError(sessionError, 'AuthProvider Session');
-        const userFriendlyMessage = getUserFriendlyErrorMessage(sessionError);
-        setAuthError(userFriendlyMessage);
-        return;
-      }
-
-      if (session?.user) {
-        console.log('🔐 [AuthProvider] Found existing session for user:', session.user.id);
-        await fetchUserProfile(session.user);
-      } else {
-        console.log('🔐 [AuthProvider] No existing session found');
-        setUser(null);
-      }
-
-      // Set up auth state change listener with proper subscription handling
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('🔐 [AuthProvider] Auth state change:', event, session?.user?.id);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          await fetchUserProfile(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setAuthError('');
-        }
-      });
-
-      // Store the subscription for cleanup
-      authListener.current = { data: { subscription } };
-
-      hasInitialized.current = true;
-      console.log('🔐 [AuthProvider] Auth initialization completed successfully');
-
-    } catch (error: unknown) {
-      logTechnicalError(error, 'AuthProvider Initialization');
-      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
-      setAuthError(userFriendlyMessage);
-    } finally {
-      setLoading(false);
-      isInitializing.current = false;
-    }
-  }, []);
-
-  // CRITICAL FIX: Single initialization effect
-  useEffect(() => {
-    if (!hasInitialized.current) {
-      initializeAuth();
-    }
-  }, [initializeAuth]);
-
-  // Enhanced fetchUserProfile with better error handling
-  const fetchUserProfile = useCallback(async (authUser: { id: string; email?: string | undefined; user_metadata?: Record<string, any> }) => {
-    console.log('🔍 [AuthContext] fetchUserProfile called for:', {
-      id: authUser.id,
-      email: authUser.email,
-      hasEmail: !!authUser.email
-    });
-    
-    if (!authUser?.id) {
-      console.error('❌ [AuthContext] Invalid auth user object:', authUser);
-      throw new Error('Invalid authentication user object');
-    }
     
     try {
-      console.log('🔍 [AuthContext] Fetching user profile from database...');
-      
       // Try to fetch user profile
       const { data: profile, error } = await supabase
         .from('users')
@@ -160,69 +120,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
       
       if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('No rows returned')) {
-          console.log('DEBUG [AuthContext] User profile not found, creating basic profile');
-          
-          // Get user metadata safely
-          const metadata = authUser.user_metadata as UserMetadata || {};
-          
-          // Create a basic user profile
-          const basicProfile: User = {
-            id: authUser.id,
-            auth_user_id: authUser.id,
-            email: authUser.email || '',
-            first_name: metadata.first_name || '',
-            last_name: metadata.last_name || '',
-            full_name: metadata.full_name || authUser.email,
-            role: metadata.role || 'student',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            password_changed: false
-          };
-          
-          // Insert the basic profile
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert([basicProfile] as any);
-          
-          if (insertError) {
-            console.warn('DEBUG [AuthContext] Failed to create profile:', insertError);
-            // Continue with basic profile even if insert fails
-          } else {
-            console.log('DEBUG [AuthContext] Basic profile created successfully');
-          }
-          
-          setUser(basicProfile);
-          return;
-        }
+        // Create basic user profile if not found
+        const metadata = authUser.user_metadata as UserMetadata || {};
+        const basicProfile: User = {
+          id: authUser.id,
+          auth_user_id: authUser.id,
+          email: authUser.email || '',
+          first_name: metadata.first_name || '',
+          last_name: metadata.last_name || '',
+          full_name: metadata.full_name || authUser.email || 'User',
+          role: metadata.role || 'student',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          password_changed: false
+        };
         
-        logTechnicalError(error, 'AuthContext Profile Fetch');
-        throw new Error(`Failed to fetch user profile: ${error.message}`);
+        setUser(basicProfile);
+        return;
       }
       
-      console.log('✅ [AuthContext] User profile fetched successfully:', profile);
-      
-      // Get the profile data safely
+      // Use fetched profile
       const profileData = profile as Record<string, unknown>;
-      
-      // Cast the profile to User type and handle nullable fields
       const userProfile: User = {
         id: String(profileData.id || authUser.id),
         email: String(profileData.email || authUser.email || ''),
         role: String(profileData.role || 'student'),
         first_name: String(profileData.first_name || ''),
         last_name: String(profileData.last_name || ''),
-        full_name: String(profileData.full_name || profileData.email || authUser.email)
+        full_name: String(profileData.full_name || profileData.email || authUser.email || 'User')
       };
       
       setUser(userProfile);
       
     } catch (error: unknown) {
-      logTechnicalError(error, 'AuthContext fetchUserProfile');
-      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
-      setAuthError(userFriendlyMessage);
+      console.error('Error fetching user profile:', error);
       
-      // Set basic user info even if profile fetch fails
+      // Set basic user info as fallback
       const metadata = authUser.user_metadata as UserMetadata || {};
       const basicUser: User = {
         id: authUser.id,
@@ -230,19 +163,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         role: metadata.role || 'student',
         first_name: metadata.first_name || '',
         last_name: metadata.last_name || '',
-        full_name: metadata.full_name || authUser.email
+        full_name: metadata.full_name || authUser.email || 'User'
       };
       setUser(basicUser);
     }
   }, []);
 
-  // CRITICAL FIX: Simplified sign in without complex logic
+  // Simplified sign in
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       setLoading(true);
       setAuthError('');
-      
-      console.log('🔐 [AuthProvider] Signing in user:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -250,27 +181,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       if (error) {
-        logTechnicalError(error, 'AuthProvider SignIn');
-        const userFriendlyMessage = getAuthErrorMessage(error);
-        setAuthError(userFriendlyMessage);
-        return { success: false, error: userFriendlyMessage };
+        setAuthError(error.message);
+        return { success: false, error: error.message };
       }
       
       if (data?.user) {
-        console.log('✅ [AuthProvider] Sign in successful for user:', data.user.id);
         await fetchUserProfile(data.user);
         return { success: true };
       } else {
-        const userFriendlyMessage = "We're having trouble loading user data right now. Please try again later. If the problem persists, contact us at info@classbridge.ac.ug";
-        setAuthError(userFriendlyMessage);
-        return { success: false, error: userFriendlyMessage };
+        setAuthError('Sign in failed');
+        return { success: false, error: 'Sign in failed' };
       }
       
     } catch (error: any) {
-      logTechnicalError(error, 'AuthProvider SignIn Exception');
-      const userFriendlyMessage = getAuthErrorMessage(error);
-      setAuthError(userFriendlyMessage);
-      return { success: false, error: userFriendlyMessage };
+      setAuthError(error.message || 'Sign in failed');
+      return { success: false, error: error.message || 'Sign in failed' };
     } finally {
       setLoading(false);
     }
@@ -278,21 +203,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = useCallback(async () => {
     try {
-      console.log('🔐 [AuthProvider] Signing out user');
       await supabase.auth.signOut();
       setUser(null);
       setAuthError('');
     } catch (error: any) {
-      logTechnicalError(error, 'AuthProvider SignOut');
-      const userFriendlyMessage = getUserFriendlyErrorMessage(error);
-      setAuthError(userFriendlyMessage);
+      console.error('Sign out error:', error);
+      setAuthError('Sign out failed');
     }
   }, []);
 
   const changePassword = useCallback(async (newPassword: string) => {
     try {
       if (!user) {
-        throw new Error('No user logged in');
+        return { success: false, error: 'No user logged in' };
       }
       
       const { error } = await supabase.auth.updateUser({
@@ -300,12 +223,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       if (error) {
-        throw new Error(error.message);
+        return { success: false, error: error.message };
       }
       
       return { success: true };
     } catch (error: any) {
-      console.error('❌ [AuthProvider] Change password error:', error);
       return { success: false, error: error?.message || 'Unknown error' };
     }
   }, [user]);

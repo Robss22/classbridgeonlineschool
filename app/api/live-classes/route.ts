@@ -184,7 +184,7 @@ export async function PUT(request: NextRequest) {
       // Get the live class details to check scheduled time
       const { data: liveClassData, error: fetchError } = await supabase
         .from('live_classes')
-        .select('scheduled_date, start_time')
+        .select('scheduled_date, start_time, end_time')
         .eq('live_class_id', id)
         .single();
 
@@ -196,7 +196,7 @@ export async function PUT(request: NextRequest) {
       }
 
       if (liveClassData && liveClassData.scheduled_date) {
-        const validation = canStartLiveClass(liveClassData.scheduled_date || '', liveClassData.start_time || '', false);
+        const validation = canStartLiveClass(liveClassData.scheduled_date || '', liveClassData.start_time || '', liveClassData.end_time || '', false);
         
         if (!validation.canStart) {
           return NextResponse.json(

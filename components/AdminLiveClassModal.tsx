@@ -18,7 +18,7 @@ export default function AdminLiveClassModal({
   onSuccess,
   programs,
   levels,
-  subjects,
+  subjects: initialSubjects,
   teachers,
   papers,
 }: AdminLiveClassModalProps) {
@@ -28,8 +28,65 @@ export default function AdminLiveClassModal({
   const [filteredTeachers, setFilteredTeachers] = useState<Array<Record<string, unknown>>>([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   
+  // Add state for dynamically fetched subjects
+  const [subjects, setSubjects] = useState<Array<Record<string, unknown>>>(initialSubjects);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
 
-  
+  // Function to fetch subjects dynamically
+  const fetchSubjects = async () => {
+    setLoadingSubjects(true);
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('subject_id, name, description, created_at')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching subjects:', error);
+        return;
+      }
+      
+      setSubjects(data || []);
+    } catch (err) {
+      console.error('Error fetching subjects:', err);
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
+
+  // Fetch subjects when modal opens and when modal becomes visible
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  // Also refresh subjects when the modal is opened (in case it was closed and reopened)
+  useEffect(() => {
+    // Small delay to ensure modal is fully rendered
+    const timer = setTimeout(() => {
+      fetchSubjects();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Set up real-time subscription for subjects
+  useEffect(() => {
+    const channel = supabase
+      .channel('subjects_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'subjects' }, 
+        () => {
+          // Refresh subjects when changes occur
+          fetchSubjects();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -301,15 +358,28 @@ export default function AdminLiveClassModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Subject</label>
+              <label className="block text-sm font-medium mb-1">
+                Subject
+                <button
+                  type="button"
+                  onClick={fetchSubjects}
+                  disabled={loadingSubjects}
+                  className="ml-2 text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50"
+                  title="Refresh subjects list"
+                >
+                  {loadingSubjects ? 'Refreshing...' : '🔄 Refresh'}
+                </button>
+              </label>
               <select
                 value={formData.subject_id}
                 onChange={(e) => setFormData({ ...formData, subject_id: e.target.value, paper_id: '' })}
                 className="w-full border rounded-lg px-3 py-2"
                 required
-                disabled={!formData.level_id}
+                disabled={!formData.level_id || loadingSubjects}
               >
-                <option value="">Select Subject</option>
+                <option value="">
+                  {loadingSubjects ? 'Loading subjects...' : 'Select Subject'}
+                </option>
                 {subjects.map((subject: Record<string, unknown>) => (
                   <option key={subject.subject_id as string} value={subject.subject_id as string}>
                     {subject.name as string}
@@ -423,5 +493,6 @@ export default function AdminLiveClassModal({
     </div>
   );
 }
+
 
 

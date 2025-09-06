@@ -75,8 +75,11 @@ export default function TeacherStudentsPage() {
       
       // Set default selections
       if (validAssignments.length > 0) {
-        setSelectedLevel(validAssignments[0].level_id);
-        setSelectedSubject(validAssignments[0].subject_id);
+        const firstAssignment = validAssignments[0];
+        if (firstAssignment?.level_id && firstAssignment?.subject_id) {
+          setSelectedLevel(firstAssignment.level_id);
+          setSelectedSubject(firstAssignment.subject_id);
+        }
       }
     }
     
@@ -89,7 +92,10 @@ export default function TeacherStudentsPage() {
       const filtered = assignments.filter(a => a.level_id === selectedLevel);
       setFilteredAssignments(filtered);
       if (filtered.length > 0) {
-        setSelectedSubject(filtered[0].subject_id);
+        const firstFiltered = filtered[0];
+        if (firstFiltered?.subject_id) {
+          setSelectedSubject(firstFiltered.subject_id);
+        }
       }
     }
   }, [selectedLevel, assignments]);

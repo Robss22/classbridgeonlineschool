@@ -23,7 +23,9 @@ if (isClientSide && !hasServiceRoleKey) {
   });
 } else {
   // Server side or with service role key
-  supabaseAdmin = createClient<Database>(supabaseUrl, serviceRoleKey, {
+  // Use fallback key if service role key is not available to prevent build errors
+  const keyToUse = serviceRoleKey || 'fallback-key-for-build';
+  supabaseAdmin = createClient<Database>(supabaseUrl, keyToUse, {
     auth: {
       autoRefreshToken: false,
       persistSession: false

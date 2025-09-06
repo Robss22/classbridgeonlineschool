@@ -1,60 +1,78 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
-import { errorHandler } from '@/lib/errorHandler';
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+import { getClassStatus } from '@/utils/timeValidation';
 
-interface LiveClassUpdate {
-  status: string;
-  started_at?: string;
-  ended_at?: string;
-}
-
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const now = new Date();
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
+    const supabase = createServerClient();
     
-    // Update classes that should be ongoing
-    const { error: ongoingError } = await supabase
+    // Get all live classes that are not already completed, cancelled, or ongoing
+    const { data: liveClasses, error } = await supabase
       .from('live_classes')
-      .update({ 
-        status: 'ongoing',
-        started_at: now.toISOString()
-      } as LiveClassUpdate)
-      .eq('status', 'scheduled')
-      .lte('scheduled_date', now.toISOString().split('T')[0])
-      .lte('start_time', now.toTimeString().split(' ')[0])
-      .gte('end_time', now.toTimeString().split(' ')[0]);
+      .select('*')
+      .in('status', ['scheduled'])
+      .order('scheduled_date', { ascending: true })
+      .order('start_time', { ascending: true });
 
-    if (ongoingError) {
-      console.error('Error updating ongoing classes:', ongoingError);
-      // Don't throw error, continue with completion check
+    if (error) {
+      console.error('Error fetching live classes:', error);
+      return NextResponse.json({ error: 'Failed to fetch live classes' }, { status: 500 });
     }
 
-    // Update classes that should be completed
-    const { error: completedError } = await supabase
-      .from('live_classes')
-      .update({ 
-        status: 'completed',
-        ended_at: now.toISOString()
-      } as LiveClassUpdate)
-      .eq('status', 'ongoing')
-      .or(`scheduled_date.lt.${now.toISOString().split('T')[0]},and(scheduled_date.eq.${now.toISOString().split('T')[0]},end_time.lt.${now.toTimeString().split(' ')[0]})`);
-
-    if (completedError) {
-      console.error('Error updating completed classes:', completedError);
-      // Don't throw error, return success with warnings
+    if (!liveClasses || liveClasses.length === 0) {
+      return NextResponse.json({ message: 'No classes to update', updated: 0 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Status updates completed',
-      timestamp: now.toISOString(),
-      ongoingError: ongoingError?.message || null,
-      completedError: completedError?.message || null
+    // Check each class and update status if needed
+    const updatePromises = liveClasses.map(async (liveClass: any) => {
+      const newStatus = getClassStatus(
+        liveClass.scheduled_date,
+        liveClass.start_time,
+        liveClass.end_time,
+        liveClass.status
+      );
+
+      // Only update if status has changed
+      if (newStatus !== liveClass.status) {
+        const { error: updateError } = await supabase
+          .from('live_classes')
+          .update({ 
+            status: newStatus
+          })
+          .eq('live_class_id', liveClass.live_class_id);
+
+        if (updateError) {
+          console.error(`Error updating class ${liveClass.live_class_id}:`, updateError);
+          return { success: false, classId: liveClass.live_class_id, error: updateError.message };
+        }
+
+        return { success: true, classId: liveClass.live_class_id, oldStatus: liveClass.status, newStatus };
+      }
+
+      return { success: true, classId: liveClass.live_class_id, noChange: true };
     });
+
+    const results = await Promise.all(updatePromises);
+    const successful = results.filter((r: any) => r.success && !r.noChange);
+    const failed = results.filter((r: any) => !r.success);
+
+    return NextResponse.json({
+      message: `Updated ${successful.length} classes`,
+      updated: successful.length,
+      failed: failed.length,
+      results: successful,
+      errors: failed
+    });
+
   } catch (error) {
-    const appError = errorHandler.handleSupabaseError(error, 'auto_status_update', '');
+    console.error('Error in auto-status update:', error);
     return NextResponse.json(
-      { error: appError.message, success: false },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

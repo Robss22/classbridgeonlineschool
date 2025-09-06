@@ -17,9 +17,16 @@ export const queryClient = new QueryClient({
       },
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      // Performance optimizations
+      refetchOnMount: false,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
       retry: false,
+      // Better error handling
+      onError: (error) => {
+        console.error('Mutation error:', error);
+      },
     },
   },
 })

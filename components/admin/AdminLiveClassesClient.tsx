@@ -5,7 +5,7 @@ import { Plus, Video, Play, Pause, Trash2, TrendingUp, Clock, Users, Bell, Alert
 import AdminLiveClassModal from '@/components/AdminLiveClassModal';
 import { useToast } from '@/components/ui/ToastProvider';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { canStartLiveClass, getStartTimeMessage } from '@/utils/timeValidation';
+import { canStartLiveClass, getStartTimeMessage, getClassStatus, getTimeUntilClass } from '@/utils/timeValidation';
 
 export interface LiveClass {
   live_class_id: string;
@@ -67,11 +67,11 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
     }
   }, [toast]);
 
-  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string) => {
+  const handleUpdateStatus = useCallback(async (liveClassId: string, newStatus: string, scheduledDate?: string, startTime?: string, endTime?: string) => {
     try {
       // If trying to start a class, validate the time first
-      if (newStatus === 'ongoing' && scheduledDate && startTime) {
-        const validation = canStartLiveClass(scheduledDate, startTime, false);
+      if (newStatus === 'ongoing' && scheduledDate && startTime && endTime) {
+        const validation = canStartLiveClass(scheduledDate, startTime, endTime, false);
         
         if (!validation.canStart) {
           setError(validation.reason);
@@ -177,11 +177,12 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
 
   const nextClassCountdown = useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0];
+    const today = now.toISOString().split('T')[0] || now.toISOString();
+    const currentTime = now.toTimeString().split(' ')[0] || '';
     const nextClass = liveClasses.find(lc => lc.status === 'scheduled' && lc.scheduled_date === today && lc.start_time > currentTime);
     if (!nextClass) return null as number | null;
     const [h, m] = nextClass.start_time.split(':');
+    if (!h || !m) return null as number | null;
     const t = new Date(); t.setHours(parseInt(h), parseInt(m), 0, 0);
     const diffMin = Math.floor((t.getTime() - now.getTime()) / (1000 * 60));
     return diffMin > 0 ? diffMin : null;
@@ -192,19 +193,6 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
     return () => clearInterval(interval);
   }, [handleAutoStatusUpdate]);
 
-  const getTimeUntilClass = (scheduledDate: string, startTime: string) => {
-    const now = new Date();
-    const classDate = new Date(scheduledDate);
-    const [hours, minutes] = startTime.split(':');
-    classDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    const diffMs = classDate.getTime() - now.getTime();
-    if (diffMs <= 0) return 'Starting now';
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    if (diffMinutes < 60) return `in ${diffMinutes} min`;
-    const diffHours = Math.floor(diffMinutes / 60);
-    const remainingMinutes = diffMinutes % 60;
-    return `in ${diffHours}h ${remainingMinutes}m`;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -295,7 +283,7 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
                         {lc.started_at && <div className="text-xs text-gray-500 mt-1">Started: {new Date(lc.started_at).toLocaleTimeString()}</div>}
                         {lc.status === 'scheduled' && (
                           <div className="text-xs text-blue-600 mt-1">
-                            {getStartTimeMessage(lc.scheduled_date, lc.start_time)}
+                            {getStartTimeMessage(lc.scheduled_date, lc.start_time, lc.end_time)}
                           </div>
                         )}
                       </td>
@@ -304,12 +292,12 @@ export default function AdminLiveClassesClient({ initialLiveClasses, levels, sub
                           {lc.status === 'scheduled' && (
                             <>
                               {(() => {
-                                const validation = canStartLiveClass(lc.scheduled_date, lc.start_time, false);
+                                const validation = canStartLiveClass(lc.scheduled_date, lc.start_time, lc.end_time, false);
                                 return (
                                   <button 
                                     onClick={() => handleUpdateStatus(lc.live_class_id, 'ongoing', lc.scheduled_date, lc.start_time)} 
                                     className={`p-1 ${validation.canStart ? 'text-green-600 hover:text-green-800' : 'text-gray-400 cursor-not-allowed'}`} 
-                                    title={getStartTimeMessage(lc.scheduled_date, lc.start_time)}
+                                    title={getStartTimeMessage(lc.scheduled_date, lc.start_time, lc.end_time)}
                                     disabled={!validation.canStart}
                                   >
                                     <Play className="w-4 h-4" />

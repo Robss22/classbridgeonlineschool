@@ -4,6 +4,18 @@ import AdminLiveClassesClient, { LiveClass } from '@/components/admin/AdminLiveC
 import React from 'react';
 
 export default async function AdminLiveClassesPage() {
+  // Check if service role key is available for server-side operations
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-bold mb-4">Admin Live Classes</h1>
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <p>Service role key not configured. Please set SUPABASE_SERVICE_ROLE_KEY in your environment variables.</p>
+        </div>
+      </div>
+    );
+  }
+
   const supabase = createServerClient();
   const [levelsRes, subjectsRes, teachersRes, programsRes, papersRes, liveRes] = await Promise.all([
     supabase.from('levels').select('*'),

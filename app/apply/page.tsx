@@ -305,7 +305,7 @@ export default function ApplyPage() {
           application: {
             ...form,
             document_url: academicDocsUrl,
-            application_id: applicationInsertData[0].application_id
+            application_id: applicationInsertData?.[0]?.application_id
           }
         };
         

@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qznfggcxumubmjfmudat.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || 'fallback-key');
 
 export async function GET() {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     // Start diagnosis
     
     type TestStatus = 'SUCCESS' | 'FAILED' | 'EXCEPTION'

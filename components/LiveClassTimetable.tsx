@@ -43,7 +43,7 @@ export function LiveClassTimetable({ liveClasses, currentWeekStart, timeSlots }:
     if (!time) return null;
     const trimmed = String(time).trim().toUpperCase();
     const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/);
-    if (!match) return null;
+    if (!match || !match[1] || !match[2]) return null;
     let hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
     const suffix = match[4];
@@ -54,7 +54,8 @@ export function LiveClassTimetable({ liveClasses, currentWeekStart, timeSlots }:
 
   const getClassesForTimeSlot = (date: Date, timeSlot: string) => {
     const [slotHourStr, slotMinuteStr] = timeSlot.split(':');
-    const slotStart = parseInt(slotHourStr, 10) * 60 + parseInt(slotMinuteStr || '0', 10);
+    if (!slotHourStr || !slotMinuteStr) return [];
+    const slotStart = parseInt(slotHourStr, 10) * 60 + parseInt(slotMinuteStr, 10);
     const slotEnd = slotStart + 60; // 1-hour slot
 
     return liveClasses.filter(liveClass => {

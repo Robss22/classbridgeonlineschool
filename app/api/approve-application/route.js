@@ -7,13 +7,18 @@ import { NextResponse } from 'next/server';
 // Initialize Supabase client with the service_role key for server-side admin actions.
 // This key has full privileges and should NEVER be exposed to the client.
 // Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are in your .env.local
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qznfggcxumubmjfmudat.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || 'fallback-key');
 
 export async function POST(req) {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     const { application_id } = await req.json();
 
     if (!application_id) {

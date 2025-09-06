@@ -38,7 +38,7 @@ serve(async (req: Request) => {
   }
 
   let body: any;
-  let application_id: string;
+  let application_id: string | undefined;
   let test_mode: boolean;
   
   try {
@@ -156,6 +156,13 @@ serve(async (req: Request) => {
     }
 
     // Fetch application data
+    if (!application_id) {
+      return new Response(JSON.stringify({ error: 'Missing application_id' }), { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+    
     const application = await fetchApplication(application_id);
     if (!application) {
       console.log("❌ Application not found:", application_id);
@@ -231,7 +238,7 @@ serve(async (req: Request) => {
     
     // Log additional context for debugging
     console.error("❌ Request body was:", body);
-    console.error("❌ Application ID was:", application_id);
+    console.error("❌ Application ID was:", application_id || 'undefined');
     
     return new Response(JSON.stringify({
       success: false,
@@ -240,7 +247,7 @@ serve(async (req: Request) => {
       stack: errorStack,
       code: "APPROVAL_PROCESS_ERROR",
       context: {
-        application_id,
+        application_id: application_id || 'undefined',
         request_body: body
       }
     }), {
@@ -695,7 +702,7 @@ async function enrollInCompulsorySubjects(userId: string, programId: string, lev
   }
 
   // 2. Insert enrollments (skip if already enrolled)
-  const enrollments = offerings.map(o => ({
+  const enrollments = offerings.map((o: any) => ({
     user_id: userId,
     subject_offering_id: o.id,
     enrollment_date: new Date().toISOString(),

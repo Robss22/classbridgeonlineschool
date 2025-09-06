@@ -4,6 +4,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Login page animations */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Toast animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #040917;
@@ -81,6 +99,9 @@ header {
   display: flex;
   align-items: center;
   padding: 1rem 2rem;
+  /* Firefox-specific fixes */
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 /* Ensure main content doesn't overlap with fixed header */
@@ -89,6 +110,40 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  /* Firefox-specific fixes */
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Firefox-specific header positioning fix */
+@-moz-document url-prefix() {
+  header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 80px;
+    z-index: 1000;
+    /* Ensure proper positioning in Firefox */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  
+  main {
+    padding-top: 80px !important;
+    margin-top: 0 !important;
+  }
+  
+  /* Override Tailwind padding classes for Firefox */
+  .pt-32, .pt-20 {
+    padding-top: 80px !important;
+  }
+  
+  /* Ensure proper box model in Firefox */
+  * {
+    -moz-box-sizing: border-box;
+  }
 }
 
 /* For pages with custom layouts, ensure proper spacing */

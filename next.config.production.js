@@ -1,16 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Basic Next.js configuration - no experimental features
+  // Production-specific configuration
   compress: true,
   poweredByHeader: false,
-  generateEtags: false,
-  // output: 'standalone', // Commented out for development
+  generateEtags: true,
+  output: 'standalone',
   trailingSlash: false,
   
-  // Performance optimizations
+  // Production performance optimizations
   reactStrictMode: true,
+  swcMinify: true,
   
-  // Image optimization
+  // Production image optimization
   images: {
     remotePatterns: [
       {
@@ -19,15 +20,14 @@ const nextConfig = {
       },
     ],
     formats: ['image/webp', 'image/avif'],
-    minimumCacheTTL: 31536000,
+    minimumCacheTTL: 31536000, // 1 year caching
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // Add device sizes for responsive images
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   
-  // Security headers
+  // Full security headers for production
   headers: async () => [
     {
       source: '/(.*)',
@@ -100,24 +100,17 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   
   // Environment variables
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
+    NODE_ENV: 'production',
   },
   
-  // Webpack optimizations
+  // Production webpack optimizations
   webpack: (config, { dev, isServer }) => {
-    // Basic fallbacks for Node.js modules
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-      os: false,
-    };
-
     // Only apply optimizations in production
     if (!dev && !isServer) {
       // Optimize bundle splitting
@@ -137,38 +130,27 @@ const nextConfig = {
             priority: 5,
             reuseExistingChunk: true,
           },
+          supabase: {
+            test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+            name: 'supabase',
+            chunks: 'all',
+            priority: 15,
+          },
         },
       };
+      
+      // Enable tree shaking
+      config.optimization.usedExports = true;
+      config.optimization.sideEffects = false;
     }
     
     return config;
   },
   
-  // Experimental features (commented out for stability)
+  // Production-specific experimental features (if needed)
   // experimental: {
   //   serverComponentsExternalPackages: ['@supabase/supabase-js'],
   //   optimizePackageImports: ['@supabase/supabase-js'],
-  // },
-  
-  // Redirects (if needed)
-  // async redirects() {
-  //   return [
-  //     {
-  //       source: '/old-page',
-  //       destination: '/new-page',
-  //       permanent: true,
-  //     },
-  //   ];
-  // },
-  
-  // Rewrites (if needed)
-  // async rewrites() {
-  //   return [
-  //     {
-  //       source: '/api/:path*',
-  //       destination: '/api/:path*',
-  //     },
-  //   ];
   // },
 };
 

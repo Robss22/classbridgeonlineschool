@@ -19,6 +19,11 @@ function validateRequest(data: unknown) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     // === 1. Authenticate request ===
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) return NextResponse.json({ error: 'Missing authorization header' }, { status: 401 });

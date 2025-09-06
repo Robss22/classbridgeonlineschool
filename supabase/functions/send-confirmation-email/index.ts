@@ -1,7 +1,9 @@
 // E:\CLASSBRIDGEONLINESCHOOL\classbridgeonlineschool\supabase\functions\send-confirmation-email\index.ts
 
+// @ts-ignore - Deno imports
 import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
-import { Resend } from "npm:resend@4.6.0"; // Using 5.2.0 as it successfully deployed
+// @ts-ignore - NPM imports in Deno
+import { Resend } from "npm:resend@4.6.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY")!);
 
@@ -10,7 +12,7 @@ const SENDER_NAME = Deno.env.get("RESEND_FROM_NAME") || "Classbridge School";
 
 console.log(`Edge Function send-confirmation-email starting. Sender: "${SENDER_NAME} <${SENDER_EMAIL}>"`);
 
-serve(async (req) => {
+serve(async (req: Request) => {
   console.log(`Received request: ${req.method} ${req.url}`);
 
   // Define CORS headers
@@ -97,26 +99,26 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Error in send-confirmation-email Edge Function:", error.message);
+    console.error("Error in send-confirmation-email Edge Function:", (error as Error).message);
 
-    if (error.name === 'ResendError' || (error.response && typeof error.response.json === 'function')) {
+          if ((error as any).name === 'ResendError' || ((error as any).response && typeof (error as any).response.json === 'function')) {
       try {
-        const errorDetails = await error.response.json();
-        console.error("Resend API Specific Error Details:", error.response.status, errorDetails);
+                  const errorDetails = await (error as any).response.json();
+                  console.error("Resend API Specific Error Details:", (error as any).response.status, errorDetails);
         return new Response(JSON.stringify({
-          error: error.message || 'Failed to send email via Resend',
-          resendStatus: error.response.status,
+                      error: (error as Error).message || 'Failed to send email via Resend',
+                      resendStatus: (error as any).response.status,
           resendDetails: errorDetails,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: error.response.status || 500,
+                      status: (error as any).response.status || 500,
         });
       } catch (jsonError) {
         console.error("Failed to parse Resend error response:", jsonError);
       }
     }
     
-    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), {
+            return new Response(JSON.stringify({ error: (error as Error).message || 'Internal Server Error' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -5,6 +5,11 @@ import { cache } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     

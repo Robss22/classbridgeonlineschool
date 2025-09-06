@@ -330,7 +330,7 @@ export default function AdminTimetablePage() {
     
     const trimmed = time.trim();
     const match = trimmed.match(/^(\d{1,2}):(\d{2}):?(\d{2})?/);
-    if (!match) {
+    if (!match || !match[1] || !match[2]) {
       return 0;
     }
     

@@ -54,7 +54,7 @@ export default function TeacherTimetablePage() {
     const trimmed = time.trim();
     // Accept HH:MM or HH:MM:SS
     const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (!match) return 0;
+    if (!match || !match[1] || !match[2]) return 0;
     const hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
     return hours * 60 + minutes;

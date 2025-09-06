@@ -1,248 +1,239 @@
-# ClassBridge Online School Platform
+# ClassBridge Online School
 
-A comprehensive educational management system built with Next.js, TypeScript, and Supabase.
+A modern, high-performance online learning platform built with Next.js 14, React 18, and Supabase.
 
 ## 🚀 Features
 
-- **Multi-role Authentication**: Admin, Teacher, and Student portals
-- **Content Management**: Resources, assessments, and assignments
-- **Real-time Messaging**: Integrated communication system
-- **File Management**: Secure file upload/download with Supabase Storage
-- **Role-based Access Control**: Granular permissions and security
-- **Responsive Design**: Modern UI with Tailwind CSS
-
-## 🏗️ Architecture
-
-```
-classbridgeonlineschool/
-├── app/                    # Next.js App Router pages
-│   ├── admin/             # Admin dashboard and management
-│   ├── teachers/          # Teacher portal and tools
-│   ├── students/          # Student portal and content
-│   ├── api/               # API routes
-│   └── globals.css        # Global styles
-├── components/            # Reusable React components
-├── contexts/              # React Context providers
-├── lib/                   # Utility functions and configurations
-├── types/                 # TypeScript type definitions
-├── supabase/              # Supabase configuration and functions
-└── scripts/               # Database migration and utility scripts
-```
+- **Modern Architecture**: Built with Next.js 14 App Router and React 18
+- **High Performance**: Optimized bundle splitting and code splitting
+- **Type Safety**: Full TypeScript support with strict configuration
+- **Real-time**: Supabase integration for live updates
+- **Responsive**: Mobile-first design with Tailwind CSS
+- **SEO Optimized**: Server-side rendering and metadata optimization
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Styling**: Tailwind CSS, Framer Motion
-- **Backend**: Supabase (PostgreSQL, Auth, Storage)
-- **Testing**: Jest, React Testing Library, Playwright
-- **Deployment**: Vercel (recommended)
+- **Frontend**: Next.js 14, React 18, TypeScript
+- **Styling**: Tailwind CSS, CSS Modules
+- **State Management**: TanStack React Query
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Icons**: Lucide React, React Icons
+- **Charts**: Recharts
+- **Forms**: React Hook Form + Zod validation
 
-## 📦 Installation
+## 📋 Prerequisites
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd classbridgeonlineschool
-   ```
+- Node.js 18+ 
+- npm 9+ or yarn
+- Git
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## 🚀 Quick Start
 
-3. **Environment Setup**
-   Create a `.env.local` file:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   RESEND_API_KEY=your_resend_api_key
-   ```
-
-4. **Database Setup**
-   - Run the SQL migration scripts in `supabase/` directory
-   - Set up Row Level Security (RLS) policies
-   - Configure storage buckets
-
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
-
-## 🧪 Testing
-
+### 1. Clone the repository
 ```bash
-# Unit tests
-npm run test
-
-# Watch mode
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
-
-# E2E tests
-npm run test:e2e
+git clone <repository-url>
+cd classbridgeonlineschool
 ```
 
-## 🕒 Scheduled Tasks
-
-- Session cleanup API: `POST /api/sessions/cleanup`
-- Windows scheduler helper: `scripts/setup-session-cleanup.ps1` (usage: `./scripts/setup-session-cleanup.ps1 -AppBaseUrl "https://your-app"`)
-
-## 🔒 Live Class Attendance
-
-- Join/leave events are posted to `/api/attendance/event` with bearer token
-- Students/Teachers join via `app/students/live/join/[liveClassId]` and `app/teachers/live/join/[liveClassId]`
-- Pre-join checks ensure time window and basic enrollment (soft)
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
-
-### Manual Deployment
+### 2. Install dependencies
 ```bash
-npm run build
-npm start
+npm install
 ```
 
-## 🔧 Development Guidelines
-
-### Code Style
-- Use TypeScript for all new code
-- Follow ESLint configuration
-- Use Prettier for formatting
-- Write meaningful commit messages
-
-### Component Structure
-```typescript
-// components/ExampleComponent.tsx
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface ExampleComponentProps {
-  title: string;
-  children?: React.ReactNode;
-}
-
-export default function ExampleComponent({ title, children }: ExampleComponentProps) {
-  const { user } = useAuth();
-  
-  return (
-    <div className="p-4">
-      <h1>{title}</h1>
-      {children}
-    </div>
-  );
-}
+### 3. Set up environment variables
+Create a `.env.local` file in the root directory:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-### Error Handling
-```typescript
-import { errorHandler } from '@/lib/errorHandler';
-
-try {
-  const { data, error } = await supabase.from('table').select('*');
-  if (error) throw error;
-} catch (error) {
-  const appError = errorHandler.handleSupabaseError(error, 'fetch_data', user?.id);
-  // Handle error appropriately
-}
+### 4. Run the development server
+```bash
+npm run dev
 ```
 
-### Caching
-```typescript
-import { cache } from '@/lib/cache';
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-// Cache frequently accessed data
-const cachedData = cache.get('key');
-if (!cachedData) {
-  const data = await fetchData();
-  cache.set('key', data, 5 * 60 * 1000); // 5 minutes
-}
+## 🏗️ Build Commands
+
+### Development
+```bash
+npm run dev          # Start development server
+npm run lint         # Run ESLint
+npm run type-check   # Run TypeScript type checking
 ```
 
-## 📊 Database Schema
+### Production Builds
+```bash
+npm run build                    # Standard production build
+npm run build:performance        # Performance-optimized build
+npm run build:optimized         # Clean + performance build
+npm run build:analyze           # Build with bundle analysis
+```
 
-### Core Tables
-- `users`: User profiles and authentication
-- `teachers`: Teacher-specific data
-- `students`: Student enrollment and progress
-- `programs`: Educational programs
-- `levels`: Academic levels within programs
-- `subjects`: Course subjects
-- `teacher_assignments`: Teacher-subject-level assignments
-- `resources`: Educational materials
-- `assessments`: Tests and assignments
-- `messages`: Communication system
+### Performance Analysis
+```bash
+npm run analyze                  # Analyze bundle size
+npm run analyze:performance      # Analyze performance build
+npm run performance:check        # Build + Lighthouse audit
+npm run performance:lighthouse  # Run Lighthouse audit
+```
 
-### Security
-- Row Level Security (RLS) policies
-- Role-based access control
-- Secure file uploads
-- Input validation and sanitization
+### Deployment
+```bash
+npm run deploy:production        # Production deployment
+npm run deploy:performance       # Performance-optimized deployment
+```
 
-## 🔒 Security Features
+## 📊 Performance Optimization
 
-- **Authentication**: Supabase Auth with JWT
-- **Authorization**: Role-based access control
-- **Data Protection**: Row Level Security (RLS)
-- **File Security**: Secure storage with access controls
-- **Input Validation**: Server-side validation
-- **Rate Limiting**: API request throttling
-- **Security Headers**: XSS and CSRF protection
+This project includes several performance optimizations:
 
-## 📈 Performance Optimization
+### Bundle Splitting
+- **Vendor chunks**: Node modules separated by category
+- **React chunks**: React and React DOM isolated
+- **Supabase chunks**: Database client optimized
+- **Utility chunks**: Common utilities bundled together
+- **Icon chunks**: Icon libraries optimized
 
-- **Caching**: In-memory cache for frequent data
-- **Image Optimization**: Next.js Image component
-- **Code Splitting**: Automatic route-based splitting
-- **Bundle Analysis**: Webpack bundle analyzer
-- **Database Indexing**: Optimized queries
+### Code Splitting
+- Dynamic imports for route-based splitting
+- Component-level lazy loading
+- Suspense boundaries for better UX
+
+### Webpack Optimizations
+- Tree shaking enabled
+- Module concatenation
+- Advanced chunk splitting
+- Performance budgets (500KB per chunk)
+
+### Image Optimization
+- WebP and AVIF formats
+- Automatic optimization
+- Lazy loading
+- Responsive images
+
+## 🔧 Configuration Files
+
+- `next.config.js` - Main Next.js configuration
+- `next.config.performance.js` - Performance-optimized configuration
+- `tsconfig.json` - TypeScript configuration
+- `tailwind.config.js` - Tailwind CSS configuration
+- `.eslintrc.json` - ESLint configuration
+
+## 📁 Project Structure
+
+```
+classbridgeonlineschool/
+├── app/                    # Next.js 14 App Router
+│   ├── layout.tsx         # Root layout
+│   ├── page.tsx           # Home page
+│   ├── globals.css        # Global styles
+│   └── [routes]/          # Route directories
+├── components/             # Reusable components
+│   ├── ui/                # UI components
+│   ├── layout/            # Layout components
+│   └── [feature]/         # Feature-specific components
+├── lib/                    # Utility libraries
+├── utils/                  # Helper functions
+├── types/                  # TypeScript type definitions
+├── supabase/               # Supabase configuration
+└── public/                 # Static assets
+```
+
+## 🚀 Performance Best Practices
+
+### 1. Bundle Size Management
+- Keep chunks under 500KB
+- Use dynamic imports for large components
+- Optimize third-party libraries
+
+### 2. Image Optimization
+- Use Next.js Image component
+- Implement lazy loading
+- Choose appropriate formats (WebP/AVIF)
+
+### 3. Code Splitting
+- Route-based splitting
+- Component-level splitting
+- Suspense boundaries
+
+### 4. Caching Strategy
+- Static assets: 1 year
+- API routes: No cache
+- Dynamic content: Appropriate TTL
+
+## 🔍 Monitoring & Analytics
+
+### Bundle Analysis
+```bash
+npm run analyze
+# Opens bundle analyzer in browser
+```
+
+### Performance Monitoring
+```bash
+npm run performance:check
+# Runs Lighthouse audit and generates report
+```
+
+### Type Checking
+```bash
+npm run type-check
+# Ensures type safety across the project
+```
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Authentication Errors**
-   - Check environment variables
-   - Verify Supabase configuration
-   - Clear browser cache
+1. **Build Errors**
+   ```bash
+   npm run clean:all
+   npm install
+   npm run build
+   ```
 
-2. **Database Connection Issues**
-   - Verify Supabase URL and keys
-   - Check RLS policies
-   - Review database logs
+2. **Type Errors**
+   ```bash
+   npm run type-check
+   npm run lint:fix
+   ```
 
-3. **File Upload Failures**
-   - Check storage bucket permissions
-   - Verify file size limits
-   - Review CORS settings
+3. **Performance Issues**
+   ```bash
+   npm run analyze
+   npm run performance:check
+   ```
 
-### Debug Mode
-```bash
-# Enable debug logging
-DEBUG=* npm run dev
-```
+### Performance Issues
+
+- **Large bundles**: Use `npm run analyze` to identify large dependencies
+- **Slow builds**: Use `npm run build:performance` for optimized builds
+- **Runtime performance**: Check Lighthouse scores with `npm run performance:lighthouse`
+
+## 📚 Additional Resources
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [React Documentation](https://react.dev)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [Supabase Documentation](https://supabase.com/docs)
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
+4. Run tests and linting
 5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
-This project is proprietary software. All rights reserved.
+This project is licensed under the MIT License.
 
 ## 🆘 Support
 
-For technical support or questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation in `/docs` directory
+For support, please open an issue in the GitHub repository or contact the development team.

@@ -48,7 +48,7 @@ interface Announcement {
 function TodaySchedule({ liveClasses, scheduledClasses }: { liveClasses: LiveClass[]; scheduledClasses: ScheduledClass[] }) {
   // Use the same date logic as the main query - check both local and UTC dates
   const today = format(new Date(), 'yyyy-MM-dd');
-  const todayUTC = format(new Date().toISOString().split('T')[0], 'yyyy-MM-dd');
+  const todayUTC = format(new Date().toISOString().split('T')[0] || new Date().toISOString(), 'yyyy-MM-dd');
   
   const todayClasses = liveClasses.filter(liveClass => {
     const classDate = format(parseISO(liveClass.scheduled_date), 'yyyy-MM-dd');
@@ -318,7 +318,7 @@ export default function StudentDashboard() {
 
         // Fetch today's live classes - use UTC to avoid timezone issues
         const today = format(new Date(), 'yyyy-MM-dd');
-        const todayUTC = format(new Date().toISOString().split('T')[0], 'yyyy-MM-dd');
+        const todayUTC = format(new Date().toISOString().split('T')[0] || new Date().toISOString(), 'yyyy-MM-dd');
         
 
         

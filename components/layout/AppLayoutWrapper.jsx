@@ -2,27 +2,35 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import ClientLayout from './ClientLayout';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import LoadingScreen from '../LoadingScreen';
 
-export default function AppLayoutWrapper({ children }) {
+function AppContent({ children }) {
   const pathname = usePathname();
+  const { loading } = useAuth();
+  
+  // Show loading screen while auth is initializing
+  if (loading) {
+    return <LoadingScreen />;
+  }
+  
   // Remove header/footer for all dashboard areas
   const isDashboardArea =
     pathname.startsWith('/students') ||
     pathname.startsWith('/teachers') ||
     pathname.startsWith('/admin');
+    
   if (isDashboardArea) {
-    return <AuthProvider>{children}</AuthProvider>;
+    return <>{children}</>;
   }
+  
   return (
     <div className="layout-wrapper">
-      <AuthProvider>
-        <ClientLayout>
-          <main className="flex-1 pt-32 pb-16 bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
-            {children}
-          </main>
-        </ClientLayout>
-      </AuthProvider>
+      <ClientLayout>
+        <main className="flex-1 pt-20 pb-16 bg-gradient-to-b from-blue-100 via-blue-200 to-blue-300">
+          {children}
+        </main>
+      </ClientLayout>
       {/* Modern Footer */}
       <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 text-white py-16 relative z-10 mt-auto">
         <div className="container mx-auto px-6">
@@ -67,5 +75,13 @@ export default function AppLayoutWrapper({ children }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function AppLayoutWrapper({ children }) {
+  return (
+    <AuthProvider>
+      <AppContent>{children}</AppContent>
+    </AuthProvider>
   );
 } 

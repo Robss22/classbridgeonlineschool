@@ -3,13 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import { MeetingTerminationService } from '@/lib/services/meetingTerminationService';
 
 // Initialize Supabase client with service role key for admin operations
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qznfggcxumubmjfmudat.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey || 'fallback-key');
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if service role key is properly configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Service role key not configured' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { live_class_id, force_disconnect = false } = body;
 

@@ -185,6 +185,11 @@ export default function TeacherMessagesPage() {
       const rootId = thread[0]?.parent_id || thread[0]?.id;
       // Determine recipient: if user is sender, reply to the other party
       const lastMsg = thread[thread.length - 1];
+      if (!lastMsg) {
+        setThreadError("No message found in thread");
+        setReplying(false);
+        return;
+      }
       const recipientId = lastMsg.sender_id === user.id ? lastMsg.recipient_id : lastMsg.sender_id;
       if (!recipientId) {
         setThreadError("Invalid recipient");
